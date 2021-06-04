@@ -1,0 +1,393 @@
+#include "GPIO.h"
+#include "MemoryUtility.h"
+#include "MemoryAccess.h"
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+
+// TODO remove
+#include <iostream>
+
+using namespace ::testing;
+
+
+class AGPIO : public Test
+{
+public:
+
+  //! Based on real reset values for GPIO register (soruce STM32L4R9 reference manual)
+  static constexpr uint32_t GPIO_PORT_MODER_RESET_VALUE   = 0xFFFFFFFF;
+  static constexpr uint32_t GPIO_PORT_OTYPER_RESET_VALUE  = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_OSPEEDR_RESET_VALUE = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_PUPDR_RESET_VALUE   = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_IDR_RESET_VALUE     = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_ODR_RESET_VALUE     = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_BSRR_RESET_VALUE    = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_LCKR_RESET_VALUE    = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_AFRL_RESET_VALUE    = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_AFRH_RESET_VALUE    = 0x00000000;
+  static constexpr uint32_t GPIO_PORT_BRR_RESET_VALUE     = 0x00000000;
+
+  static constexpr GPIO::Pin RANDOM_GPIO_PIN = GPIO::Pin::PIN10;
+
+  //! Needed to verify statement for setting and getting registers value
+  NiceMock<MemoryAccessHook> memoryAccessHook;
+
+  GPIO_TypeDef virtualGPIOPort;
+  GPIO virtualGPIO = GPIO(&virtualGPIOPort);
+  GPIO::PinConfiguration pinConfig;
+
+  uint32_t expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value);
+  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
+  void expectRegisterNotToChange(volatile uint32_t *registerPtr);
+  void expectNoRegisterToChange(void);
+
+  void SetUp() override;
+  void TearDown() override;
+};
+
+uint32_t AGPIO::expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value)
+{
+  const uint32_t startBit = static_cast<uint32_t>(pin) * valueSize;
+  const uint32_t mask = 0xFFFFFFFFu >> (sizeof(uint32_t) * 8u - valueSize);
+
+  return (initialRegVal & ~(mask << startBit)) | ((value & mask) << startBit);
+}
+
+void AGPIO::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
+    .Times(1u);
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
+    .Times(AnyNumber()); 
+}
+
+void AGPIO::expectRegisterNotToChange(volatile uint32_t *registerPtr)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+    .Times(0u);
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
+    .Times(AnyNumber()); 
+}
+
+void AGPIO::expectNoRegisterToChange(void)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
+    .Times(0u);
+}
+
+void AGPIO::SetUp()
+{
+  // set values of virtual GPIO port to reset values
+  virtualGPIOPort.MODER   = GPIO_PORT_MODER_RESET_VALUE;
+  virtualGPIOPort.OTYPER  = GPIO_PORT_OTYPER_RESET_VALUE;
+  virtualGPIOPort.OSPEEDR = GPIO_PORT_OSPEEDR_RESET_VALUE;
+  virtualGPIOPort.PUPDR   = GPIO_PORT_PUPDR_RESET_VALUE;
+  virtualGPIOPort.IDR     = GPIO_PORT_IDR_RESET_VALUE;
+  virtualGPIOPort.ODR     = GPIO_PORT_ODR_RESET_VALUE;
+  virtualGPIOPort.BSRR    = GPIO_PORT_BSRR_RESET_VALUE;
+  virtualGPIOPort.LCKR    = GPIO_PORT_AFRL_RESET_VALUE;
+  virtualGPIOPort.AFR[0]  = GPIO_PORT_AFRL_RESET_VALUE;
+  virtualGPIOPort.AFR[1]  = GPIO_PORT_AFRH_RESET_VALUE;
+  virtualGPIOPort.BRR     = GPIO_PORT_BRR_RESET_VALUE;
+
+  // config is initailized to random valid parameters
+  pinConfig.mode              = GPIO::PinMode::ANALOG;
+  pinConfig.pullConfig        = GPIO::PullConfig::NO_PULL;
+  pinConfig.outputSpeed       = GPIO::OutputSpeed::LOW;
+  pinConfig.outputType        = GPIO::OutputType::PUSH_PULL;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF9;
+
+  MemoryAccess::setMemoryAccessHook(&memoryAccessHook);
+}
+
+void AGPIO::TearDown()
+{
+  MemoryAccess::setMemoryAccessHook(nullptr);
+}
+
+
+TEST_F(AGPIO, ConfigurePinSetsMODERRegisterAccordingToChoosenMode)
+{
+  const uint32_t expectedModerValue = 
+    expectedRegVal(GPIO_PORT_MODER_RESET_VALUE, RANDOM_GPIO_PIN, 2u, static_cast<uint32_t>(GPIO::PinMode::OUTPUT));
+  pinConfig.mode = GPIO::PinMode::OUTPUT;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.MODER), expectedModerValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.MODER, Eq(expectedModerValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinSetsPUPDRRegisterAccordingToChoosenPullConfig)
+{
+  const uint32_t expectedPupdrValue = 
+    expectedRegVal(GPIO_PORT_PUPDR_RESET_VALUE, RANDOM_GPIO_PIN, 2u, static_cast<uint32_t>(GPIO::PullConfig::PULL_UP));
+  pinConfig.mode       = GPIO::PinMode::INPUT;
+  pinConfig.pullConfig = GPIO::PullConfig::PULL_UP;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.PUPDR), expectedPupdrValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.PUPDR, Eq(expectedPupdrValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinAlwaysSetsPUPDRegisterToNoPullForAnalogMode)
+{
+  const uint32_t expectedPupdrValue = 
+    expectedRegVal(GPIO_PORT_PUPDR_RESET_VALUE, RANDOM_GPIO_PIN, 2u, static_cast<uint32_t>(GPIO::PullConfig::NO_PULL));
+  pinConfig.mode       = GPIO::PinMode::ANALOG;
+  pinConfig.pullConfig = GPIO::PullConfig::PULL_UP;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.PUPDR), expectedPupdrValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.PUPDR, Eq(expectedPupdrValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinSetsOSPEEDRRegisterAccordingToChoosenOutputSpeed)
+{
+  const uint32_t expectedOspeedrValue = 
+    expectedRegVal(GPIO_PORT_OSPEEDR_RESET_VALUE, RANDOM_GPIO_PIN, 2u, static_cast<uint32_t>(GPIO::OutputSpeed::HIGH));
+  pinConfig.mode        = GPIO::PinMode::OUTPUT;
+  pinConfig.outputSpeed = GPIO::OutputSpeed::HIGH;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.OSPEEDR), expectedOspeedrValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OSPEEDR, Eq(expectedOspeedrValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfOSPEEDRRegisterInInputMode)
+{
+  pinConfig.mode        = GPIO::PinMode::INPUT;
+  pinConfig.outputSpeed = GPIO::OutputSpeed::HIGH;
+  expectRegisterNotToChange(&(virtualGPIOPort.OSPEEDR));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OSPEEDR, Eq(GPIO_PORT_OSPEEDR_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfOSPEEDRRegisterInAnalogMode)
+{
+  pinConfig.mode        = GPIO::PinMode::ANALOG;
+  pinConfig.outputSpeed = GPIO::OutputSpeed::HIGH;
+  expectRegisterNotToChange(&(virtualGPIOPort.OSPEEDR));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OSPEEDR, Eq(GPIO_PORT_OSPEEDR_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinSetsOTYPERRegisterAccordingToChoosenOutputType)
+{
+  const uint32_t expectedOtyperValue = 
+    expectedRegVal(GPIO_PORT_OTYPER_RESET_VALUE, RANDOM_GPIO_PIN, 1u, static_cast<uint32_t>(GPIO::OutputType::OPEN_DRAIN));
+  pinConfig.mode       = GPIO::PinMode::OUTPUT;
+  pinConfig.outputType = GPIO::OutputType::OPEN_DRAIN;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.OTYPER), expectedOtyperValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OTYPER, Eq(expectedOtyperValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinSetsAFRLegisterAccordingToChoosenAlternateFunction)
+{
+  constexpr GPIO::Pin LOW_GPIO_PIN = GPIO::Pin::PIN6;
+  const uint32_t expectedAfrlValue = 
+    expectedRegVal(GPIO_PORT_AFRL_RESET_VALUE, LOW_GPIO_PIN, 4u, static_cast<uint32_t>(GPIO::AlternateFunction::AF7));
+  pinConfig.mode              = GPIO::PinMode::AF;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF7;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.AFR[0]), expectedAfrlValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(LOW_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.AFR[0], Eq(expectedAfrlValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinSetsAFRHegisterAccordingToChoosenAlternateFunction)
+{
+  constexpr GPIO::Pin HIGH_GPIO_PIN = GPIO::Pin::PIN14;
+  constexpr GPIO::Pin RELATIVE_HIGH_GPIO_PIN_POS = GPIO::Pin::PIN6;
+  const uint32_t expectedAfrhValue = 
+    expectedRegVal(GPIO_PORT_AFRH_RESET_VALUE, RELATIVE_HIGH_GPIO_PIN_POS, 4u, static_cast<uint32_t>(GPIO::AlternateFunction::AF13));
+  pinConfig.mode              = GPIO::PinMode::AF;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF13;
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.AFR[1]), expectedAfrhValue);
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(HIGH_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.AFR[1], Eq(expectedAfrhValue));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfOTYPERRegisterInAnalogMode)
+{
+  pinConfig.mode       = GPIO::PinMode::ANALOG;
+  pinConfig.outputType = GPIO::OutputType::OPEN_DRAIN;
+  expectRegisterNotToChange(&(virtualGPIOPort.OTYPER));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OTYPER, Eq(GPIO_PORT_OTYPER_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfOTYPERRegisterInInputMode)
+{
+  pinConfig.mode       = GPIO::PinMode::INPUT;
+  pinConfig.outputType = GPIO::OutputType::OPEN_DRAIN;
+  expectRegisterNotToChange(&(virtualGPIOPort.OTYPER));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.OTYPER, Eq(GPIO_PORT_OTYPER_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfARRegistersInInputMode)
+{
+  constexpr GPIO::Pin LOW_GPIO_PIN = GPIO::Pin::PIN6;
+  pinConfig.mode              = GPIO::PinMode::INPUT;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF10;
+  expectRegisterNotToChange(&(virtualGPIOPort.AFR[0]));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(LOW_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.AFR[0], Eq(GPIO_PORT_AFRL_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfARRegistersInOutputMode)
+{
+  constexpr GPIO::Pin HIGH_GPIO_PIN = GPIO::Pin::PIN10;
+  pinConfig.mode              = GPIO::PinMode::OUTPUT;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF10;
+  expectRegisterNotToChange(&(virtualGPIOPort.AFR[1]));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(HIGH_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.AFR[1], Eq(GPIO_PORT_AFRH_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfARRegistersInAnalogMode)
+{
+  constexpr GPIO::Pin HIGH_GPIO_PIN = GPIO::Pin::PIN14;
+  pinConfig.mode              = GPIO::PinMode::ANALOG;
+  pinConfig.alternateFunction = GPIO::AlternateFunction::AF3;
+  expectRegisterNotToChange(&(virtualGPIOPort.AFR[1]));
+  
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(HIGH_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.AFR[1], Eq(GPIO_PORT_AFRH_RESET_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfPinIsOutOfAllowedRange)
+{
+  const GPIO::Pin invalidPin = static_cast<GPIO::Pin>(16u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(invalidPin, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfModeIsOutOfAllowedRange)
+{
+  pinConfig.mode  = static_cast<GPIO::PinMode>(7u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfPullConfigIsOutOfAllowedRange)
+{
+  pinConfig.pullConfig  = static_cast<GPIO::PullConfig>(4u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfOutputSpeedIsOutOfAllowedRangeInOutputMode)
+{
+  pinConfig.mode        = GPIO::PinMode::OUTPUT;
+  pinConfig.outputSpeed  = static_cast<GPIO::OutputSpeed>(4u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfOutputSpeedIsOutOfAllowedRangeInAFMode)
+{
+  pinConfig.mode        = GPIO::PinMode::AF;
+  pinConfig.outputSpeed  = static_cast<GPIO::OutputSpeed>(4u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfOutputTypeIsOutOfAllowedRangeInOutputMode)
+{
+  pinConfig.mode       = GPIO::PinMode::OUTPUT;
+  pinConfig.outputType = static_cast<GPIO::OutputType>(2u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfOutputTypeIsOutOfAllowedRangeInAFMode)
+{
+  pinConfig.mode        = GPIO::PinMode::AF;
+  pinConfig.outputType = static_cast<GPIO::OutputType>(4u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, ConfiguresPinFailsIfAlternateFunctionIsOutOfAllowedRangeInAFMode)
+{
+  pinConfig.mode              = GPIO::PinMode::AF;
+  pinConfig.alternateFunction = static_cast<GPIO::AlternateFunction>(17u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AGPIO, InOutputModeSetsPinStateSetsPinStateToWantedLevel)
+{
+  const uint32_t expectedOdrValue = 
+    expectedRegVal(GPIO_PORT_ODR_RESET_VALUE, RANDOM_GPIO_PIN, 1u, static_cast<uint32_t>(GPIO::PinState::HIGH));
+  pinConfig.mode = GPIO::PinMode::OUTPUT;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectRegisterSetOnlyOnce(&(virtualGPIOPort.ODR), expectedOdrValue);
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.setPinState(RANDOM_GPIO_PIN, GPIO::PinState::HIGH);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(virtualGPIOPort.ODR, Eq(expectedOdrValue));
+}
