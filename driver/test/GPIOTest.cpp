@@ -391,3 +391,112 @@ TEST_F(AGPIO, InOutputModeSetsPinStateSetsPinStateToWantedLevel)
   ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
   ASSERT_THAT(virtualGPIOPort.ODR, Eq(expectedOdrValue));
 }
+
+TEST_F(AGPIO, SetPinStateFailesInAnyModeOtherThanOutput)
+{
+  pinConfig.mode = GPIO::PinMode::ANALOG;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange(); 
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.setPinState(RANDOM_GPIO_PIN, GPIO::PinState::HIGH);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_MODE_IS_NOT_APPROPRIATE));
+}
+
+TEST_F(AGPIO, SetsPinStateFailsIfPinIsOutOfAllowedRange)
+{
+  const GPIO::Pin invalidPin = static_cast<GPIO::Pin>(16u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.setPinState(invalidPin, GPIO::PinState::HIGH);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_VALUE));
+}
+
+TEST_F(AGPIO, SetsPinStateFailsIfPinStateIsOutOfAllowedRange)
+{
+  const GPIO::PinState invalidPinState = static_cast<GPIO::PinState>(2u);
+  expectNoRegisterToChange();
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.setPinState(RANDOM_GPIO_PIN, invalidPinState);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_STATE_VALUE));
+}
+
+TEST_F(AGPIO, GetsPinMode)
+{
+  constexpr GPIO::PinMode EXPECTED_PIN_MODE = GPIO::PinMode::OUTPUT;
+  pinConfig.mode = EXPECTED_PIN_MODE;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange();
+
+  GPIO::PinMode pinMode;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinMode(RANDOM_GPIO_PIN, pinMode);
+
+  ASSERT_THAT(pinMode, Eq(EXPECTED_PIN_MODE));
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+}
+
+TEST_F(AGPIO, GetsPinModeFailsIfPinIsOutOfAllowedRange)
+{
+  const GPIO::Pin invalidPin = static_cast<GPIO::Pin>(16u);
+  expectNoRegisterToChange();
+
+  GPIO::PinMode pinMode;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinMode(invalidPin, pinMode);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_VALUE));
+}
+
+TEST_F(AGPIO, GetsPinStateGetsValueFromODRWhenInOutputMode)
+{
+  virtualGPIOPort.ODR = 
+    static_cast<uint32_t>(GPIO::PinState::HIGH) << static_cast<uint32_t>(RANDOM_GPIO_PIN);
+  pinConfig.mode = GPIO::PinMode::OUTPUT;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange();
+
+  GPIO::PinState state;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinState(RANDOM_GPIO_PIN, state);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(state, Eq(GPIO::PinState::HIGH));
+}
+
+TEST_F(AGPIO, GetsPinStateGetsValueFromIDRWhenInInputMode)
+{
+  virtualGPIOPort.IDR = 
+    static_cast<uint32_t>(GPIO::PinState::HIGH) << static_cast<uint32_t>(RANDOM_GPIO_PIN);
+  pinConfig.mode = GPIO::PinMode::INPUT;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange();
+
+  GPIO::PinState state;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinState(RANDOM_GPIO_PIN, state);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+  ASSERT_THAT(state, Eq(GPIO::PinState::HIGH));
+}
+
+TEST_F(AGPIO, GetsPinStateFailsForAnyModeOtherThanInputOrOutput)
+{
+  pinConfig.mode = GPIO::PinMode::ANALOG;
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange();
+
+  GPIO::PinState state;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinState(RANDOM_GPIO_PIN, state);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::PIN_MODE_IS_NOT_APPROPRIATE));
+}
+
+TEST_F(AGPIO, GetsPinStateFailsIfPinIsOutOfAllowedRange)
+{
+  const GPIO::Pin invalidPin = static_cast<GPIO::Pin>(16u);
+  expectNoRegisterToChange();
+
+  GPIO::PinState state;
+  const GPIO::ErrorCode errorCode = virtualGPIO.getPinState(invalidPin, state);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_VALUE));
+}

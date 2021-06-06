@@ -71,3 +71,16 @@ void MemoryUtility::setBitsInRegister(volatile void *registerPtr, uint32_t start
     MemoryAccess::setRegisterValue(registerPtr, registerValue);
   }
 }
+
+uint32_t MemoryUtility::getBitsInRegister(volatile const void *registerPtr, uint32_t startBit, uint32_t numberOfBits)
+{
+  uint32_t retval = 0u;
+
+  if (MAX_ALLOWED_BIT >= (startBit + numberOfBits))
+  {
+    const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
+    retval = ((registerValue >> startBit) & MASK[numberOfBits]);
+  }
+
+  return retval;
+}

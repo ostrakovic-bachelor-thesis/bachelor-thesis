@@ -41,6 +41,19 @@ public:
    */
   static void setBitsInRegister(volatile void *registerPtr, uint32_t startBit, uint32_t numberOfBits, uint32_t value);
 
+ /**
+   * @brief   Static method gets {startBits ... startBits + numberOfBits - 1} bits in register,
+   *          pointed by 'registerPtr'.
+   * @details If you want to read value of bits which are out of scope of register, then
+   *          this method will return 0u.
+   * 
+   * @param[in] registerPtr  - Pointer to register.
+   * @param[in] startBit     - Bit starting from which value will be get.
+   * @param[in] numberOfBits - Size of value in bits.
+   * @return Value of bits on wanted position in the register.
+   */
+  static uint32_t getBitsInRegister(volatile const void *registerPtr, uint32_t startBit, uint32_t numberOfBits);
+
 private:
   
   //! Array with precalculated values of masks for value of n-bits size (n is index to MASK array).

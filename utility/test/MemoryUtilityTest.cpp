@@ -102,7 +102,7 @@ TEST_F(TheMemoryUtility, SetsSubsetOfBitsMasksAllBitsInValueExpectFirstNumOfBits
   ASSERT_THAT(virtualRegister, Eq(EXPECTED_REGISTER_VALUE));
 }
 
-TEST_F(TheMemoryUtility, SetsSubsetOfBitsDoesnChangeValueIfBitsToChangeAreOutOfScope)
+TEST_F(TheMemoryUtility, SetsSubsetOfBitsDoesNotChangeValueIfBitsToChangeAreOutOfScope)
 {
   static constexpr uint32_t START_BIT   = 30u;
   static constexpr uint32_t NUM_OF_BITS = 4u;
@@ -115,4 +115,33 @@ TEST_F(TheMemoryUtility, SetsSubsetOfBitsDoesnChangeValueIfBitsToChangeAreOutOfS
   MemoryUtility::setBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS, VALUE);
 
   ASSERT_THAT(virtualRegister, Eq(INITIAL_REGISTER_VALUE));
+}
+
+TEST_F(TheMemoryUtility, GetsValueOfSubsetOfBitsInRegister)
+{
+  static constexpr uint32_t START_BIT   = 16u;
+  static constexpr uint32_t NUM_OF_BITS = 8u;
+  static constexpr uint32_t INITIAL_REGISTER_VALUE  = 0x00FA0000;
+  static constexpr uint32_t EXPECTED_VALUE = 0xFA;
+  virtualRegister = INITIAL_REGISTER_VALUE;
+  EXPECT_CALL(memoryAccessHook, getRegisterValue(&virtualRegister))
+    .Times(1u);
+
+  uint32_t value = MemoryUtility::getBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS);
+
+  ASSERT_THAT(value, Eq(EXPECTED_VALUE));
+}
+
+TEST_F(TheMemoryUtility, GetsValueOfSubsetOfBitsInRegisterReturnsZeroIfBitsToGetAreOutOfScope)
+{
+  static constexpr uint32_t START_BIT   = 30u;
+  static constexpr uint32_t NUM_OF_BITS = 4u;
+  static constexpr uint32_t INITIAL_REGISTER_VALUE = 0xFFFFFFFF;
+  virtualRegister = INITIAL_REGISTER_VALUE;
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
+    .Times(0u);
+
+  uint32_t value = MemoryUtility::getBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS);
+
+  ASSERT_THAT(value, Eq(0u));
 }

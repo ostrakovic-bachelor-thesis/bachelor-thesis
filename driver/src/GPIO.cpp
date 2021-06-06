@@ -36,7 +36,65 @@ GPIO::ErrorCode GPIO::configurePin(Pin pin, const PinConfiguration &pinConfigura
 
 GPIO::ErrorCode GPIO::setPinState(Pin pin, PinState state)
 {
+  if (not isPinValueInValidRangeOfValues(pin))
+  {
+    return ErrorCode::INVALID_PIN_VALUE;
+  }
+
+  if (not isPinStateInValidRangeOfValues(state))
+  {
+    return ErrorCode::INVALID_PIN_STATE_VALUE;
+  }
+
+  if (readPinMode(pin) != PinMode::OUTPUT)
+  {
+    return ErrorCode::PIN_MODE_IS_NOT_APPROPRIATE;
+  }
+
+  setOutputPinState(pin, state);
+
   return ErrorCode::OK;
+}
+
+GPIO::ErrorCode GPIO::getPinState(Pin pin, PinState &state) const
+{
+  if (not isPinValueInValidRangeOfValues(pin))
+  {
+    return ErrorCode::INVALID_PIN_VALUE;
+  }
+
+  switch (readPinMode(pin))
+  {
+    case GPIO::PinMode::OUTPUT:
+    {
+      state = readOutputPinState(pin);
+      return ErrorCode::OK;
+    }
+
+    case GPIO::PinMode::INPUT:
+    {
+      state = readInputPinState(pin);
+      return ErrorCode::OK;
+    }
+  
+    default:
+    {
+      return ErrorCode::PIN_MODE_IS_NOT_APPROPRIATE;
+    }
+  }
+}
+
+GPIO::ErrorCode GPIO::getPinMode(Pin pin, PinMode &pinMode) const
+{
+  ErrorCode errorCode = ErrorCode::INVALID_PIN_VALUE;
+
+  if (isPinValueInValidRangeOfValues(pin))
+  {
+    pinMode = readPinMode(pin);
+    errorCode = ErrorCode::OK;
+  }
+
+  return errorCode;
 }
 
 inline void GPIO::setPinMode(Pin pin, PinMode mode)
@@ -46,6 +104,16 @@ inline void GPIO::setPinMode(Pin pin, PinMode mode)
                                    PIN_MODE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
                                    PIN_MODE_NUM_OF_BITS, 
                                    static_cast<uint32_t>(mode));
+}
+
+inline GPIO::PinMode GPIO::readPinMode(Pin pin) const
+{
+  constexpr uint32_t PIN_MODE_NUM_OF_BITS = 2u;
+  const uint32_t pinMode = 
+    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->MODER), 
+                                     PIN_MODE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
+                                     PIN_MODE_NUM_OF_BITS);
+  return static_cast<PinMode>(pinMode);                                   
 }
 
 inline void GPIO::setPullConfig(Pin pin, PullConfig pullConfig)
@@ -85,6 +153,35 @@ inline void GPIO::setAlternateFunction(Pin pin, AlternateFunction alternateFunct
                                    ALTERNATE_FUNCTION_NUM_OF_BITS * position, 
                                    ALTERNATE_FUNCTION_NUM_OF_BITS, 
                                    static_cast<uint32_t>(alternateFunction));
+}
+
+inline void GPIO::setOutputPinState(Pin pin, PinState state)
+{
+  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
+  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->ODR),
+                                   PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
+                                   PIN_STATE_NUM_OF_BITS, 
+                                   static_cast<uint32_t>(state));
+}
+
+inline GPIO::PinState GPIO::readOutputPinState(Pin pin) const
+{
+  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
+  const uint32_t pinState =
+    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->ODR), 
+                                     PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
+                                     PIN_STATE_NUM_OF_BITS);
+  return static_cast<PinState>(pinState);    
+}
+
+inline GPIO::PinState GPIO::readInputPinState(Pin pin) const
+{
+  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
+  const uint32_t pinState =
+    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->IDR), 
+                                     PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
+                                     PIN_STATE_NUM_OF_BITS);
+  return static_cast<PinState>(pinState);    
 }
 
 bool GPIO::isPinConfigurationValid(const PinConfiguration &pinConfiguration)
@@ -136,4 +233,10 @@ inline bool GPIO::isOutputTypeInValidRangeOfValues(OutputType outputType)
 inline bool GPIO::isAlternateFunctionInValidRangeOfValues(AlternateFunction alternateFunction)
 {
   return static_cast<uint32_t>(AlternateFunction::AF15) >= static_cast<uint32_t>(alternateFunction);
+}
+
+
+inline bool GPIO::isPinStateInValidRangeOfValues(PinState pinState)
+{
+  return static_cast<uint32_t>(PinState::HIGH) >= static_cast<uint32_t>(pinState);
 }
