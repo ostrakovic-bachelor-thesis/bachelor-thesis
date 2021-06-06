@@ -1,4 +1,6 @@
 #include "GPIO.h"
+#include "MemoryAccess.h"
+#include "MemoryUtility.h"
 
 
 GPIO::GPIO(GPIO_TypeDef *GPIOPortPtr):

@@ -2,8 +2,6 @@
 #define GPIO_H
 
 #include "stm32l4r9xx.h"
-#include "MemoryAccess.h"
-#include "MemoryUtility.h"
 #include <cstdint>
 
 

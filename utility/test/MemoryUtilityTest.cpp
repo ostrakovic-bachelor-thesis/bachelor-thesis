@@ -40,7 +40,7 @@ TEST_F(TheMemoryUtility, SetsBitInRegisterProperly)
   ASSERT_THAT(virtualRegister, Eq(1u << BIT_IN_ALLOWED_SCOPE));
 }
 
-TEST_F(TheMemoryUtility, SetBitDoesNotChangeValueIfBitIsOutOfAllowedScope)
+TEST_F(TheMemoryUtility, SetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllowedScope)
 {
   virtualRegister = 0u;
   EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
@@ -49,6 +49,28 @@ TEST_F(TheMemoryUtility, SetBitDoesNotChangeValueIfBitIsOutOfAllowedScope)
   MemoryUtility::setBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
 
   ASSERT_THAT(virtualRegister, Eq(0u));
+}
+
+TEST_F(TheMemoryUtility, ResetsBitInRegisterProperly)
+{
+  virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, 0u))
+    .Times(1u); 
+
+  MemoryUtility::resetBitInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE);
+
+  ASSERT_THAT(virtualRegister, Eq(0u));
+}
+
+TEST_F(TheMemoryUtility, ResetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllowedScope)
+{
+  virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
+    .Times(0u); 
+
+  MemoryUtility::resetBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
+
+  ASSERT_THAT(virtualRegister, Eq(1u << BIT_IN_ALLOWED_SCOPE));
 }
 
 TEST_F(TheMemoryUtility, ChecksIsBitSetProperly)

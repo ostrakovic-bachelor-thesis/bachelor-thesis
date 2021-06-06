@@ -13,10 +13,12 @@ set(BachelorThesis_utility_component_cpp_sources
     ../utility/src/MemoryUtility.cpp)
 
 set(BachelorThesis_driver_component_cpp_sources
-    src/GPIO.cpp)
+    src/GPIO.cpp
+    src/RCC.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources
-    test/GPIOTest.cpp)
+    test/GPIOTest.cpp
+    test/RCCTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources} 
                     ${BachelorThesis_driver_component_cpp_sources} 

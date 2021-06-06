@@ -19,6 +19,14 @@ public:
   static void setBitInRegister(volatile void *registerPtr, uint32_t bit);
 
   /**
+   * @brief Static method resets bit 'bit' in register, pointed by 'registerPtr'.
+   * 
+   * @param[in] registerPtr - Pointer to register.
+   * @param[in] bit         - Bit to reset in register.
+   */
+  static void resetBitInRegister(volatile void *registerPtr, uint32_t bit);
+
+  /**
    * @brief Static method checks is bit 'bit' set in register, pointed by 'registerPtr'.
    * 
    * @param[in] registerPtr - Pointer to register.

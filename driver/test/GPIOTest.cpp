@@ -4,8 +4,6 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-// TODO remove
-#include <iostream>
 
 using namespace ::testing;
 

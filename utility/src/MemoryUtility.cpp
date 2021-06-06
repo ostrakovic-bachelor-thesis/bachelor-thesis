@@ -44,8 +44,18 @@ void MemoryUtility::setBitInRegister(volatile void *registerPtr, uint32_t bit)
   if (MAX_ALLOWED_BIT > bit)
   {
     uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
-    registerValue |= (1 << bit);
+    registerValue |= (1u << bit);
     MemoryAccess::setRegisterValue(registerPtr, registerValue);
+  }
+}
+
+void MemoryUtility::resetBitInRegister(volatile void *registerPtr, uint32_t bit)
+{
+  if (MAX_ALLOWED_BIT > bit)
+  {
+    uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
+    registerValue &= ~(1u << bit);
+    MemoryAccess::setRegisterValue(registerPtr, registerValue); 
   }
 }
 
