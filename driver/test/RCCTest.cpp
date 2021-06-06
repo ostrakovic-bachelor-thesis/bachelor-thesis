@@ -131,24 +131,24 @@ TEST_F(ARCC, DisablesPeripheralClockFailsIfDisablingIsNotImplementedForPeriphera
   ASSERT_THAT(errorCode, Eq(RCC::ErrorCode::NOT_IMPLEMENTED));
 }
 
-TEST_F(ARCC, ChecksIsPeripheralEnabled)
+TEST_F(ARCC, ChecksIsPeripheralClockEnabled)
 {
   virtualRCC.enablePeripheralClock(Peripheral::GPIOF);
   expectNoRegisterToChange();
   
-  bool isEnabledGPIOF;
-  const RCC::ErrorCode errorCode = virtualRCC.isClockEnabled(Peripheral::GPIOF, isEnabledGPIOF);
+  bool isEnabledGPIOFClock;
+  const RCC::ErrorCode errorCode = virtualRCC.isPeripheralClockEnabled(Peripheral::GPIOF, isEnabledGPIOFClock);
 
   ASSERT_THAT(errorCode, Eq(RCC::ErrorCode::OK));
-  ASSERT_THAT(isEnabledGPIOF, Eq(true));
+  ASSERT_THAT(isEnabledGPIOFClock, Eq(true));
 }
 
-TEST_F(ARCC, ChecksIsPeripheralEnabledFailsIfEnablingIsNotImplementedForPeripheral)
+TEST_F(ARCC, ChecksIsPeripheralClockEnabledFailsIfEnablingIsNotImplementedForPeripheral)
 {
   expectNoRegisterToChange();
   
-  bool isPeripheralEnabled;
-  const RCC::ErrorCode errorCode = virtualRCC.isClockEnabled(Peripheral::INVALID_PERIPHERAL, isPeripheralEnabled);
+  bool isClockEnabled;
+  const RCC::ErrorCode errorCode = virtualRCC.isPeripheralClockEnabled(Peripheral::INVALID_PERIPHERAL, isClockEnabled);
 
   ASSERT_THAT(errorCode, Eq(RCC::ErrorCode::NOT_IMPLEMENTED));
 }

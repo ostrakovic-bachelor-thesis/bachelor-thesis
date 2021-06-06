@@ -55,7 +55,7 @@ RCC::ErrorCode RCC::disablePeripheralClock(Peripheral peripheral)
   return ErrorCode::OK;
 }
 
-RCC::ErrorCode RCC::isClockEnabled(Peripheral peripheral, bool &isPeripheralEnabled) const
+RCC::ErrorCode RCC::isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const
 {
   auto mappingPtr = findEnableClockRegisterMapping(peripheral);
   if (nullptr == mappingPtr)
@@ -63,7 +63,7 @@ RCC::ErrorCode RCC::isClockEnabled(Peripheral peripheral, bool &isPeripheralEnab
     return ErrorCode::NOT_IMPLEMENTED;
   }
   
-  bool isBitChecked = isBitSetInRegister(mappingPtr->enableRegister, mappingPtr->enableBitPosition, isPeripheralEnabled);
+  bool isBitChecked = isBitSetInRegister(mappingPtr->enableRegister, mappingPtr->enableBitPosition, isClockEnabled);
   if (not isBitChecked)
   {
     return ErrorCode::INTERNAL;

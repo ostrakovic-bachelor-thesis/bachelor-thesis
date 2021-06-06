@@ -16,6 +16,11 @@ class RCC
 {
 public:
 
+  /**
+   * @brief Constructor of RCC class instance.
+   * 
+   * @param[in] - Pointer to a RCC peripheral instance.
+   */
   RCC(RCC_TypeDef *RCCPeripheralPtr);
 
   //! This enum class represents errors which can happen during method calls
@@ -26,11 +31,33 @@ public:
     INTERNAL        = 2u, //!< Indicates problem with the implementation, should never happen (NON-TESTABLE)
   };
 
+  /**
+   * @brief Method enables peripheral clock.
+   *
+   * @param[in] peripheral - Peripheral which clock will be enabled.
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   *         it returns corresponding error code from ::ErrorCode.
+   */
   ErrorCode enablePeripheralClock(Peripheral peripheral);
 
+  /**
+   * @brief Method disables peripheral clock.
+   *
+   * @param[in] peripheral - Peripheral which clock will be disabled.
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   *         it returns corresponding error code from ::ErrorCode.
+   */
   ErrorCode disablePeripheralClock(Peripheral peripheral);
 
-  ErrorCode isClockEnabled(Peripheral peripheral, bool &isPeripheralEnabled) const;
+  /**
+   * @brief Method checks is peripheral clock enabled.
+   *
+   * @param[in]  peripheral     - Peripheral which clock will checked.
+   * @param[out] isClockEnabled - Reference to variable in which state of enabling will be written.
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   *         it returns corresponding error code from ::ErrorCode.
+   */
+  ErrorCode isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const;
 
 private:
 

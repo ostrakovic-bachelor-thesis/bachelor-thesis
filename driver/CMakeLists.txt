@@ -14,11 +14,13 @@ set(BachelorThesis_utility_component_cpp_sources
 
 set(BachelorThesis_driver_component_cpp_sources
     src/GPIO.cpp
-    src/RCC.cpp)
+    src/RCC.cpp
+    src/USART.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources
     test/GPIOTest.cpp
-    test/RCCTest.cpp)
+    test/RCCTest.cpp
+    test/USARTTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources} 
                     ${BachelorThesis_driver_component_cpp_sources} 
