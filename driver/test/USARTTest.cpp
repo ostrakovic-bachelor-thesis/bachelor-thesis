@@ -1,6 +1,7 @@
 #include "USART.h"
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
+#include "DriverTest.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -8,7 +9,7 @@
 using namespace ::testing;
 
 
-class AnUSART : public Test
+class AnUSART : public DriverTest
 {
 public:
 
@@ -26,54 +27,18 @@ public:
   static constexpr uint16_t USART_TDR_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t USART_PRESC_RESET_VALUE = 0x00000000;
 
-  //! Needed to verify statement for setting and getting registers value
-  NiceMock<MemoryAccessHook> memoryAccessHook;
-
   USART_TypeDef virtualUSARTPeripheral;
   USART virtualUSART = USART(&virtualUSARTPeripheral);
   USART::USARTConfig usartConfig;
-
-  uint32_t expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value);
-  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
-  void expectRegisterNotToChange(volatile uint32_t *registerPtr);
-  void expectNoRegisterToChange(void);
 
   void SetUp() override;
   void TearDown() override;
 };
 
-uint32_t AnUSART::expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value)
-{
-  const uint32_t startBit = position * valueSize;
-  const uint32_t mask = 0xFFFFFFFFu >> (sizeof(uint32_t) * 8u - valueSize);
-
-  return (initialRegVal & ~(mask << startBit)) | ((value & mask) << startBit);
-}
-
-void AnUSART::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
-    .Times(1u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void AnUSART::expectRegisterNotToChange(volatile uint32_t *registerPtr)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
-    .Times(0u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void AnUSART::expectNoRegisterToChange(void)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u);
-}
-
 void AnUSART::SetUp()
 {
+  DriverTest::SetUp();
+
   // set values of virtual RCC peripheral to reset values
   virtualUSARTPeripheral.CR1   = USART_CR1_RESET_VALUE;
   virtualUSARTPeripheral.CR2   = USART_CR2_RESET_VALUE;
@@ -87,13 +52,11 @@ void AnUSART::SetUp()
   virtualUSARTPeripheral.RDR   = USART_RDR_RESET_VALUE;
   virtualUSARTPeripheral.TDR   = USART_TDR_RESET_VALUE;
   virtualUSARTPeripheral.PRESC = USART_PRESC_RESET_VALUE;
-
-  MemoryAccess::setMemoryAccessHook(&memoryAccessHook);
 }
 
 void AnUSART::TearDown()
 {
-  MemoryAccess::setMemoryAccessHook(nullptr);
+  DriverTest::TearDown();
 }
 
 
@@ -103,15 +66,15 @@ TEST_F(AnUSART, InitSetsWordLengthBitsInCR1AccordingToChoosenWordLength)
   constexpr uint32_t USART_CR1_M1_POSITION = 28u;
   constexpr uint32_t EXPECTED_USART_CR1_M0_VALUE = 1u;
   constexpr uint32_t EXPECTED_USART_CR1_M1_VALUE = 0u;
-  const uint32_t expectedCR1Value = 
-    expectedRegVal(USART_CR1_RESET_VALUE, USART_CR1_M0_POSITION, 1u, EXPECTED_USART_CR1_M0_VALUE) |
-    expectedRegVal(USART_CR1_RESET_VALUE, USART_CR1_M1_POSITION, 1u, EXPECTED_USART_CR1_M1_VALUE);
+  auto bitValueMatcher = 
+    AllOf(BitHasValue(USART_CR1_M0_POSITION, EXPECTED_USART_CR1_M0_VALUE), 
+          BitHasValue(USART_CR1_M1_POSITION, EXPECTED_USART_CR1_M1_VALUE));
   usartConfig.wordLength = USART::WordLength::BITS_9;
-  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR1), expectedCR1Value);
+  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.CR1, Eq(expectedCR1Value));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 

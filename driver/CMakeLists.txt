@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 
 include_directories($ENV{GOOGLETEST_HOME}/googletest/include $ENV{GOOGLETEST_HOME}/googlemock/include)
 include_directories(inc)
+include_directories(test)
 include_directories(sdk)
 include_directories(../utility/inc)
 link_directories($ENV{GOOGLETEST_HOME}/build/lib)
@@ -18,6 +19,7 @@ set(BachelorThesis_driver_component_cpp_sources
     src/USART.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources
+    test/DriverTest.cpp
     test/GPIOTest.cpp
     test/RCCTest.cpp
     test/USARTTest.cpp)

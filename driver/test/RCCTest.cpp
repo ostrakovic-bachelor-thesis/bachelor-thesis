@@ -1,6 +1,7 @@
 #include "RCC.h"
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
+#include "DriverTest.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -8,7 +9,7 @@
 using namespace ::testing;
 
 
-class ARCC : public Test
+class ARCC : public DriverTest
 {
 public:
 
@@ -20,53 +21,17 @@ public:
   static constexpr uint32_t RCC_APB1ENR2_RESET_VALUE = 0x00000000;
   static constexpr uint32_t RCC_APB2ENR_RESET_VALUE  = 0x00000000;
 
-  //! Needed to verify statement for setting and getting registers value
-  NiceMock<MemoryAccessHook> memoryAccessHook;
-
   RCC_TypeDef virtualRCCPeripheral;
   RCC virtualRCC = RCC(&virtualRCCPeripheral);
-
-  uint32_t expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value);
-  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
-  void expectRegisterNotToChange(volatile uint32_t *registerPtr);
-  void expectNoRegisterToChange(void);
 
   void SetUp() override;
   void TearDown() override;
 };
 
-uint32_t ARCC::expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value)
-{
-  const uint32_t startBit = position * valueSize;
-  const uint32_t mask = 0xFFFFFFFFu >> (sizeof(uint32_t) * 8u - valueSize);
-
-  return (initialRegVal & ~(mask << startBit)) | ((value & mask) << startBit);
-}
-
-void ARCC::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
-    .Times(1u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void ARCC::expectRegisterNotToChange(volatile uint32_t *registerPtr)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
-    .Times(0u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void ARCC::expectNoRegisterToChange(void)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u);
-}
-
 void ARCC::SetUp()
 {
+  DriverTest::SetUp();
+
   // set values of virtual RCC peripheral to reset values
   virtualRCCPeripheral.AHB1ENR  = RCC_AHB1ENR_RESET_VALUE;
   virtualRCCPeripheral.AHB2ENR  = RCC_AHB2ENR_RESET_VALUE;
@@ -74,13 +39,11 @@ void ARCC::SetUp()
   virtualRCCPeripheral.APB1ENR1 = RCC_APB1ENR1_RESET_VALUE;
   virtualRCCPeripheral.APB1ENR2 = RCC_APB1ENR2_RESET_VALUE;
   virtualRCCPeripheral.APB2ENR  = RCC_APB2ENR_RESET_VALUE;
-
-  MemoryAccess::setMemoryAccessHook(&memoryAccessHook);
 }
 
 void ARCC::TearDown()
 {
-  MemoryAccess::setMemoryAccessHook(nullptr);
+  DriverTest::TearDown();
 }
 
 

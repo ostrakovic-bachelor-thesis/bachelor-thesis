@@ -1,6 +1,7 @@
 #include "GPIO.h"
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
+#include "DriverTest.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -8,7 +9,7 @@
 using namespace ::testing;
 
 
-class AGPIO : public Test
+class AGPIO : public DriverTest
 {
 public:
 
@@ -28,16 +29,16 @@ public:
   static constexpr GPIO::Pin RANDOM_GPIO_PIN = GPIO::Pin::PIN10;
 
   //! Needed to verify statement for setting and getting registers value
-  NiceMock<MemoryAccessHook> memoryAccessHook;
+  //NiceMock<MemoryAccessHook> memoryAccessHook;
 
   GPIO_TypeDef virtualGPIOPort;
   GPIO virtualGPIO = GPIO(&virtualGPIOPort);
   GPIO::PinConfiguration pinConfig;
 
   uint32_t expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value);
-  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
-  void expectRegisterNotToChange(volatile uint32_t *registerPtr);
-  void expectNoRegisterToChange(void);
+  //void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
+  //void expectRegisterNotToChange(volatile uint32_t *registerPtr);
+  //void expectNoRegisterToChange(void);
 
   void SetUp() override;
   void TearDown() override;
@@ -45,36 +46,13 @@ public:
 
 uint32_t AGPIO::expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value)
 {
-  const uint32_t startBit = static_cast<uint32_t>(pin) * valueSize;
-  const uint32_t mask = 0xFFFFFFFFu >> (sizeof(uint32_t) * 8u - valueSize);
-
-  return (initialRegVal & ~(mask << startBit)) | ((value & mask) << startBit);
-}
-
-void AGPIO::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
-    .Times(1u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void AGPIO::expectRegisterNotToChange(volatile uint32_t *registerPtr)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
-    .Times(0u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
-    .Times(AnyNumber()); 
-}
-
-void AGPIO::expectNoRegisterToChange(void)
-{
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u);
+  return DriverTest::expectedRegVal(initialRegVal, static_cast<uint32_t>(pin), valueSize, value);
 }
 
 void AGPIO::SetUp()
 {
+  DriverTest::SetUp();
+
   // set values of virtual GPIO port to reset values
   virtualGPIOPort.MODER   = GPIO_PORT_MODER_RESET_VALUE;
   virtualGPIOPort.OTYPER  = GPIO_PORT_OTYPER_RESET_VALUE;
@@ -94,13 +72,11 @@ void AGPIO::SetUp()
   pinConfig.outputSpeed       = GPIO::OutputSpeed::LOW;
   pinConfig.outputType        = GPIO::OutputType::PUSH_PULL;
   pinConfig.alternateFunction = GPIO::AlternateFunction::AF9;
-
-  MemoryAccess::setMemoryAccessHook(&memoryAccessHook);
 }
 
 void AGPIO::TearDown()
 {
-  MemoryAccess::setMemoryAccessHook(nullptr);
+  DriverTest::TearDown();
 }
 
 
