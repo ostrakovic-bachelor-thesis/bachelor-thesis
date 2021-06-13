@@ -18,7 +18,7 @@ public:
    * @param[in] registerPtr - Pointer to register.
    * @param[in] value       - Value to which register will be set.
    */
-  static inline void setRegisterValue(volatile void *registerPtr, uint32_t value)
+  static inline void setRegisterValue(volatile uint32_t *registerPtr, uint32_t value)
   {
 #ifdef UNIT_TEST_DRIVER
     if (nullptr != s_memoryAccessHookPtr)
@@ -26,7 +26,41 @@ public:
       s_memoryAccessHookPtr->setRegisterValue(registerPtr, value);
     }
 #endif // #ifdef UNIT_TEST_DRIVER
-    *reinterpret_cast<volatile uint32_t*>(registerPtr) = value;
+    *registerPtr = value;
+  }
+
+  /**
+   * @brief Static method sets register, pointed by 'registerPtr', to value 'value'.
+   * 
+   * @param[in] registerPtr - Pointer to register.
+   * @param[in] value       - Value to which register will be set.
+   */
+  static inline void setRegisterValue(volatile uint16_t *registerPtr, uint16_t value)
+  {
+#ifdef UNIT_TEST_DRIVER
+    if (nullptr != s_memoryAccessHookPtr)
+    {
+      s_memoryAccessHookPtr->setRegisterValue(registerPtr, value);
+    }
+#endif // #ifdef UNIT_TEST_DRIVER
+    *registerPtr = value;
+  }
+
+  /**
+   * @brief Static method gets value of register, pointed by 'registerPtr'.
+   * 
+   * @param[in] registerPtr - Pointer to register.
+   * @return Register value.
+   */
+  static inline uint32_t getRegisterValue(volatile const uint32_t *registerPtr)
+  {
+#ifdef UNIT_TEST_DRIVER
+    if (nullptr != s_memoryAccessHookPtr)
+    {
+      s_memoryAccessHookPtr->getRegisterValue(registerPtr);
+    }
+#endif // #ifdef UNIT_TEST_DRIVER
+    return *registerPtr;
   }
   
   /**
@@ -35,7 +69,7 @@ public:
    * @param[in] registerPtr - Pointer to register.
    * @return Register value.
    */
-  static inline uint32_t getRegisterValue(volatile const void *registerPtr)
+  static inline uint16_t getRegisterValue(volatile const uint16_t *registerPtr)
   {
 #ifdef UNIT_TEST_DRIVER
     if (nullptr != s_memoryAccessHookPtr)
@@ -43,7 +77,7 @@ public:
       s_memoryAccessHookPtr->getRegisterValue(registerPtr);
     }
 #endif // #ifdef UNIT_TEST_DRIVER
-    return *reinterpret_cast<volatile const uint32_t*>(registerPtr);
+    return *registerPtr;
   }
 
 #ifdef UNIT_TEST_DRIVER

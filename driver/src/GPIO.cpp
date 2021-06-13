@@ -1,6 +1,6 @@
 #include "GPIO.h"
 #include "MemoryAccess.h"
-#include "MemoryUtility.h"
+#include "RegisterUtility.h"
 
 
 GPIO::GPIO(GPIO_TypeDef *GPIOPortPtr):
@@ -20,7 +20,7 @@ GPIO::ErrorCode GPIO::configurePin(Pin pin, const PinConfiguration &pinConfigura
   }
 
   setPinMode(pin, pinConfiguration.mode);
-  setPullConfig(pin, (PinMode::ANALOG == pinConfiguration.mode) ? PullConfig::NO_PULL :pinConfiguration.pullConfig);
+  setPullConfig(pin, (PinMode::ANALOG == pinConfiguration.mode) ? PullConfig::NO_PULL : pinConfiguration.pullConfig);
   
   if ((PinMode::INPUT != pinConfiguration.mode) & (PinMode::ANALOG != pinConfiguration.mode))
   {
@@ -101,88 +101,97 @@ GPIO::ErrorCode GPIO::getPinMode(Pin pin, PinMode &pinMode) const
 
 inline void GPIO::setPinMode(Pin pin, PinMode mode)
 {
-  constexpr uint32_t PIN_MODE_NUM_OF_BITS = 2u;
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->MODER), 
-                                   PIN_MODE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                   PIN_MODE_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(mode));
+  constexpr uint8_t PIN_MODE_NUM_OF_BITS = 2u;
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->MODER), 
+    PIN_MODE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PIN_MODE_NUM_OF_BITS, 
+    static_cast<uint32_t>(mode));
 }
 
 inline GPIO::PinMode GPIO::readPinMode(Pin pin) const
 {
-  constexpr uint32_t PIN_MODE_NUM_OF_BITS = 2u;
-  const uint32_t pinMode = 
-    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->MODER), 
-                                     PIN_MODE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                     PIN_MODE_NUM_OF_BITS);
+  constexpr uint8_t PIN_MODE_NUM_OF_BITS = 2u;
+  const uint32_t pinMode = RegisterUtility<uint32_t>::getBitsInRegister(
+    &(m_GPIOPortPtr->MODER), 
+    PIN_MODE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PIN_MODE_NUM_OF_BITS);
+
   return static_cast<PinMode>(pinMode);                                   
 }
 
 inline void GPIO::setPullConfig(Pin pin, PullConfig pullConfig)
 {
-  constexpr uint32_t PULL_CONFIG_NUM_OF_BITS = 2u;
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->PUPDR),
-                                   PULL_CONFIG_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                   PULL_CONFIG_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(pullConfig));
+  constexpr uint8_t PULL_CONFIG_NUM_OF_BITS = 2u;
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->PUPDR),
+    PULL_CONFIG_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PULL_CONFIG_NUM_OF_BITS, 
+    static_cast<uint32_t>(pullConfig));
 }
 
 inline void GPIO::setOutputSpeed(Pin pin, OutputSpeed outputSpeed)
 {
-  constexpr uint32_t OUTPUT_SPEED_NUM_OF_BITS = 2u;
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->OSPEEDR),
-                                   OUTPUT_SPEED_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                   OUTPUT_SPEED_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(outputSpeed));
+  constexpr uint8_t OUTPUT_SPEED_NUM_OF_BITS = 2u;
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->OSPEEDR),
+    OUTPUT_SPEED_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    OUTPUT_SPEED_NUM_OF_BITS, 
+    static_cast<uint32_t>(outputSpeed));
 }
 
 inline void GPIO::setOutputType(Pin pin, OutputType outputType)
 {
-  constexpr uint32_t OUTPUT_TYPE_NUM_OF_BITS = 1u;
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->OTYPER),
-                                   OUTPUT_TYPE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                   OUTPUT_TYPE_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(outputType));
+  constexpr uint8_t OUTPUT_TYPE_NUM_OF_BITS = 1u;
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->OTYPER),
+    OUTPUT_TYPE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    OUTPUT_TYPE_NUM_OF_BITS, 
+    static_cast<uint32_t>(outputType));
 }
 
 inline void GPIO::setAlternateFunction(Pin pin, AlternateFunction alternateFunction)
 {
-  constexpr uint32_t ALTERNATE_FUNCTION_NUM_OF_BITS = 4u;
-  const uint32_t registerIndex = static_cast<uint32_t>(pin) / 8u;
-  const uint32_t position = static_cast<uint32_t>(pin) % 8u;
+  constexpr uint8_t ALTERNATE_FUNCTION_NUM_OF_BITS = 4u;
+  const uint8_t registerIndex = static_cast<uint8_t>(pin) / 8u;
+  const uint8_t position = static_cast<uint8_t>(pin) % 8u;
 
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->AFR[registerIndex]),
-                                   ALTERNATE_FUNCTION_NUM_OF_BITS * position, 
-                                   ALTERNATE_FUNCTION_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(alternateFunction));
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->AFR[registerIndex]),
+    ALTERNATE_FUNCTION_NUM_OF_BITS * position, 
+    ALTERNATE_FUNCTION_NUM_OF_BITS, 
+    static_cast<uint32_t>(alternateFunction));
 }
 
 inline void GPIO::setOutputPinState(Pin pin, PinState state)
 {
-  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
-  MemoryUtility::setBitsInRegister(&(m_GPIOPortPtr->ODR),
-                                   PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                   PIN_STATE_NUM_OF_BITS, 
-                                   static_cast<uint32_t>(state));
+  constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_GPIOPortPtr->ODR),
+    PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PIN_STATE_NUM_OF_BITS, 
+    static_cast<uint32_t>(state));
 }
 
 inline GPIO::PinState GPIO::readOutputPinState(Pin pin) const
 {
-  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
-  const uint32_t pinState =
-    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->ODR), 
-                                     PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                     PIN_STATE_NUM_OF_BITS);
+  constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
+  const uint32_t pinState = RegisterUtility<uint32_t>::getBitsInRegister(
+    &(m_GPIOPortPtr->ODR), 
+    PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PIN_STATE_NUM_OF_BITS);
+
   return static_cast<PinState>(pinState);    
 }
 
 inline GPIO::PinState GPIO::readInputPinState(Pin pin) const
 {
-  constexpr uint32_t PIN_STATE_NUM_OF_BITS = 1u;
-  const uint32_t pinState =
-    MemoryUtility::getBitsInRegister(&(m_GPIOPortPtr->IDR), 
-                                     PIN_STATE_NUM_OF_BITS * static_cast<uint32_t>(pin), 
-                                     PIN_STATE_NUM_OF_BITS);
+  constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
+  const uint32_t pinState = RegisterUtility<uint32_t>::getBitsInRegister(
+    &(m_GPIOPortPtr->IDR), 
+    PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin), 
+    PIN_STATE_NUM_OF_BITS);
+
   return static_cast<PinState>(pinState);    
 }
 
@@ -236,7 +245,6 @@ inline bool GPIO::isAlternateFunctionInValidRangeOfValues(AlternateFunction alte
 {
   return static_cast<uint32_t>(AlternateFunction::AF15) >= static_cast<uint32_t>(alternateFunction);
 }
-
 
 inline bool GPIO::isPinStateInValidRangeOfValues(PinState pinState)
 {

@@ -14,8 +14,10 @@ public:
   virtual ~MemoryAccessHook() = default;
    
   // Mock methods
-  MOCK_METHOD(void, setRegisterValue, (volatile void *, uint32_t));
-  MOCK_METHOD(uint32_t, getRegisterValue, (volatile const void *));
+  MOCK_METHOD(void, setRegisterValue, (volatile uint32_t *, uint32_t));
+  MOCK_METHOD(void, setRegisterValue, (volatile uint16_t *, uint16_t));
+  MOCK_METHOD(uint32_t, getRegisterValue, (volatile const uint32_t *));
+  MOCK_METHOD(uint16_t, getRegisterValue, (volatile const uint16_t *));
 
 };
 

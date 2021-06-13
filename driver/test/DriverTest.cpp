@@ -11,23 +11,28 @@ uint32_t DriverTest::expectedRegVal(uint32_t initialRegVal, uint32_t position, u
 
 void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
 {
+  uint32_t numberOfCall =
+    MemoryAccess::getRegisterValue(registerPtr) != registerValue ? 1u: 0u;
+
   EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
-    .Times(1u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
+      .Times(numberOfCall);
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
     .Times(AnyNumber()); 
 }
 
 void DriverTest::expectRegisterNotToChange(volatile uint32_t *registerPtr)
 {
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, Matcher<uint32_t>(_)))
     .Times(0u);
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
     .Times(AnyNumber()); 
 }
 
 void DriverTest::expectNoRegisterToChange(void)
 {
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Matcher<volatile uint32_t*>(_), Matcher<uint32_t>(_)))
+    .Times(0u);
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Matcher<volatile uint16_t*>(_), Matcher<uint16_t>(_)))
     .Times(0u);
 }
 

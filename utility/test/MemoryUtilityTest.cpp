@@ -12,10 +12,9 @@ public:
 
   static constexpr uint32_t BIT_IN_ALLOWED_SCOPE     = 15u;
   static constexpr uint32_t BIT_OUT_OF_ALLOWED_SCOPE = 33u;
-  static constexpr uint32_t REGISTER_ALL_BITS_SET    = ~0u;
+  static constexpr uint32_t ALL_BITS_SET             = ~0u;
 
   NiceMock<MemoryAccessHook> memoryAccessHook;
-  volatile uint32_t virtualRegister;
   
   void SetUp() override
   {
@@ -29,141 +28,84 @@ public:
 };
 
 
-TEST_F(TheMemoryUtility, SetsBitInRegisterProperly)
+TEST_F(TheMemoryUtility, SetsBitInValueProperly)
 {
-  virtualRegister = 0u;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, 1u << BIT_IN_ALLOWED_SCOPE))
-    .Times(1u); 
-
-  MemoryUtility::setBitInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE);
-
-  ASSERT_THAT(virtualRegister, Eq(1u << BIT_IN_ALLOWED_SCOPE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::setBit(0u, BIT_IN_ALLOWED_SCOPE), Eq(1u << BIT_IN_ALLOWED_SCOPE));
 }
 
-TEST_F(TheMemoryUtility, SetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllowedScope)
+TEST_F(TheMemoryUtility, SetBitReturnsForwardedValueIfBitIsOutOfAllowedScope)
 {
-  virtualRegister = 0u;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u); 
-
-  MemoryUtility::setBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
-
-  ASSERT_THAT(virtualRegister, Eq(0u));
+  ASSERT_THAT(MemoryUtility<uint32_t>::setBit(0u, BIT_OUT_OF_ALLOWED_SCOPE), Eq(0u));
 }
 
-TEST_F(TheMemoryUtility, ResetsBitInRegisterProperly)
+TEST_F(TheMemoryUtility, ResetsBitInValueProperly)
 {
-  virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, 0u))
-    .Times(1u); 
-
-  MemoryUtility::resetBitInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE);
-
-  ASSERT_THAT(virtualRegister, Eq(0u));
+  ASSERT_THAT(MemoryUtility<uint32_t>::resetBit(1u << BIT_IN_ALLOWED_SCOPE, BIT_IN_ALLOWED_SCOPE), Eq(0u));
 }
 
-TEST_F(TheMemoryUtility, ResetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllowedScope)
+TEST_F(TheMemoryUtility, ResetBitReturnsForwardedValueIfBitIsOutOfAllowedScope)
 {
-  virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u); 
-
-  MemoryUtility::resetBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
-
-  ASSERT_THAT(virtualRegister, Eq(1u << BIT_IN_ALLOWED_SCOPE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::resetBit(ALL_BITS_SET, BIT_OUT_OF_ALLOWED_SCOPE), Eq(ALL_BITS_SET));
 }
 
-TEST_F(TheMemoryUtility, ChecksIsBitSetProperly)
+TEST_F(TheMemoryUtility, ChecksIsBitSetInValueProperly)
 {
-  virtualRegister = 1 << BIT_IN_ALLOWED_SCOPE;
-  EXPECT_CALL(memoryAccessHook, getRegisterValue(&virtualRegister))
-    .Times(2u); 
-
-  ASSERT_THAT(MemoryUtility::isBitSetInRegister(&virtualRegister, 0u), Eq(false));
-  ASSERT_THAT(MemoryUtility::isBitSetInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE), Eq(true));
+  ASSERT_THAT(MemoryUtility<uint32_t>::isBitSet(0u, BIT_IN_ALLOWED_SCOPE), Eq(false));
+  ASSERT_THAT(MemoryUtility<uint32_t>::isBitSet(1 << BIT_IN_ALLOWED_SCOPE, BIT_IN_ALLOWED_SCOPE), Eq(true));
 }
 
-TEST_F(TheMemoryUtility, ReturnsFalseIfBitIsOutOfAllowedScope)
+TEST_F(TheMemoryUtility, CheckIsBitSetReturnsFalseIfBitIsOutOfAllowedScope)
 {
-  virtualRegister = REGISTER_ALL_BITS_SET;
-  EXPECT_CALL(memoryAccessHook, getRegisterValue(&virtualRegister))
-    .Times(0u);
-
-  ASSERT_THAT(MemoryUtility::isBitSetInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE), Eq(false));
+  ASSERT_THAT(MemoryUtility<uint32_t>::isBitSet(ALL_BITS_SET, BIT_OUT_OF_ALLOWED_SCOPE), Eq(false));
 }
 
-TEST_F(TheMemoryUtility, SetsSubsetOfBitsInRegisterToWantedValue)
+TEST_F(TheMemoryUtility, SetsSubsetOfBitsInForwadedValueToWantedValue)
 {
-  static constexpr uint32_t START_BIT   = 20u;
-  static constexpr uint32_t NUM_OF_BITS = 4u;
-  static constexpr uint32_t VALUE       = 0x5;
-  static constexpr uint32_t INITIAL_REGISTER_VALUE  = 0xFFFFFFFF;
-  static constexpr uint32_t EXPECTED_REGISTER_VALUE = 0xFF5FFFFF;
-  virtualRegister = INITIAL_REGISTER_VALUE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, EXPECTED_REGISTER_VALUE))
-    .Times(1u);
+  static constexpr uint32_t START_BIT    = 20u;
+  static constexpr uint32_t NUM_OF_BITS  = 4u;
+  static constexpr uint32_t VALUE        = 0x5;
+  static constexpr uint32_t INITIAL_VALUE  = 0xFFFFFFFF;
+  static constexpr uint32_t EXPECTED_VALUE = 0xFF5FFFFF;
 
-  MemoryUtility::setBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS, VALUE);
-
-  ASSERT_THAT(virtualRegister, Eq(EXPECTED_REGISTER_VALUE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::setBits(INITIAL_VALUE, START_BIT, NUM_OF_BITS, VALUE), Eq(EXPECTED_VALUE));
 }
 
-TEST_F(TheMemoryUtility, SetsSubsetOfBitsMasksAllBitsInValueExpectFirstNumOfBits)
+TEST_F(TheMemoryUtility, SetBitsMasksAllBitsInValueExceptFirstNumOfBits)
 {
   static constexpr uint32_t START_BIT   = 4u;
   static constexpr uint32_t NUM_OF_BITS = 8u;
   static constexpr uint32_t VALUE       = 0xA0C;
-  static constexpr uint32_t INITIAL_REGISTER_VALUE  = 0xFFFF0FFF;
-  static constexpr uint32_t EXPECTED_REGISTER_VALUE = 0xFFFF00CF;
-  virtualRegister = INITIAL_REGISTER_VALUE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, EXPECTED_REGISTER_VALUE))
-    .Times(1u);
+  static constexpr uint32_t INITIAL_VALUE  = 0xFFFF0FFF;
+  static constexpr uint32_t EXPECTED_VALUE = 0xFFFF00CF;
 
-  MemoryUtility::setBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS, VALUE);
-
-  ASSERT_THAT(virtualRegister, Eq(EXPECTED_REGISTER_VALUE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::setBits(INITIAL_VALUE, START_BIT, NUM_OF_BITS, VALUE), Eq(EXPECTED_VALUE));
 }
 
-TEST_F(TheMemoryUtility, SetsSubsetOfBitsDoesNotChangeValueIfBitsToChangeAreOutOfScope)
+TEST_F(TheMemoryUtility, SetBitsDoesNotChangeValueIfBitsToChangeAreOutOfAllowedScope)
 {
   static constexpr uint32_t START_BIT   = 30u;
   static constexpr uint32_t NUM_OF_BITS = 4u;
   static constexpr uint32_t VALUE       = 0x5;
-  static constexpr uint32_t INITIAL_REGISTER_VALUE = 0xFFFFFFFF;
-  virtualRegister = INITIAL_REGISTER_VALUE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u);
+  static constexpr uint32_t FORWARDED_VALUE = ALL_BITS_SET;
 
-  MemoryUtility::setBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS, VALUE);
-
-  ASSERT_THAT(virtualRegister, Eq(INITIAL_REGISTER_VALUE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::setBits(FORWARDED_VALUE, START_BIT, NUM_OF_BITS, VALUE), Eq(FORWARDED_VALUE));
 }
 
-TEST_F(TheMemoryUtility, GetsValueOfSubsetOfBitsInRegister)
+TEST_F(TheMemoryUtility, GetsValueOfSubsetOfBitsInForwardedValue)
 {
   static constexpr uint32_t START_BIT   = 16u;
   static constexpr uint32_t NUM_OF_BITS = 8u;
-  static constexpr uint32_t INITIAL_REGISTER_VALUE  = 0x00FA0000;
-  static constexpr uint32_t EXPECTED_VALUE = 0xFA;
-  virtualRegister = INITIAL_REGISTER_VALUE;
-  EXPECT_CALL(memoryAccessHook, getRegisterValue(&virtualRegister))
-    .Times(1u);
+  static constexpr uint32_t FORWARDED_VALUE = 0x00FA0000;
+  static constexpr uint32_t EXPECTED_VALUE  = 0xFA;
 
-  uint32_t value = MemoryUtility::getBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS);
-
-  ASSERT_THAT(value, Eq(EXPECTED_VALUE));
+  ASSERT_THAT(MemoryUtility<uint32_t>::getBits(FORWARDED_VALUE, START_BIT, NUM_OF_BITS), Eq(EXPECTED_VALUE));
 }
 
-TEST_F(TheMemoryUtility, GetsValueOfSubsetOfBitsInRegisterReturnsZeroIfBitsToGetAreOutOfScope)
+TEST_F(TheMemoryUtility, GetBitsReturnsZeroIfBitsToGetAreOutOfAllowedScope)
 {
   static constexpr uint32_t START_BIT   = 30u;
   static constexpr uint32_t NUM_OF_BITS = 4u;
-  static constexpr uint32_t INITIAL_REGISTER_VALUE = 0xFFFFFFFF;
-  virtualRegister = INITIAL_REGISTER_VALUE;
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, _))
-    .Times(0u);
+  static constexpr uint32_t FORWARDED_VALUE = ALL_BITS_SET;
 
-  uint32_t value = MemoryUtility::getBitsInRegister(&virtualRegister, START_BIT, NUM_OF_BITS);
-
-  ASSERT_THAT(value, Eq(0u));
+  ASSERT_THAT(MemoryUtility<uint32_t>::getBits(FORWARDED_VALUE, START_BIT, NUM_OF_BITS), Eq(0u));
 }

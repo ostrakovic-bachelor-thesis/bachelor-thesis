@@ -1,6 +1,6 @@
 #include "RCC.h"
 #include "MemoryAccess.h"
-#include "MemoryUtility.h"
+#include "RegisterUtility.h"
 
 
 const RCC::EnablePeripheralClockRegisterMapping RCC::s_enablePeripheralClockMapping[] =
@@ -72,42 +72,42 @@ RCC::ErrorCode RCC::isPeripheralClockEnabled(Peripheral peripheral, bool &isCloc
   return ErrorCode::OK;
 }
 
-bool RCC::setBitInRegister(Register rccRegister, uint32_t bitInRegister)
+bool RCC::setBitInRegister(Register rccRegister, uint8_t bitInRegister)
 {
   bool isBitSet = false;
 
-  volatile void *registerPtr = getPointerToRegister(rccRegister);
+  volatile uint32_t *registerPtr = getPointerToRegister(rccRegister);
   if (nullptr != registerPtr)
   {
-    MemoryUtility::setBitInRegister(registerPtr, bitInRegister);
+    RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitInRegister);
     isBitSet = true;
   }
 
   return isBitSet;
 }
 
-bool RCC::resetBitInRegister(Register rccRegister, uint32_t bitInRegister)
+bool RCC::resetBitInRegister(Register rccRegister, uint8_t bitInRegister)
 {
   bool isBitSet = false;
 
-  volatile void *registerPtr = getPointerToRegister(rccRegister);
+  volatile uint32_t *registerPtr = getPointerToRegister(rccRegister);
   if (nullptr != registerPtr)
   {
-    MemoryUtility::resetBitInRegister(registerPtr, bitInRegister);
+    RegisterUtility<uint32_t>::resetBitInRegister(registerPtr, bitInRegister);
     isBitSet = true;
   }
 
   return isBitSet;
 }
 
-bool RCC::isBitSetInRegister(Register rccRegister, uint32_t bitInRegister, bool &isBitSet) const
+bool RCC::isBitSetInRegister(Register rccRegister, uint8_t bitInRegister, bool &isBitSet) const
 {
   bool isBitChecked = false;
 
-  volatile void *registerPtr = getPointerToRegister(rccRegister);
+  volatile uint32_t *registerPtr = getPointerToRegister(rccRegister);
   if (nullptr != registerPtr)
   {
-    isBitSet = MemoryUtility::isBitSetInRegister(registerPtr, bitInRegister);
+    isBitSet = RegisterUtility<uint32_t>::isBitSetInRegister(registerPtr, bitInRegister);
     isBitChecked = true;
   }
 
@@ -127,9 +127,9 @@ const RCC::EnablePeripheralClockRegisterMapping* RCC::findEnableClockRegisterMap
   return nullptr;
 }
 
-volatile void* RCC::getPointerToRegister(Register rccRegister) const
+volatile uint32_t* RCC::getPointerToRegister(Register rccRegister) const
 {
-  volatile void *registerPtr;
+  volatile uint32_t *registerPtr;
 
   switch (rccRegister)
   {

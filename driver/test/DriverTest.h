@@ -34,22 +34,22 @@ public:
   void expectRegisterNotToChange(volatile uint32_t *registerPtr);
   void expectNoRegisterToChange(void);
   
-  template<typename Matcher>
-  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, Matcher matcher);
+  template<typename GMockMatcher>
+  void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, GMockMatcher matcher);
 
   void SetUp() override;
   void TearDown() override;
 };
 
-template<typename Matcher>
-void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, Matcher matcher)
+template<typename GMockMatcher>
+void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, GMockMatcher matcher)
 {
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, Matcher<uint32_t>(_)))
     .WillOnce([&](volatile void *registerPtr, uint32_t registerValue) {
       ASSERT_THAT(registerValue, matcher);
     });
 
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
     .Times(AnyNumber()); 
 }
 

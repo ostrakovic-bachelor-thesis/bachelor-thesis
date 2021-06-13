@@ -75,18 +75,18 @@ private:
   {
     Peripheral peripheral;
     Register   enableRegister;
-    uint32_t   enableBitPosition;
+    uint8_t    enableBitPosition;
   };
 
   const EnablePeripheralClockRegisterMapping* findEnableClockRegisterMapping(Peripheral peripheral) const;
 
-  volatile void* getPointerToRegister(Register register) const;
+  volatile uint32_t* getPointerToRegister(Register register) const;
   
-  bool setBitInRegister(Register register, uint32_t bitInRegister);
+  bool setBitInRegister(Register register, uint8_t bitInRegister);
 
-  bool resetBitInRegister(Register rccRegister, uint32_t bitInRegister);
+  bool resetBitInRegister(Register rccRegister, uint8_t bitInRegister);
 
-  bool isBitSetInRegister(Register rccRegister, uint32_t bitInRegister, bool &isBitSet) const;
+  bool isBitSetInRegister(Register rccRegister, uint8_t bitInRegister, bool &isBitSet) const;
 
   static const EnablePeripheralClockRegisterMapping s_enablePeripheralClockMapping[];
 

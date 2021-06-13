@@ -7,12 +7,12 @@ link_directories($ENV{GOOGLETEST_HOME}/build/lib)
 add_compile_options(-std=c++14 -Wall -DUNIT_TEST_DRIVER)
 
 set(BachelorThesis_utility_component_cpp_sources
-    src/MemoryAccess.cpp
-    src/MemoryUtility.cpp)
+    src/MemoryAccess.cpp)
 
 set(BachelorThesis_utility_test_cpp_sources
     test/MemoryAccessTest.cpp
-    test/MemoryUtilityTest.cpp)
+    test/MemoryUtilityTest.cpp
+    test/RegisterUtilityTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources} ${BachelorThesis_utility_test_cpp_sources})
 

@@ -10,8 +10,7 @@ link_directories($ENV{GOOGLETEST_HOME}/build/lib)
 add_compile_options(-std=c++14 -Wall -DUNIT_TEST_DRIVER)
 
 set(BachelorThesis_utility_component_cpp_sources
-    ../utility/src/MemoryAccess.cpp
-    ../utility/src/MemoryUtility.cpp)
+    ../utility/src/MemoryAccess.cpp)
 
 set(BachelorThesis_driver_component_cpp_sources
     src/GPIO.cpp
