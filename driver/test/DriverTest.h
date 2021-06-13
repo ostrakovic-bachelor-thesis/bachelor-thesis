@@ -37,6 +37,15 @@ public:
   template<typename GMockMatcher>
   void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, GMockMatcher matcher);
 
+  template<typename GMockMatcher>
+  void expectSpecificRegisterSetWithNoChangesAfter(volatile uint32_t *registerPtr, GMockMatcher matcher);
+
+  template<typename GMockMatcher>
+  void expectSpecificRegisterSetToBeCalledFirst(volatile uint32_t *registerPtr, GMockMatcher matcher);
+
+  template<typename GMockMatcher>
+  void expectSpecificRegisterSetToBeCalledLast(volatile uint32_t *registerPtr, GMockMatcher matcher);
+
   void SetUp() override;
   void TearDown() override;
 };
@@ -48,6 +57,58 @@ void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, GMock
     .WillOnce([&](volatile void *registerPtr, uint32_t registerValue) {
       ASSERT_THAT(registerValue, matcher);
     });
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
+    .Times(AnyNumber()); 
+}
+
+
+template<typename GMockMatcher>
+void DriverTest::expectSpecificRegisterSetWithNoChangesAfter(volatile uint32_t *registerPtr, GMockMatcher matcher)
+{
+  {
+    InSequence s;
+
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+      .Times(AnyNumber());
+
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, matcher))
+      .Times(AtLeast(1u));
+ }
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
+    .Times(AnyNumber()); 
+}
+
+template<typename GMockMatcher>
+void DriverTest::expectSpecificRegisterSetToBeCalledFirst(volatile uint32_t *registerPtr, GMockMatcher matcher)
+{
+  {
+    InSequence s;
+    
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, matcher))
+      .Times(1u);
+
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+      .Times(AnyNumber());
+  }
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
+    .Times(AnyNumber()); 
+}
+
+template<typename GMockMatcher>
+void DriverTest::expectSpecificRegisterSetToBeCalledLast(volatile uint32_t *registerPtr, GMockMatcher matcher)
+{
+  {
+    InSequence s;
+
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, _))
+      .Times(AnyNumber());
+    
+    EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, matcher))
+      .Times(1u);
+  }
 
   EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
     .Times(AnyNumber()); 

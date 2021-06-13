@@ -35,6 +35,7 @@ public:
   void TearDown() override;
 };
 
+
 void AnUSART::SetUp()
 {
   DriverTest::SetUp();
@@ -60,17 +61,20 @@ void AnUSART::TearDown()
 }
 
 
-TEST_F(AnUSART, InitSetsWordLengthBitsInCR1AccordingToChoosenWordLength)
+TEST_F(AnUSART, InitSetsWordLengthAndParityControlBitsInCR1AccordingToChoosenFrameFormat)
 {
-  constexpr uint32_t USART_CR1_M0_POSITION = 12u;
-  constexpr uint32_t USART_CR1_M1_POSITION = 28u;
-  constexpr uint32_t EXPECTED_USART_CR1_M0_VALUE = 1u;
-  constexpr uint32_t EXPECTED_USART_CR1_M1_VALUE = 0u;
+  constexpr uint32_t USART_CR1_PCE_POSITION = 10u;
+  constexpr uint32_t USART_CR1_M0_POSITION  = 12u;
+  constexpr uint32_t USART_CR1_M1_POSITION  = 28u;
+  constexpr uint32_t EXPECTED_USART_CR1_PCE_VALUE = 1u;
+  constexpr uint32_t EXPECTED_USART_CR1_M0_VALUE  = 1u;
+  constexpr uint32_t EXPECTED_USART_CR1_M1_VALUE  = 0u;
   auto bitValueMatcher = 
     AllOf(BitHasValue(USART_CR1_M0_POSITION, EXPECTED_USART_CR1_M0_VALUE), 
-          BitHasValue(USART_CR1_M1_POSITION, EXPECTED_USART_CR1_M1_VALUE));
-  usartConfig.wordLength = USART::WordLength::BITS_9;
-  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+          BitHasValue(USART_CR1_M1_POSITION, EXPECTED_USART_CR1_M1_VALUE),
+          BitHasValue(USART_CR1_PCE_POSITION, EXPECTED_USART_CR1_PCE_VALUE));
+  usartConfig.frameFormat = USART::FrameFormat::BITS_8_WITH_PARITY;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
@@ -78,3 +82,74 @@ TEST_F(AnUSART, InitSetsWordLengthBitsInCR1AccordingToChoosenWordLength)
   ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
+TEST_F(AnUSART, InitSetsOversamplingModeBitInCR1AccordingToChoosenOversampling)
+{
+  constexpr uint32_t USART_CR1_OVER8_POSITION = 15u;
+  constexpr uint32_t EXPECTED_USART_CR1_OVER8_VALUE = 1u;
+  auto bitValueMatcher = 
+    BitHasValue(USART_CR1_OVER8_POSITION, EXPECTED_USART_CR1_OVER8_VALUE);
+  usartConfig.oversampling = USART::Oversampling::OVERSAMPLING_8;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
+}
+
+TEST_F(AnUSART, InitSetsParityBitInCR1AccordingToChoosenParity)
+{
+  constexpr uint32_t USART_CR1_PS_POSITION = 9u;
+  constexpr uint32_t EXPECTED_USART_CR1_PS_VALUE = 1u;
+  auto bitValueMatcher = 
+    BitHasValue(USART_CR1_PS_POSITION, EXPECTED_USART_CR1_PS_VALUE);
+  usartConfig.parity = USART::Parity::ODD;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
+}
+
+TEST_F(AnUSART, InitSetsStopBitsInCR2AccordingToChoosenStopBitsValue)
+{
+  constexpr uint32_t USART_CR2_STOP_POSITION = 12u;
+  constexpr uint32_t EXPECTED_USART_CR2_STOP_VALUE = 0x3;
+  auto bitValueMatcher = 
+    BitHasValue(USART_CR2_STOP_POSITION, EXPECTED_USART_CR2_STOP_VALUE);
+  usartConfig.stopBits = USART::StopBits::BIT_1_5;
+  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR2), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR2, bitValueMatcher); 
+}
+
+TEST_F(AnUSART, InitDisablesUsartOnTheBeginningOfInitFunctionCall)
+{
+  constexpr uint32_t USART_CR1_UE_POSITION = 0u;
+  constexpr uint32_t EXPECTED_USART_CR1_UE_VALUE = 0u;
+  auto bitValueMatcher = 
+    BitHasValue(USART_CR1_UE_POSITION, EXPECTED_USART_CR1_UE_VALUE);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+}
+
+
+TEST_F(AnUSART, InitEnablesUsartOnTheEndOfInitFunctionCall)
+{
+  constexpr uint32_t USART_CR1_UE_POSITION = 0u;
+  constexpr uint32_t EXPECTED_USART_CR1_UE_VALUE = 1u;
+  auto bitValueMatcher = 
+    BitHasValue(USART_CR1_UE_POSITION, EXPECTED_USART_CR1_UE_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+}
