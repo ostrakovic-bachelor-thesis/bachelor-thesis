@@ -24,6 +24,10 @@ public:
   RCC_TypeDef virtualRCCPeripheral;
   RCC virtualRCC = RCC(&virtualRCCPeripheral);
 
+  void setPLL(uint32_t PLLM, uint32_t PLLN, uint32_t PLLR, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLSRC);
+  void setMSI(uint32_t msiRange, bool isMsiRangeInCR);
+  void setSysClockSource(uint32_t SWS);
+
   void SetUp() override;
   void TearDown() override;
 };
@@ -44,6 +48,36 @@ void ARCC::SetUp()
 void ARCC::TearDown()
 {
   DriverTest::TearDown();
+}
+
+void ARCC::setPLL(uint32_t PLLM, uint32_t PLLN, uint32_t PLLR, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLSRC)
+{
+  virtualRCCPeripheral.PLLCFGR = 
+    (((PLLM - 1) << RCC_PLLCFGR_PLLM_Pos) & RCC_PLLCFGR_PLLM_Msk) |
+    ((PLLN << RCC_PLLCFGR_PLLN_Pos) & RCC_PLLCFGR_PLLN_Msk) | 
+    (PLLSRC) | 
+    ((((PLLQ >> 1) - 1) << RCC_PLLCFGR_PLLQ_Pos) & RCC_PLLCFGR_PLLQ_Msk) | 
+    ((((PLLR >> 1) - 1) << RCC_PLLCFGR_PLLR_Pos) & RCC_PLLCFGR_PLLR_Msk)| 
+    ((PLLP << RCC_PLLCFGR_PLLP_Pos) & RCC_PLLCFGR_PLLP_Msk);
+}
+
+void ARCC::setMSI(uint32_t msiRange, bool isMsiRangeInCR)
+{
+  virtualRCCPeripheral.CR = isMsiRangeInCR ? RCC_CR_MSIRGSEL : 0u;
+
+  if (isMsiRangeInCR)
+  {
+    virtualRCCPeripheral.CR |= (msiRange << RCC_CR_MSIRANGE_Pos) & RCC_CR_MSIRANGE_Msk;
+  }
+  else
+  {
+    virtualRCCPeripheral.CSR = (msiRange << RCC_CSR_MSISRANGE_Pos) & RCC_CSR_MSISRANGE_Msk;
+  }
+}
+
+void ARCC::setSysClockSource(uint32_t SWS)
+{
+  virtualRCCPeripheral.CFGR = (SWS & RCC_CFGR_SWS_Msk);
 }
 
 
@@ -114,4 +148,67 @@ TEST_F(ARCC, ChecksIsPeripheralClockEnabledFailsIfEnablingIsNotImplementedForPer
   const RCC::ErrorCode errorCode = virtualRCC.isPeripheralClockEnabled(Peripheral::INVALID_PERIPHERAL, isClockEnabled);
 
   ASSERT_THAT(errorCode, Eq(RCC::ErrorCode::NOT_IMPLEMENTED));
+}
+
+TEST_F(ARCC, GetSystemClockSource)
+{
+  setSysClockSource(RCC_CFGR_SWS_PLL);
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getSystemClockSource(), Eq(RCC::ClockSource::PLL));
+}
+
+TEST_F(ARCC, GetHSIClockFrequency)
+{
+  constexpr uint32_t EXPECTED_HSI_CLOCK_FREQUENCY = 16000000u; // 16 MHz
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getHSIClockFrequency(), Eq(EXPECTED_HSI_CLOCK_FREQUENCY));
+}
+
+TEST_F(ARCC, GetHSEClockFrequency)
+{
+  constexpr uint32_t EXPECTED_HSE_CLOCK_FREQUENCY = 16000000u; // 16 MHz
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getHSEClockFrequency(), Eq(EXPECTED_HSE_CLOCK_FREQUENCY));
+}
+
+TEST_F(ARCC, GetMSIClockFrequencyFromCR)
+{
+  constexpr uint32_t MSI_RANGE_VALUE = 0b1001;
+  constexpr uint32_t EXPECTED_MSI_CLOCK_FREQUENCY = 24000000u; // 24 MHz
+  setMSI(MSI_RANGE_VALUE, true);
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getMSIClockFrequency(), Eq(EXPECTED_MSI_CLOCK_FREQUENCY));
+}
+
+TEST_F(ARCC, GetMSIClockFrequencyFromCSR)
+{
+  constexpr uint32_t MSI_RANGE_VALUE = 0b0101; // corresponding with 2 MHz frequency
+  constexpr uint32_t EXPECTED_MSI_CLOCK_FREQUENCY = 2000000u; // 2 MHz
+  setMSI(MSI_RANGE_VALUE, false);
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getMSIClockFrequency(), Eq(EXPECTED_MSI_CLOCK_FREQUENCY));
+}
+
+TEST_F(ARCC, GetPLLClockFrequency)
+{
+  constexpr uint32_t EXPECTED_PLL_CLOCK_FREQUENCY = 120000000u; // 120 MHz
+  setPLL(1, 15, 2, 2, 0, RCC_PLLCFGR_PLLSRC_HSE);
+  expectNoRegisterToChange();
+  
+  ASSERT_THAT(virtualRCC.getPLLClockFrequency(), Eq(EXPECTED_PLL_CLOCK_FREQUENCY));
+}
+
+TEST_F(ARCC, GetsSystemClockFrequency)
+{
+  constexpr uint32_t EXPECTED_SYSTEM_CLOCK_FREQUENCY = 120000000u; // 120 MHz
+  setPLL(1, 15, 2, 7, 4, RCC_PLLCFGR_PLLSRC_HSE);
+  setSysClockSource(RCC_CFGR_SWS_PLL);
+  expectNoRegisterToChange();
+
+  ASSERT_THAT(virtualRCC.getSystemClockFrequency(), Eq(EXPECTED_SYSTEM_CLOCK_FREQUENCY));
 }

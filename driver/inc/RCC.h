@@ -31,6 +31,16 @@ public:
     INTERNAL        = 2u, //!< Indicates problem with the implementation, should never happen (NON-TESTABLE)
   };
 
+  // TODO
+  enum class ClockSource : uint8_t
+  {
+    MSI = 0b00,
+    HSI = 0b01,
+    HSE = 0b10,
+    PLL = 0b11,
+    NO_CLOCK
+  };
+
   /**
    * @brief Method enables peripheral clock.
    *
@@ -59,7 +69,54 @@ public:
    */
   ErrorCode isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const;
 
+  /**
+   * TODO
+   */
+  ClockSource getSystemClockSource(void) const;
+  
+  /**
+   * TODO
+   */
+  uint32_t getHSIClockFrequency(void) const;
+
+  /**
+   * TODO
+   */
+  uint32_t getHSEClockFrequency(void) const;
+  
+  /**
+   * TODO
+   */
+  uint32_t getMSIClockFrequency(void) const;
+
+  /**
+   * TODO
+   */
+  uint32_t getPLLClockFrequency(void) const;
+
+  /**
+   * TODO
+   */
+  uint32_t getSystemClockFrequency(void) const;
+
 private:
+
+  //
+  enum class MSIClockFrequency
+  {
+    FREQ_100KHZ = 0b0000,
+    FREQ_200KHZ = 0b0001,
+    FREQ_400KHZ = 0b0010,
+    FREQ_800KHZ = 0b0011,
+    FREQ_1MHZ   = 0b0100,
+    FREQ_2MHZ   = 0b0101,
+    FREQ_4MHZ   = 0b0110,
+    FREQ_8MHZ   = 0b0111,
+    FREQ_16MHZ  = 0b1000,
+    FREQ_24MHZ  = 0b1001,
+    FREQ_32MHZ  = 0b1010,
+    FREQ_48MHZ  = 0b1011
+  };
 
   enum class Register : uint8_t
   {
@@ -88,7 +145,17 @@ private:
 
   bool isBitSetInRegister(Register rccRegister, uint8_t bitInRegister, bool &isBitSet) const;
 
+  bool isMSIClockFrequencyDefinedInCR(void) const;
+
+  uint32_t getMsiClockFreqencyIndexFromCR(void) const;
+
+  uint32_t getMsiClockFreqencyIndexFromCSR(void) const;
+
+  uint32_t getPLLInputClockFrequency(void) const;
+
   static const EnablePeripheralClockRegisterMapping s_enablePeripheralClockMapping[];
+
+  static const uint32_t s_msiClockFreq[];
 
   //! Pointer to RCC peripheral
   RCC_TypeDef *m_RCCPeripheralPtr;
