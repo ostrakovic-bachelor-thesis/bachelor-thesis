@@ -65,7 +65,7 @@
 #endif // #ifdef LPUART1
 
 
-enum class Peripheral : uint32_t
+enum class Peripheral : uintptr_t
 {
   GPIOA   = GPIOA_BASE,
   GPIOB   = GPIOB_BASE,

@@ -8,6 +8,37 @@
 
 using namespace ::testing;
 
+class ClockControlMock : public ClockControl
+{
+public:
+
+  ClockControlMock():
+    ClockControl(nullptr)
+  {
+    ON_CALL(*this, getClockFrequency(Matcher<Peripheral>(_), _))
+    .WillByDefault(Invoke([&] (Peripheral peripheral, uint32_t &clockFrequency)
+    {
+      clockFrequency = m_clockFrequency;
+      return ClockControl::ErrorCode::OK;
+    }));
+  }
+  
+  virtual ~ClockControlMock() = default;
+
+  inline void setReturnClockFrequency(uint32_t clockFrequency)
+  {
+    m_clockFrequency = clockFrequency;
+  }
+   
+  // Mock methods
+  MOCK_METHOD(ErrorCode, getClockFrequency, (ClockSource, uint32_t &), (const, override));
+  MOCK_METHOD(ErrorCode, getClockFrequency, (Peripheral, uint32_t &), (const, override));
+
+private:
+  
+  uint32_t m_clockFrequency = 16000000u; // 16 MHz
+
+};
 
 class AnUSART : public DriverTest
 {
@@ -28,13 +59,15 @@ public:
   static constexpr uint32_t USART_PRESC_RESET_VALUE = 0x00000000;
 
   USART_TypeDef virtualUSARTPeripheral;
-  USART virtualUSART = USART(&virtualUSARTPeripheral);
+  NiceMock<ClockControlMock> clockControlMock;
+  USART virtualUSART = USART(&virtualUSARTPeripheral, &clockControlMock);
   USART::USARTConfig usartConfig;
+
+  void setUSARTInputClockFrequency(uint32_t clockFrequency);
 
   void SetUp() override;
   void TearDown() override;
 };
-
 
 void AnUSART::SetUp()
 {
@@ -53,11 +86,22 @@ void AnUSART::SetUp()
   virtualUSARTPeripheral.RDR   = USART_RDR_RESET_VALUE;
   virtualUSARTPeripheral.TDR   = USART_TDR_RESET_VALUE;
   virtualUSARTPeripheral.PRESC = USART_PRESC_RESET_VALUE;
+
+  usartConfig.frameFormat  = USART::FrameFormat::BITS_8_WITHOUT_PARITY;
+  usartConfig.baudrate     = USART::Baudrate::BAUDRATE_115200;
+  usartConfig.oversampling = USART::Oversampling::OVERSAMPLING_16;
+  usartConfig.parity       = USART::Parity::EVEN;
+  usartConfig.stopBits     = USART::StopBits::BIT_1_0;
 }
 
 void AnUSART::TearDown()
 {
   DriverTest::TearDown();
+}
+
+void AnUSART::setUSARTInputClockFrequency(uint32_t clockFrequency)
+{
+  clockControlMock.setReturnClockFrequency(clockFrequency);
 }
 
 
@@ -82,6 +126,16 @@ TEST_F(AnUSART, InitSetsWordLengthAndParityControlBitsInCR1AccordingToChoosenFra
   ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
+TEST_F(AnUSART, InitFailsIfFrameFormatIsOutOfAllowedRange)
+{
+  usartConfig.frameFormat = static_cast<USART::FrameFormat>(9u);
+  expectNoRegisterToChange();
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE));
+}
+
 TEST_F(AnUSART, InitSetsOversamplingModeBitInCR1AccordingToChoosenOversampling)
 {
   constexpr uint32_t USART_CR1_OVER8_POSITION = 15u;
@@ -95,6 +149,16 @@ TEST_F(AnUSART, InitSetsOversamplingModeBitInCR1AccordingToChoosenOversampling)
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
   ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
+}
+
+TEST_F(AnUSART, InitFailsIfOversamplingIsOutOfAllowedRange)
+{
+  usartConfig.oversampling = static_cast<USART::Oversampling>(2u);
+  expectNoRegisterToChange();
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE));
 }
 
 TEST_F(AnUSART, InitSetsParityBitInCR1AccordingToChoosenParity)
@@ -112,6 +176,16 @@ TEST_F(AnUSART, InitSetsParityBitInCR1AccordingToChoosenParity)
   ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
 }
 
+TEST_F(AnUSART, InitFailsIfParityIsOutOfAllowedRange)
+{
+  usartConfig.parity = static_cast<USART::Parity>(2u);
+  expectNoRegisterToChange();
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE));
+}
+
 TEST_F(AnUSART, InitSetsStopBitsInCR2AccordingToChoosenStopBitsValue)
 {
   constexpr uint32_t USART_CR2_STOP_POSITION = 12u;
@@ -125,6 +199,54 @@ TEST_F(AnUSART, InitSetsStopBitsInCR2AccordingToChoosenStopBitsValue)
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
   ASSERT_THAT(virtualUSARTPeripheral.CR2, bitValueMatcher); 
+}
+
+TEST_F(AnUSART, InitFailsIfStopBitsIsOutOfAllowedRange)
+{
+  usartConfig.stopBits = static_cast<USART::StopBits>(4u);
+  expectNoRegisterToChange();
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE));
+}
+
+TEST_F(AnUSART, InitSetsPRESCRegisterAccordingToChoosenBaudrateValue)
+{
+  constexpr uint32_t EXPECTED_USART_PRESC_VALUE = 0x0u;
+  usartConfig.oversampling = USART::Oversampling::OVERSAMPLING_8;
+  usartConfig.baudrate = USART::Baudrate::BAUDRATE_921600;
+  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.PRESC), EXPECTED_USART_PRESC_VALUE);
+  setUSARTInputClockFrequency(48000000u); // 48 MHz
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.PRESC, EXPECTED_USART_PRESC_VALUE); 
+}
+
+TEST_F(AnUSART, InitSetsBRRRegisterAccordingToChoosenBaudrateValue)
+{
+  constexpr uint32_t EXPECTED_USART_BRR_VALUE   = 0x64u;
+  usartConfig.oversampling = USART::Oversampling::OVERSAMPLING_8;
+  usartConfig.baudrate = USART::Baudrate::BAUDRATE_921600;
+  expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.BRR), EXPECTED_USART_BRR_VALUE);
+  setUSARTInputClockFrequency(48000000u); // 48 MHz
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.BRR, EXPECTED_USART_BRR_VALUE);
+}
+
+TEST_F(AnUSART, InitFailsIfBaudrateIsOutOfAllowedRangeofValues)
+{
+  usartConfig.baudrate = static_cast<USART::Baudrate>(100000u);
+  expectNoRegisterToChange();
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE));
 }
 
 TEST_F(AnUSART, InitDisablesUsartOnTheBeginningOfInitFunctionCall)

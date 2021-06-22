@@ -11,11 +11,8 @@ uint32_t DriverTest::expectedRegVal(uint32_t initialRegVal, uint32_t position, u
 
 void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)
 {
-  uint32_t numberOfCall =
-    MemoryAccess::getRegisterValue(registerPtr) != registerValue ? 1u: 0u;
-
   EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, registerValue))
-      .Times(numberOfCall);
+    .Times(1u);
   EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint32_t>(_)))
     .Times(AnyNumber()); 
 }

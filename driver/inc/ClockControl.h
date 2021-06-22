@@ -19,6 +19,11 @@ public:
    */
   ClockControl(RCC_TypeDef *RCCPeripheralPtr);
 
+#ifdef UNIT_TEST_DRIVER
+  virtual 
+#endif // #ifdef UNIT_TEST_DRIVER
+  ~ClockControl() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -45,11 +50,17 @@ public:
   /**
    * TODO
    */
+#ifdef UNIT_TEST_DRIVER
+  virtual 
+#endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const;
 
   /**
    * TODO
    */
+#ifdef UNIT_TEST_DRIVER
+  virtual 
+#endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency) const;
   
 private:

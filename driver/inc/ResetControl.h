@@ -19,6 +19,11 @@ public:
    */
   ResetControl(RCC_TypeDef *RCCPeripheralPtr);
 
+#ifdef UNIT_TEST_DRIVER
+  virtual 
+#endif // #ifdef UNIT_TEST_DRIVER
+  ~ResetControl() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -34,6 +39,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST_DRIVER
+  virtual
+#endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode enablePeripheralClock(Peripheral peripheral);
 
   /**
@@ -43,6 +51,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST_DRIVER
+  virtual
+#endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode disablePeripheralClock(Peripheral peripheral);
 
   /**
@@ -53,6 +64,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST_DRIVER
+  virtual
+#endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const;
 
 private:

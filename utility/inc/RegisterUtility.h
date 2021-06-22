@@ -81,11 +81,7 @@ void RegisterUtility<T>::setBitInRegister(volatile T *registerPtr, uint8_t bit)
 {
   const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
   T newRegisterValue    = MemoryUtility<T>::setBit(registerValue, bit);
-  
-  if (registerValue != newRegisterValue)
-  {
-    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
-  }
+  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
 }
 
 template <typename T>
@@ -93,11 +89,7 @@ void RegisterUtility<T>::resetBitInRegister(volatile T *registerPtr, uint8_t bit
 {
   const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
   T newRegisterValue    = MemoryUtility<T>::resetBit(registerValue, bit);
-  
-  if (registerValue != newRegisterValue)
-  {
-    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
-  }
+  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
 }
 
 template <typename T>
@@ -112,11 +104,7 @@ void RegisterUtility<T>::setBitsInRegister(volatile T *registerPtr, uint8_t star
 {
   const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
   T newRegisterValue    = MemoryUtility<T>::setBits(registerValue, startBit, numberOfBits, value);
-
-  if (registerValue != newRegisterValue)
-  {
-    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
-  }
+  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
 }
 
 template <typename T>
