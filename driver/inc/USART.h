@@ -18,6 +18,7 @@ public:
     OK                               = 0u,
     USART_CONFIG_PARAM_INVALID_VALUE = 1u,
     BAUDRATE_SETUP_PROBLEM           = 2u,
+    BUSY                             = 3u
   };
 
   enum class FrameFormat : uint8_t
@@ -70,9 +71,55 @@ public:
 
   ErrorCode init(const USARTConfig &usartConfig);
 
+  ErrorCode write(const void *messagePtr, uint32_t messageLen);
+
+  inline bool isWriteTransactionOngoing(void) const
+  {
+    return not m_isTxTransactionCompleted;
+  }
+
+  void IRQHandler(void);
+
+
+#ifdef UNIT_TEST_DRIVER
+  /**
+   * @brief Method gets raw pointer to underlaying USART peripheral instance.
+   * 
+   * @return Pointer to underlaying USART peripheral instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_USARTPeripheralPtr);
+  }
+#endif // #ifdef UNIT_TEST_DRIVER
+
 private:
   
   static constexpr uint32_t BRR_INVALID_VALUE = 0u;
+
+  enum class Interrupt : uint8_t
+  {
+    FIFO_THRESHOLD = 0u,
+    TRANSMISSION_COMPLETE,
+
+    COUNT
+  };
+
+  //! Interrupt and status flags
+  enum class Flag
+  {
+    TX_FIFO_NOT_FULL,
+    IS_TRANMISSION_COMPLETED,
+
+    COUNT
+  };
+
+  //! Constrol/status operation to register mapping
+  struct CSRegisterMapping
+  {
+    uint32_t registerOffset; 
+    uint8_t  bitPosition;
+  };
 
   void setFrameFormat(uint32_t &registerValueCR1, FrameFormat frameFormat);
   void setOversampling(uint32_t &registerValueCR1, Oversampling oversampling);
@@ -107,8 +154,24 @@ private:
   void setBRRRegister(uint32_t BRRValue);
   void setPRESCRegister(uint32_t PRESCValue);
 
+  void writeData(uint8_t data);
+
   void disableUSART(void);
   void enableUSART(void);
+
+  bool startTxTransaction(void);
+
+  void enableInterrupt(Interrupt interrupt);
+  void disableInterrupt(Interrupt interrupt);
+  bool isInterruptEnabled(Interrupt interrupt) const;
+
+  bool isFlagSet(Flag flag) const;
+
+  //! TODO
+  static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
+  
+  //! TODO
+  static const CSRegisterMapping s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)];
 
   static const uint32_t s_prescaler[];
 
@@ -117,6 +180,18 @@ private:
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
+
+  //! Pointer to message to transmit 
+  const void *m_txMessagePtr;
+  
+  //! Size of message to transmit
+  uint32_t m_txMessageLen;
+  
+  //! Position of next data chunk to transmit
+  uint32_t m_txMessagePos;
+
+  //! Is transmit transaction completed
+  uint32_t m_isTxTransactionCompleted;
 
 };
 

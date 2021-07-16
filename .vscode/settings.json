@@ -38,5 +38,14 @@
     "utility": "cpp",
     "xstddef": "cpp",
     "xtr1common": "cpp"
-  }
+  },
+  "cmake.cmakePath": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "cmake.mingwSearchDirs": [
+    "C:\\msys64\\mingw64\\bin"
+ ],
+"cmake.generator": "MinGW Makefiles",
+"cmake.sourceDirectory": "${workspaceFolder}/app",
+"cmake.buildDirectory": "${workspaceFolder}/app/build",
+"cmake.configureSettings": {
+  "CMAKE_TOOLCHAIN_FILE" : "${workspaceRoot}/app/arm-gcc-toolchain.cmake"
 }

@@ -209,7 +209,7 @@ uint32_t ClockControl::getPLLInputClockFrequency(void) const
     PLLSRC_POSITION, 
     PLLSRC_NUM_OF_BITS);
 
-  (this->*(s_PLLInputClockFrequency[PLLClockSourceIndex]))();
+  return (this->*(s_PLLInputClockFrequency[PLLClockSourceIndex]))();
 }
 
 uint32_t ClockControl::getPLLClockFrequency(void) const
@@ -240,7 +240,7 @@ uint32_t ClockControl::getSystemClockFrequency(void) const
     SYS_CLOCK_SWITCH_STATUS_POSITION, 
     SYS_CLOCK_SWITCH_STATUS_NUM_OF_BITS);
 
-  (this->*(s_systemClockFrequency[systemClockSourceIndex]))();
+  return (this->*(s_systemClockFrequency[systemClockSourceIndex]))();
 }
 
 uint32_t ClockControl::getAHBClockFrequency(void) const
