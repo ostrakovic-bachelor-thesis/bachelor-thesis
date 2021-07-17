@@ -13,7 +13,7 @@ class AClockControl : public DriverTest
 {
 public:
 
-  //! Based on real reset values for RCC register (soruce STM32L4R9 reference manual)
+  //! Based on real reset values for RCC register (source STM32L4R9 reference manual)
   static constexpr uint32_t RCC_AHB1ENR_RESET_VALUE  = 0x00000100;
   static constexpr uint32_t RCC_AHB2ENR_RESET_VALUE  = 0x00000000;
   static constexpr uint32_t RCC_AHB3ENR_RESET_VALUE  = 0x00000000;

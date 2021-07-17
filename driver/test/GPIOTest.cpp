@@ -13,7 +13,7 @@ class AGPIO : public DriverTest
 {
 public:
 
-  //! Based on real reset values for GPIO register (soruce STM32L4R9 reference manual)
+  //! Based on real reset values for GPIO register (source STM32L4R9 reference manual)
   static constexpr uint32_t GPIO_PORT_MODER_RESET_VALUE   = 0xFFFFFFFF;
   static constexpr uint32_t GPIO_PORT_OTYPER_RESET_VALUE  = 0x00000000;
   static constexpr uint32_t GPIO_PORT_OSPEEDR_RESET_VALUE = 0x00000000;

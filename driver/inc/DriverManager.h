@@ -6,6 +6,7 @@
 #include "USART.h"
 #include "ClockControl.h"
 #include "ResetControl.h"
+#include <cstdint>
 
 
 class DriverManager

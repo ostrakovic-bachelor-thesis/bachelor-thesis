@@ -2,49 +2,19 @@
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
+#include "ClockControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 
 using namespace ::testing;
 
-class ClockControlMock : public ClockControl
-{
-public:
-
-  ClockControlMock():
-    ClockControl(nullptr)
-  {
-    ON_CALL(*this, getClockFrequency(Matcher<Peripheral>(_), _))
-    .WillByDefault(Invoke([&] (Peripheral peripheral, uint32_t &clockFrequency)
-    {
-      clockFrequency = m_clockFrequency;
-      return ClockControl::ErrorCode::OK;
-    }));
-  }
-  
-  virtual ~ClockControlMock() = default;
-
-  inline void setReturnClockFrequency(uint32_t clockFrequency)
-  {
-    m_clockFrequency = clockFrequency;
-  }
-   
-  // Mock methods
-  MOCK_METHOD(ErrorCode, getClockFrequency, (ClockSource, uint32_t &), (const, override));
-  MOCK_METHOD(ErrorCode, getClockFrequency, (Peripheral, uint32_t &), (const, override));
-
-private:
-  
-  uint32_t m_clockFrequency = 16000000u; // 16 MHz
-
-};
 
 class AnUSART : public DriverTest
 {
 public:
 
-  //! Based on real reset values for RCC register (soruce STM32L4R9 reference manual)
+  //! Based on real reset values for RCC register (source STM32L4R9 reference manual)
   static constexpr uint32_t USART_CR1_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t USART_CR2_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t USART_CR3_RESET_VALUE   = 0x00000000;
@@ -77,7 +47,7 @@ public:
   void TearDown() override;
 };
 
-const uint8_t AnUSART::RANDOM_MSG[] = "Random message.";
+const uint8_t AnUSART::RANDOM_MSG[]    = "Random message.";
 const uint32_t AnUSART::RANDOM_MSG_LEN = sizeof(AnUSART::RANDOM_MSG);
 
 void AnUSART::SetUp()
