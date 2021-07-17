@@ -62,6 +62,18 @@ public:
   virtual 
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency) const;
+
+#ifdef UNIT_TEST_DRIVER
+  /**
+   * @brief Method gets raw pointer to underlaying RCC peripheral instance.
+   * 
+   * @return Pointer to underlaying RCC peripheral instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_RCCPeripheralPtr);
+  }
+#endif // #ifdef UNIT_TEST_DRIVER
   
 private:
   

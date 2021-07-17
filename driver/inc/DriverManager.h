@@ -4,6 +4,8 @@
 #include "Peripheral.h"
 #include "GPIO.h"
 #include "USART.h"
+#include "ClockControl.h"
+#include "ResetControl.h"
 
 
 class DriverManager
@@ -33,6 +35,16 @@ public:
     LPUART1 = 5u
   };
 
+  enum class ClockControlInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
+  enum class ResetControlInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -43,9 +55,28 @@ public:
     return s_usartDriverInstance[static_cast<uint8_t>(usartInstance)];
   }
 
+  inline static ClockControl& getInstance(ClockControlInstance clockControlInstance)
+  {
+    return s_clockControlDriverInstance;
+  }
+
+  inline static ResetControl& getInstance(ResetControlInstance resetControlInstance)
+  {
+    return s_resetControlDriverInstance;
+  }
+
 private:
 
+  //! TODO
+  static ClockControl s_clockControlDriverInstance;
+
+  //! TODO
+  static ResetControl s_resetControlDriverInstance;
+
+  //! TODO
   static GPIO s_gpioDriverInstance[];
+
+  //! TODO
   static USART s_usartDriverInstance[];
 };
 

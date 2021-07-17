@@ -9,7 +9,8 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/GPIO.cpp
     ../driver/src/ClockControl.cpp
     ../driver/src/ResetControl.cpp
-    ../driver/src/USART.cpp)
+    ../driver/src/USART.cpp
+    ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/Startup.cpp)
@@ -18,6 +19,7 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    ${BachelorThesis_app_component_cpp_sources}
                    src/startup_stm32l4r9xx.s
                    src/system_stm32l4xx.c
+                   src/syscalls.c
                    src/main.c)
                   
 target_include_directories(app PRIVATE

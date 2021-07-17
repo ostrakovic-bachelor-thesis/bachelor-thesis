@@ -69,6 +69,18 @@ public:
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const;
 
+#ifdef UNIT_TEST_DRIVER
+  /**
+   * @brief Method gets raw pointer to underlaying RCC peripheral instance.
+   * 
+   * @return Pointer to underlaying RCC peripheral instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_RCCPeripheralPtr);
+  }
+#endif // #ifdef UNIT_TEST_DRIVER
+
 private:
 
   enum class Register : uint8_t

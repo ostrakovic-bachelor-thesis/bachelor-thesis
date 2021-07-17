@@ -28,17 +28,11 @@ public:
 
   static constexpr GPIO::Pin RANDOM_GPIO_PIN = GPIO::Pin::PIN10;
 
-  //! Needed to verify statement for setting and getting registers value
-  //NiceMock<MemoryAccessHook> memoryAccessHook;
-
   GPIO_TypeDef virtualGPIOPort;
   GPIO virtualGPIO = GPIO(&virtualGPIOPort);
   GPIO::PinConfiguration pinConfig;
 
   uint32_t expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value);
-  //void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
-  //void expectRegisterNotToChange(volatile uint32_t *registerPtr);
-  //void expectNoRegisterToChange(void);
 
   void SetUp() override;
   void TearDown() override;

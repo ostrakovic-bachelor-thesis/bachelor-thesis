@@ -4,6 +4,11 @@
 #include "stm32l4r9xx.h"
 #include <cstdint>
 
+
+#ifdef RCC
+#undef RCC
+#endif // #ifdef RCC
+
 #ifdef GPIOA
 #undef GPIOA
 #endif // #ifdef GPIOA
@@ -67,6 +72,7 @@
 
 enum class Peripheral : uintptr_t
 {
+  RCC     = RCC_BASE,
   GPIOA   = GPIOA_BASE,
   GPIOB   = GPIOB_BASE,
   GPIOC   = GPIOC_BASE,
