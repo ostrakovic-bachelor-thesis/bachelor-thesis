@@ -21,8 +21,17 @@ public:
   static constexpr uint32_t NVIC_IABR_RESET_VALUE  = 0x00000000u;
   static constexpr uint8_t  NVIC_IP_RESET_VALUE    = 0x00u;
   static constexpr uint32_t NVIC_STIR_RESET_VALUE  = 0x00000000u;
-
+  
   static constexpr uint8_t SCB_SHP_RESET_VALUE = 0x00u;
+
+  static constexpr uint8_t  NUMBER_OF_BITS_IN_UINT8_T         = 8u;
+  static constexpr uint32_t NUMBER_OF_BITS_IN_UINT32_T        = 32u;
+  static constexpr uint32_t RANDOM_VALID_INTERRUPT_PRIORITY   = 3u;
+  static constexpr uint32_t RANDOM_INVALID_INTERRUPT_PRIORITY = 20u;
+  static constexpr int32_t  RANDOM_MCU_SPECIFIC_IRQ_NUMBER    = EXTI0_IRQn;
+  static constexpr int32_t  RANDOM_CPU_EXCEPTION_IRQ_NUMBER   = SysTick_IRQn;
+  static constexpr int32_t  RANDOM_VALID_IRQ_NUMBER           = UART4_IRQn;
+  static constexpr int32_t  RANDOM_INVALID_IRQ_NUMBER         = -20;
 
   NVIC_Type virtualNVIC;
   SCB_Type virtualSCB =
@@ -78,30 +87,77 @@ void AnInterruptController::TearDown()
 
 TEST_F(AnInterruptController, setInterruptProrityInIPRegisterOfNVICForMCUSpecificInterrupts)
 {
-  constexpr uint8_t NUMBER_OF_BITS_IN_UINT8_T = 8u;
-  constexpr uint32_t VALID_IRQ_NUMBER = EXTI0_IRQn;
-  constexpr uint32_t VALID_INTERRUPT_PRIORITY = 4u;
-  const uint8_t expectedIPValue = VALID_INTERRUPT_PRIORITY << (NUMBER_OF_BITS_IN_UINT8_T - __NVIC_PRIO_BITS);
-  expectRegisterSetOnlyOnce(&(virtualNVIC.IP[VALID_IRQ_NUMBER]), expectedIPValue);
+  const uint8_t expectedIPValue = RANDOM_VALID_INTERRUPT_PRIORITY << (NUMBER_OF_BITS_IN_UINT8_T - __NVIC_PRIO_BITS);
+  expectRegisterSetOnlyOnce(&(virtualNVIC.IP[RANDOM_MCU_SPECIFIC_IRQ_NUMBER]), expectedIPValue);
   
   const InterruptController::ErrorCode errorCode = 
-    virtualInterruptController.setInterruptPriority(VALID_IRQ_NUMBER, VALID_INTERRUPT_PRIORITY);
+    virtualInterruptController.setInterruptPriority(RANDOM_MCU_SPECIFIC_IRQ_NUMBER, RANDOM_VALID_INTERRUPT_PRIORITY);
 
   ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::OK));
-  ASSERT_THAT(virtualNVIC.IP[VALID_IRQ_NUMBER], Eq(expectedIPValue));
+  ASSERT_THAT(virtualNVIC.IP[RANDOM_MCU_SPECIFIC_IRQ_NUMBER], Eq(expectedIPValue));
 }
 
 TEST_F(AnInterruptController, setInterruptProrityInSHPRegisterOfSCBForProcessorExceptions)
 {
-  constexpr uint8_t NUMBER_OF_BITS_IN_UINT8_T = 8u;
-  constexpr uint32_t VALID_IRQ_NUMBER = SysTick_IRQn;
-  constexpr uint32_t VALID_INTERRUPT_PRIORITY = 3u;
-  const uint8_t expectedSHPValue = VALID_INTERRUPT_PRIORITY << (NUMBER_OF_BITS_IN_UINT8_T - __NVIC_PRIO_BITS);
-  expectRegisterSetOnlyOnce(&(virtualSCB.SHP[12u - VALID_IRQ_NUMBER]), expectedSHPValue);
+  const uint8_t expectedSHPValue = RANDOM_VALID_INTERRUPT_PRIORITY << (NUMBER_OF_BITS_IN_UINT8_T - __NVIC_PRIO_BITS);
+  expectRegisterSetOnlyOnce(&(virtualSCB.SHP[12u - RANDOM_CPU_EXCEPTION_IRQ_NUMBER]), expectedSHPValue);
   
   const InterruptController::ErrorCode errorCode = 
-    virtualInterruptController.setInterruptPriority(VALID_IRQ_NUMBER, VALID_INTERRUPT_PRIORITY);
+    virtualInterruptController.setInterruptPriority(RANDOM_CPU_EXCEPTION_IRQ_NUMBER, RANDOM_VALID_INTERRUPT_PRIORITY);
 
   ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::OK));
-  ASSERT_THAT(virtualSCB.SHP[12u - VALID_IRQ_NUMBER], Eq(expectedSHPValue));
+  ASSERT_THAT(virtualSCB.SHP[12u - RANDOM_CPU_EXCEPTION_IRQ_NUMBER], Eq(expectedSHPValue));
+}
+
+TEST_F(AnInterruptController, setInterruptProrityFailsIfIRQNumberIsOutOfAllowedRange)
+{
+  expectNoRegisterToChange();
+
+  const InterruptController::ErrorCode errorCode = 
+    virtualInterruptController.setInterruptPriority(RANDOM_INVALID_IRQ_NUMBER, RANDOM_VALID_INTERRUPT_PRIORITY);
+
+  ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::IRQ_NUMBER_OUT_OF_RANGE));
+}
+
+TEST_F(AnInterruptController, setInterruptProrityFailsIfInterruptPriorityIsOutOfAllowedRange)
+{
+  expectNoRegisterToChange();
+
+  const InterruptController::ErrorCode errorCode = 
+    virtualInterruptController.setInterruptPriority(RANDOM_VALID_IRQ_NUMBER, RANDOM_INVALID_INTERRUPT_PRIORITY);
+
+  ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::INTERRUPT_PRIORITY_OUT_OF_RANGE));
+}
+
+TEST_F(AnInterruptController, enableInterruptSetsCorrespondingBitInISERRegisterOfNVICForMCUSpecificInterrupts)
+{ 
+  constexpr uint32_t ISER_INDEX = RANDOM_MCU_SPECIFIC_IRQ_NUMBER / NUMBER_OF_BITS_IN_UINT32_T;
+  constexpr uint32_t ISER_BIT_POSITION = RANDOM_MCU_SPECIFIC_IRQ_NUMBER % NUMBER_OF_BITS_IN_UINT32_T;
+  const uint32_t expectedISERValue = MemoryUtility<uint32_t>::setBit(NVIC_ISER_RESET_VALUE, ISER_BIT_POSITION);
+  expectRegisterSetOnlyOnce(&(virtualNVIC.ISER[ISER_INDEX]), expectedISERValue);
+  
+  const InterruptController::ErrorCode errorCode = 
+    virtualInterruptController.enableInterrupt(RANDOM_MCU_SPECIFIC_IRQ_NUMBER);
+
+  ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::OK));
+}
+
+TEST_F(AnInterruptController, enableInterruptSucceedForForProcessorExceptionsWithoutChangingAnyRegister)
+{
+  expectNoRegisterToChange();
+
+  const InterruptController::ErrorCode errorCode = 
+    virtualInterruptController.enableInterrupt(RANDOM_CPU_EXCEPTION_IRQ_NUMBER);
+
+  ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::OK));
+}
+
+TEST_F(AnInterruptController, enableInterruptFailsIfInterruptPriorityIsOutOfAllowedRange)
+{
+  expectNoRegisterToChange();
+
+  const InterruptController::ErrorCode errorCode = 
+    virtualInterruptController.enableInterrupt(RANDOM_INVALID_IRQ_NUMBER);
+
+  ASSERT_THAT(errorCode, Eq(InterruptController::ErrorCode::IRQ_NUMBER_OUT_OF_RANGE));
 }

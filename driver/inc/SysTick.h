@@ -4,6 +4,7 @@
 #include "stm32l4r9xx.h"
 #include "ClockControl.h"
 #include "CoreHardware.h"
+#include "InterruptController.h"
 #include <cstdint>
 
 
@@ -11,8 +12,8 @@ class SysTick
 {
 public:
 
-  SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr);
-  
+  SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr, InterruptController *InterruptControllerPtr);
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -60,6 +61,9 @@ private:
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
+  
+  //! TODO
+  InterruptController *m_interruptControllerPtr;
 };
 
 #endif // #ifndef SYS_TICK_H

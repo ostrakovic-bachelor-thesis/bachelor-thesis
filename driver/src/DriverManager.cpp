@@ -11,7 +11,7 @@ InterruptController DriverManager::s_interruptControllerDriverInstance =
   InterruptController(reinterpret_cast<NVIC_Type*>(CoreHardware::NVIC), reinterpret_cast<SCB_Type*>(CoreHardware::SCB));
 
 SysTick DriverManager::s_sysTickDriverInstance =
-  SysTick(reinterpret_cast<SysTick_Type*>(CoreHardware::SYSTICK), &s_clockControlDriverInstance);
+  SysTick(reinterpret_cast<SysTick_Type*>(CoreHardware::SYSTICK), &s_clockControlDriverInstance, &s_interruptControllerDriverInstance);
 
 GPIO DriverManager::s_gpioDriverInstance[] =
 {

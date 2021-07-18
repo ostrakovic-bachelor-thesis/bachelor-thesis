@@ -13,7 +13,6 @@ using namespace ::testing;
 class ASysTick : public DriverTest
 {
 public:
-
   //! Based on real reset values for SysTick register
   static constexpr uint32_t SYSTICK_CTRL_RESET_VALUE  = 0x00000000;
   static constexpr uint32_t SYSTICK_LOAD_RESET_VALUE  = 0x00000000;
@@ -31,7 +30,9 @@ public:
     .CALIB = SYSTICK_CALIB_RESET_VALUE
   };
   NiceMock<ClockControlMock> clockControlMock;
-  SysTick virtualSysTick = SysTick(&virtualSysTickCoreHardware, &clockControlMock);
+  // TODO NiceMock<InterruptControllerMock> interruptControllerMock;
+  InterruptController interruptControllerMock = InterruptController(nullptr, nullptr);
+  SysTick virtualSysTick = SysTick(&virtualSysTickCoreHardware, &clockControlMock, &interruptControllerMock);
   SysTick::SysTickConfig sysTickConfig;
 
   void SetUp() override;

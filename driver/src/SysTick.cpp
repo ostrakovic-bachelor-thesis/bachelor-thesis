@@ -3,9 +3,10 @@
 #include "RegisterUtility.h"
 
 
-SysTick::SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr):
+SysTick::SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr, InterruptController *InterruptControllerPtr):
   m_sysTickPtr(sysTickPtr),
-  m_clockControlPtr(clockControlPtr)
+  m_clockControlPtr(clockControlPtr),
+  m_interruptControllerPtr(InterruptControllerPtr)
 {}
 
 SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
