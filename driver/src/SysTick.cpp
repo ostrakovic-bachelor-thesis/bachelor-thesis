@@ -1,18 +1,18 @@
-#include "SysTickTimer.h"
+#include "SysTick.h"
 #include "MemoryAccess.h"
 #include "RegisterUtility.h"
 
 
-SysTickTimer::SysTickTimer(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr):
+SysTick::SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr):
   m_sysTickPtr(sysTickPtr),
   m_clockControlPtr(clockControlPtr)
 {}
 
-SysTickTimer::ErrorCode SysTickTimer::init(const SysTickTimerConfig& sysTickTimerConfig)
+SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
 {
   uint32_t reloadValue = 0u;
   
-  ErrorCode errorCode = ticksPerSecondToReloadValue(sysTickTimerConfig.ticksPerSecond, reloadValue);
+  ErrorCode errorCode = ticksPerSecondToReloadValue(sysTickConfig.ticksPerSecond, reloadValue);
   if (ErrorCode::OK == errorCode)
   {
     setReloadValue(reloadValue);
@@ -20,8 +20,8 @@ SysTickTimer::ErrorCode SysTickTimer::init(const SysTickTimerConfig& sysTickTime
 
     uint32_t registerValueCTRL = 0u;
     
-    setEnableSysTickFlag(registerValueCTRL, sysTickTimerConfig.enableOnInit);
-    setEnableInterruptFlag(registerValueCTRL, sysTickTimerConfig.enableInterrupt);
+    setEnableSysTickFlag(registerValueCTRL, sysTickConfig.enableOnInit);
+    setEnableInterruptFlag(registerValueCTRL, sysTickConfig.enableInterrupt);
     setClockSourceFlag(registerValueCTRL, true);
 
     MemoryAccess::setRegisterValue(&(m_sysTickPtr->CTRL), registerValueCTRL);
@@ -30,7 +30,7 @@ SysTickTimer::ErrorCode SysTickTimer::init(const SysTickTimerConfig& sysTickTime
   return errorCode;
 }
 
-SysTickTimer::ErrorCode SysTickTimer::ticksPerSecondToReloadValue(uint32_t ticksPerSecond, uint32_t &reloadValue)
+SysTick::ErrorCode SysTick::ticksPerSecondToReloadValue(uint32_t ticksPerSecond, uint32_t &reloadValue)
 {
   uint32_t systemClockFrequency = 0u;
 
@@ -51,7 +51,7 @@ SysTickTimer::ErrorCode SysTickTimer::ticksPerSecondToReloadValue(uint32_t ticks
   return ErrorCode::OK;
 }
 
-inline void SysTickTimer::setReloadValue(uint32_t reloadValue)
+inline void SysTick::setReloadValue(uint32_t reloadValue)
 {
   constexpr uint8_t RELOAD_VALUE_NUM_OF_BITS = 24u;
   RegisterUtility<uint32_t>::setBitsInRegister(
@@ -61,12 +61,12 @@ inline void SysTickTimer::setReloadValue(uint32_t reloadValue)
     reloadValue);
 }
 
-inline void SysTickTimer::setCurrentValue(uint32_t currentValue)
+inline void SysTick::setCurrentValue(uint32_t currentValue)
 {
   MemoryAccess::setRegisterValue(&(m_sysTickPtr->VAL), currentValue);
 }
 
-inline void SysTickTimer::setEnableSysTickFlag(uint32_t &registerValueCTRL, bool enableSysTick)
+inline void SysTick::setEnableSysTickFlag(uint32_t &registerValueCTRL, bool enableSysTick)
 {
   constexpr uint8_t ENABLE_SYSTICK_NUM_OF_BITS = 1u;
   constexpr uint8_t ENABLE_SYSTICK_POSITION = 0u;
@@ -78,7 +78,7 @@ inline void SysTickTimer::setEnableSysTickFlag(uint32_t &registerValueCTRL, bool
     (enableSysTick ? 1u : 0u));
 }
 
-inline void SysTickTimer::setEnableInterruptFlag(uint32_t &registerValueCTRL, bool enableInterrupt)
+inline void SysTick::setEnableInterruptFlag(uint32_t &registerValueCTRL, bool enableInterrupt)
 {
   constexpr uint8_t ENABLE_INTERRUPT_NUM_OF_BITS = 1u;
   constexpr uint8_t ENABLE_INTERRUPT_POSITION = 1u;
@@ -91,7 +91,7 @@ inline void SysTickTimer::setEnableInterruptFlag(uint32_t &registerValueCTRL, bo
 }
 
 
-inline void SysTickTimer::setClockSourceFlag(uint32_t &registerValueCTRL, bool useCPUClock)
+inline void SysTick::setClockSourceFlag(uint32_t &registerValueCTRL, bool useCPUClock)
 {
   constexpr uint8_t CLOCK_SOURCE_NUM_OF_BITS = 1u;
   constexpr uint8_t CLOCK_SOURCE_POSITION = 2u;
@@ -103,7 +103,7 @@ inline void SysTickTimer::setClockSourceFlag(uint32_t &registerValueCTRL, bool u
     (useCPUClock ? 1u : 0u));
 }
 
-inline bool SysTickTimer::isReloadValueInValidRangeOfValue(uint32_t reloadValue)
+inline bool SysTick::isReloadValueInValidRangeOfValue(uint32_t reloadValue)
 {
   constexpr uint32_t MAX_RELOAD_VALUE = 1 << 24u;
   

@@ -47,6 +47,23 @@ public:
   }
 
   /**
+   * @brief Static method sets register, pointed by 'registerPtr', to value 'value'.
+   * 
+   * @param[in] registerPtr - Pointer to register.
+   * @param[in] value       - Value to which register will be set.
+   */
+  static inline void setRegisterValue(volatile uint8_t *registerPtr, uint8_t value)
+  {
+#ifdef UNIT_TEST_DRIVER
+    if (nullptr != s_memoryAccessHookPtr)
+    {
+      s_memoryAccessHookPtr->setRegisterValue(registerPtr, value);
+    }
+#endif // #ifdef UNIT_TEST_DRIVER
+    *registerPtr = value;
+  }
+
+  /**
    * @brief Static method gets value of register, pointed by 'registerPtr'.
    * 
    * @param[in] registerPtr - Pointer to register.
@@ -80,8 +97,24 @@ public:
     return *registerPtr;
   }
 
+  /**
+   * @brief Static method gets value of register, pointed by 'registerPtr'.
+   * 
+   * @param[in] registerPtr - Pointer to register.
+   * @return Register value.
+   */
+  static inline uint8_t getRegisterValue(volatile const uint8_t *registerPtr)
+  {
 #ifdef UNIT_TEST_DRIVER
-  
+    if (nullptr != s_memoryAccessHookPtr)
+    {
+      s_memoryAccessHookPtr->getRegisterValue(registerPtr);
+    }
+#endif // #ifdef UNIT_TEST_DRIVER
+    return *registerPtr;
+  }
+
+#ifdef UNIT_TEST_DRIVER
   /**
    * @brief   Method sets memory access hook. 
    * @details It is used only for purpose of driver testing, to verify expectations about setting 

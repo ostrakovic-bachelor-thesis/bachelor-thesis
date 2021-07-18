@@ -3,6 +3,7 @@
 
 #include "stm32l4r9xx.h"
 #include "ClockControl.h"
+#include "Peripheral.h"
 #include <cstdint>
 
 

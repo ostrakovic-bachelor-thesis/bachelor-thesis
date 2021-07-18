@@ -1,4 +1,8 @@
 #include "DriverManager.h"
+#include "Peripheral.h"
+#include "CoreHardware.h"
+#include "SysTick.h"
+#include "InterruptController.h"
 #include "GPIO.h"
 #include "USART.h"
 #include "ClockControl.h"
@@ -36,4 +40,22 @@ TEST(TheDriverManager, GetsResetControlInstance)
   const ResetControl &resetControl = DriverManager::getInstance(DriverManager::ResetControlInstance::GENERIC);
 
   ASSERT_THAT(reinterpret_cast<uintptr_t>(resetControl.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::RCC)));
+}
+
+TEST(TheDriverManager, GetsSysTickInstance)
+{
+  const SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
+
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(sysTick.getRawPointer()), Eq(static_cast<uintptr_t>(CoreHardware::SYSTICK)));
+}
+
+TEST(TheDriverManager, GetsInterruptControllerInstance)
+{
+  const InterruptController &interruptController = 
+    DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
+
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerNVIC()), 
+    Eq(static_cast<uintptr_t>(CoreHardware::NVIC)));
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerSCB()), 
+    Eq(static_cast<uintptr_t>(CoreHardware::SCB)));
 }

@@ -6,6 +6,8 @@
 #include "USART.h"
 #include "ClockControl.h"
 #include "ResetControl.h"
+#include "SysTick.h"
+#include "InterruptController.h"
 #include <cstdint>
 
 
@@ -46,6 +48,16 @@ public:
     GENERIC = 0u
   };
 
+  enum class SysTickInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
+  enum class InterruptControllerInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -66,6 +78,16 @@ public:
     return s_resetControlDriverInstance;
   }
 
+  inline static SysTick& getInstance(SysTickInstance sysTickInstance)
+  {
+    return s_sysTickDriverInstance;
+  }
+
+  inline static InterruptController& getInstance(InterruptControllerInstance interruptControllerInstance)
+  {
+    return s_interruptControllerDriverInstance;
+  }
+
 private:
 
   //! TODO
@@ -73,6 +95,12 @@ private:
 
   //! TODO
   static ResetControl s_resetControlDriverInstance;
+
+  //! TODO
+  static InterruptController s_interruptControllerDriverInstance;
+
+  //! TODO
+  static SysTick s_sysTickDriverInstance;
 
   //! TODO
   static GPIO s_gpioDriverInstance[];

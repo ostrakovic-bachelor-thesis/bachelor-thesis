@@ -1,4 +1,4 @@
-#include "SysTickTimer.h"
+#include "SysTick.h"
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
@@ -23,7 +23,7 @@ public:
   static const uint32_t RANDOM_SYSCLOCK_FREQ;
   static const uint32_t RANDOM_TICKS_PER_SECOND;
 
-  SysTick_Type virtualSysTick = 
+  SysTick_Type virtualSysTickCoreHardware = 
   {
     .CTRL  = SYSTICK_CTRL_RESET_VALUE,
     .LOAD  = SYSTICK_LOAD_RESET_VALUE,
@@ -31,8 +31,8 @@ public:
     .CALIB = SYSTICK_CALIB_RESET_VALUE
   };
   NiceMock<ClockControlMock> clockControlMock;
-  SysTickTimer virtualSysTickTimer = SysTickTimer(&virtualSysTick, &clockControlMock);
-  SysTickTimer::SysTickTimerConfig sysTickTimerConfig;
+  SysTick virtualSysTick = SysTick(&virtualSysTickCoreHardware, &clockControlMock);
+  SysTick::SysTickConfig sysTickConfig;
 
   void SetUp() override;
   void TearDown() override;
@@ -45,9 +45,9 @@ void ASysTick::SetUp()
 {
   DriverTest::SetUp();
 
-  sysTickTimerConfig.ticksPerSecond  = 10000u;
-  sysTickTimerConfig.enableInterrupt = false;
-  sysTickTimerConfig.enableOnInit    = false;
+  sysTickConfig.ticksPerSecond  = 10000u;
+  sysTickConfig.enableInterrupt = false;
+  sysTickConfig.enableOnInit    = false;
 }
 
 void ASysTick::TearDown()
@@ -59,24 +59,24 @@ void ASysTick::TearDown()
 TEST_F(ASysTick, InitSetsLOADRegisterAccordingToTicksPerSecondValueAndSystemClockFrequency)
 {
   const uint32_t expectedLoadValue = RANDOM_SYSCLOCK_FREQ / RANDOM_TICKS_PER_SECOND;
-  sysTickTimerConfig.ticksPerSecond = RANDOM_TICKS_PER_SECOND;
+  sysTickConfig.ticksPerSecond = RANDOM_TICKS_PER_SECOND;
   clockControlMock.setReturnClockFrequency(RANDOM_SYSCLOCK_FREQ);
-  expectRegisterSetOnlyOnce(&(virtualSysTick.LOAD), expectedLoadValue);
+  expectRegisterSetOnlyOnce(&(virtualSysTickCoreHardware.LOAD), expectedLoadValue);
   
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::OK));
-  ASSERT_THAT(virtualSysTick.LOAD, Eq(expectedLoadValue));
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
+  ASSERT_THAT(virtualSysTickCoreHardware.LOAD, Eq(expectedLoadValue));
 }
 
 TEST_F(ASysTick, InitSetsVALRegisterToZero)
 {
-  expectRegisterSetOnlyOnce(&(virtualSysTick.VAL), 0u);
+  expectRegisterSetOnlyOnce(&(virtualSysTickCoreHardware.VAL), 0u);
   
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::OK));
-  ASSERT_THAT(virtualSysTick.VAL, Eq(0u));
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
+  ASSERT_THAT(virtualSysTickCoreHardware.VAL, Eq(0u));
 }
 
 TEST_F(ASysTick, InitSetsTICKINTBitInCTRLRegisterAccordingToEnableInterruptValueFromrConfig)
@@ -85,13 +85,13 @@ TEST_F(ASysTick, InitSetsTICKINTBitInCTRLRegisterAccordingToEnableInterruptValue
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_TICKINT_VALUE = 1u;
   auto bitValueMatcher = 
     BitHasValue(SYSTICK_CTRL_TICKINT_POSITION, EXPECTED_SYSTICK_CTRL_TICKINT_VALUE);
-  sysTickTimerConfig.enableInterrupt = true;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTick.CTRL), bitValueMatcher);
+  sysTickConfig.enableInterrupt = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
 
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::OK));
-  ASSERT_THAT(virtualSysTick.CTRL, bitValueMatcher);
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
+  ASSERT_THAT(virtualSysTickCoreHardware.CTRL, bitValueMatcher);
 }
 
 TEST_F(ASysTick, InitSetsENABLEBitInCTRLRegisterAccordingToEnableOnInitValueFromConfig)
@@ -100,13 +100,13 @@ TEST_F(ASysTick, InitSetsENABLEBitInCTRLRegisterAccordingToEnableOnInitValueFrom
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_ENABLE_VALUE = 1u;
   auto bitValueMatcher = 
     BitHasValue(SYSTICK_CTRL_ENABLE_POSITION, EXPECTED_SYSTICK_CTRL_ENABLE_VALUE);
-  sysTickTimerConfig.enableOnInit = true;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTick.CTRL), bitValueMatcher);
+  sysTickConfig.enableOnInit = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
 
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::OK));
-  ASSERT_THAT(virtualSysTick.CTRL, bitValueMatcher);
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
+  ASSERT_THAT(virtualSysTickCoreHardware.CTRL, bitValueMatcher);
 }
 
 TEST_F(ASysTick, InitSetsCLKSOURCEBitInCTRLRegisterToOneAkaSysTickUsesCPUClock)
@@ -115,29 +115,29 @@ TEST_F(ASysTick, InitSetsCLKSOURCEBitInCTRLRegisterToOneAkaSysTickUsesCPUClock)
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_CLKSOURCE_VALUE = 1u;
   auto bitValueMatcher = 
     BitHasValue(SYSTICK_CTRL_CLKSOURCE_POSITION, EXPECTED_SYSTICK_CTRL_CLKSOURCE_VALUE);
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTick.CTRL), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
 
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::OK));
-  ASSERT_THAT(virtualSysTick.CTRL, bitValueMatcher);
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
+  ASSERT_THAT(virtualSysTickCoreHardware.CTRL, bitValueMatcher);
 }
 
 TEST_F(ASysTick, InitFailsIfGettingOfSystemClockFrequencyFails)
 {
   clockControlMock.setReturnErrorCode(ClockControl::ErrorCode::INVALID_CLOCK_SOURCE);
 
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::RELOAD_VALUE_CALCULATION_PROBLEM));
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::RELOAD_VALUE_CALCULATION_PROBLEM));
 }
 
 TEST_F(ASysTick, InitFailsIfReloadValueForGivenTicksPerSecondIsOutOfRange)
 {
   clockControlMock.setReturnClockFrequency(120000000u); // 120 MHz
-  sysTickTimerConfig.ticksPerSecond = 5u;
+  sysTickConfig.ticksPerSecond = 5u;
 
-  const SysTickTimer::ErrorCode errorCode = virtualSysTickTimer.init(sysTickTimerConfig);
+  const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
-  ASSERT_THAT(errorCode, Eq(SysTickTimer::ErrorCode::RELOAD_VALUE_OUT_OF_RANGE));
+  ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::RELOAD_VALUE_OUT_OF_RANGE));
 }

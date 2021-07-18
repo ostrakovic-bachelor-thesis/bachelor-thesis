@@ -17,8 +17,9 @@ set(BachelorThesis_driver_component_cpp_sources
     src/ClockControl.cpp
     src/ResetControl.cpp
     src/USART.cpp
-    src/DriverManager.cpp
-    src/SysTickTimer.cpp)
+    src/SysTick.cpp
+    src/InterruptController.cpp
+    src/DriverManager.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources
     test/DriverTest.cpp
@@ -26,7 +27,8 @@ set(BachelorThesis_driver_test_cpp_sources
     test/ClockControlTest.cpp
     test/ResetControlTest.cpp
     test/USARTTest.cpp
-    test/SysTickTimerTest.cpp
+    test/SysTickTest.cpp
+    test/InterruptControllerTest.cpp
     test/DriverManagerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources} 

@@ -32,8 +32,10 @@ public:
   uint32_t expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value);
   void expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue);
   void expectRegisterSetOnlyOnce(volatile uint16_t *registerPtr, uint16_t registerValue);
+  void expectRegisterSetOnlyOnce(volatile uint8_t *registerPtr, uint8_t registerValue);
   void expectRegisterNotToChange(volatile uint32_t *registerPtr);
   void expectRegisterNotToChange(volatile uint16_t *registerPtr);
+  void expectRegisterNotToChange(volatile uint8_t *registerPtr);
   void expectNoRegisterToChange(void);
   
   template<typename GMockMatcher>
@@ -41,6 +43,9 @@ public:
 
   template<typename GMockMatcher>
   void expectRegisterSetOnlyOnce(volatile uint16_t *registerPtr, GMockMatcher matcher);
+
+  template<typename GMockMatcher>
+  void expectRegisterSetOnlyOnce(volatile uint8_t *registerPtr, GMockMatcher matcher);
 
   template<typename GMockMatcher>
   void expectSpecificRegisterSetWithNoChangesAfter(volatile uint32_t *registerPtr, GMockMatcher matcher);
@@ -77,6 +82,18 @@ void DriverTest::expectRegisterSetOnlyOnce(volatile uint16_t *registerPtr, GMock
     });
 
   EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint16_t>(_)))
+    .Times(AnyNumber()); 
+}
+
+template<typename GMockMatcher>
+void DriverTest::expectRegisterSetOnlyOnce(volatile uint8_t *registerPtr, GMockMatcher matcher)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, Matcher<uint8_t>(_)))
+    .WillOnce([&](volatile void *registerPtr, uint8_t registerValue) {
+      ASSERT_THAT(registerValue, matcher);
+    });
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(registerPtr), Matcher<uint8_t>(_)))
     .Times(AnyNumber()); 
 }
 

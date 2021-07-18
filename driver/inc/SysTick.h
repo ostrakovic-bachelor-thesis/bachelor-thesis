@@ -1,16 +1,17 @@
-#ifndef SYS_TICK_TIMER_H
-#define SYS_TICK_TIMER_H
+#ifndef SYS_TICK_H
+#define SYS_TICK_H
 
 #include "stm32l4r9xx.h"
 #include "ClockControl.h"
+#include "CoreHardware.h"
 #include <cstdint>
 
 
-class SysTickTimer
+class SysTick
 {
 public:
 
-  SysTickTimer(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr);
+  SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr);
   
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
@@ -21,14 +22,26 @@ public:
     RELOAD_VALUE_OUT_OF_RANGE        = 3u
   };
 
-  struct SysTickTimerConfig
+  struct SysTickConfig
   {
     uint32_t ticksPerSecond;
     bool enableInterrupt;
     bool enableOnInit;
   };
 
-  ErrorCode init(const SysTickTimerConfig& sysTickTimerConfig);
+  ErrorCode init(const SysTickConfig& sysTickConfig);
+
+#ifdef UNIT_TEST_DRIVER
+  /**
+   * @brief Method gets raw pointer to underlaying SysTick core hardware instance.
+   * 
+   * @return Pointer to underlaying SysTick core hardware instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_sysTickPtr);
+  }
+#endif // #ifdef UNIT_TEST_DRIVER
 
 private:
 
@@ -49,4 +62,4 @@ private:
   ClockControl *m_clockControlPtr;
 };
 
-#endif // #ifndef SYS_TICK_TIMER_H
+#endif // #ifndef SYS_TICK_H
