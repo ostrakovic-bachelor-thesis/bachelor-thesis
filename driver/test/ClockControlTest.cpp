@@ -31,6 +31,7 @@ public:
   void setAPB1Prescaler(uint32_t prescaler);
   void setAPB2Prescaler(uint32_t prescaler);
   void setUSART1ClockSource(uint32_t clockSource);
+  void setUSART2ClockSource(uint32_t clockSource);
 
   void SetUp() override;
   void TearDown() override;
@@ -50,12 +51,12 @@ void AClockControl::TearDown()
 
 void AClockControl::setPLL(uint32_t PLLM, uint32_t PLLN, uint32_t PLLR, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLSRC)
 {
-  virtualRCCPeripheral.PLLCFGR = 
+  virtualRCCPeripheral.PLLCFGR =
     (((PLLM - 1) << RCC_PLLCFGR_PLLM_Pos) & RCC_PLLCFGR_PLLM_Msk) |
-    ((PLLN << RCC_PLLCFGR_PLLN_Pos) & RCC_PLLCFGR_PLLN_Msk) | 
-    (PLLSRC) | 
-    ((((PLLQ >> 1) - 1) << RCC_PLLCFGR_PLLQ_Pos) & RCC_PLLCFGR_PLLQ_Msk) | 
-    ((((PLLR >> 1) - 1) << RCC_PLLCFGR_PLLR_Pos) & RCC_PLLCFGR_PLLR_Msk)| 
+    ((PLLN << RCC_PLLCFGR_PLLN_Pos) & RCC_PLLCFGR_PLLN_Msk) |
+    (PLLSRC) |
+    ((((PLLQ >> 1) - 1) << RCC_PLLCFGR_PLLQ_Pos) & RCC_PLLCFGR_PLLQ_Msk) |
+    ((((PLLR >> 1) - 1) << RCC_PLLCFGR_PLLR_Pos) & RCC_PLLCFGR_PLLR_Msk)|
     ((PLLP << RCC_PLLCFGR_PLLP_Pos) & RCC_PLLCFGR_PLLP_Msk);
 }
 
@@ -98,6 +99,11 @@ void AClockControl::setUSART1ClockSource(uint32_t clockSource)
   virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_USART1SEL_Pos) & RCC_CCIPR_USART1SEL_Msk;
 }
 
+void AClockControl::setUSART2ClockSource(uint32_t clockSource)
+{
+  virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_USART2SEL_Pos) & RCC_CCIPR_USART2SEL_Msk;
+}
+
 
 TEST_F(AClockControl, GetsHSIClockFrequency)
 {
@@ -105,7 +111,7 @@ TEST_F(AClockControl, GetsHSIClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::HSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -118,7 +124,7 @@ TEST_F(AClockControl, GetsHSEClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::HSE, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -131,7 +137,7 @@ TEST_F(AClockControl, GetsLSEClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::LSE, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -146,7 +152,7 @@ TEST_F(AClockControl, GetMSIClockFrequencyFromCR)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::MSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -159,9 +165,9 @@ TEST_F(AClockControl, GetMSIClockFrequencyFromCSR)
   constexpr uint32_t EXPECTED_MSI_CLOCK_FREQUENCY = 2000000u; // 2 MHz
   setMSI(MSI_RANGE_VALUE, false);
   expectNoRegisterToChange();
-  
+
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::MSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -175,7 +181,7 @@ TEST_F(AClockControl, GetPLLClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::PLL, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -190,7 +196,7 @@ TEST_F(AClockControl, GetsSystemClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::SYSTEM_CLOCK, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -205,7 +211,7 @@ TEST_F(AClockControl, GetsAHBClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::AHB, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -221,7 +227,7 @@ TEST_F(AClockControl, GetsAPB1ClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::APB1, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -237,7 +243,7 @@ TEST_F(AClockControl, GetsAPB2ClockFrequency)
   expectNoRegisterToChange();
 
   uint32_t clockFrequency;
-  const ClockControl::ErrorCode errorCode = 
+  const ClockControl::ErrorCode errorCode =
     virtualClockControl.getClockFrequency(ClockControl::ClockSource::APB2, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
@@ -256,4 +262,21 @@ TEST_F(AClockControl, GetsUSART1ClockFrequency)
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_USART1_CLOCK_FREQUENCY));
+}
+
+TEST_F(AClockControl, GetsUSART2ClockFrequency)
+{
+  constexpr uint32_t USART2_CLOCK_SOURCE_PCLK = 0b00;
+  constexpr uint32_t EXPECTED_USART2_CLOCK_FREQUENCY = 8000000u; // 8 MHz
+  setSysClockSource(RCC_CFGR_SWS_HSI);
+  setAHBPrescaler(RCC_CFGR_HPRE_DIV1);
+  setAPB2Prescaler(RCC_CFGR_PPRE2_DIV2);
+  setUSART2ClockSource(USART2_CLOCK_SOURCE_PCLK);
+  expectNoRegisterToChange();
+
+  uint32_t clockFrequency;
+  const ClockControl::ErrorCode errorCode = virtualClockControl.getClockFrequency(Peripheral::USART2, clockFrequency);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(clockFrequency, Eq(EXPECTED_USART2_CLOCK_FREQUENCY));
 }

@@ -14,13 +14,13 @@ public:
 
   /**
    * @brief Constructor of ClockControl class instance.
-   * 
+   *
    * @param[in] - Pointer to a RCC peripheral instance.
    */
   ClockControl(RCC_TypeDef *RCCPeripheralPtr);
 
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ~ClockControl() = default;
 
@@ -51,7 +51,7 @@ public:
    * TODO
    */
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const;
 
@@ -59,14 +59,14 @@ public:
    * TODO
    */
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency) const;
 
 #ifdef UNIT_TEST_DRIVER
   /**
    * @brief Method gets raw pointer to underlaying RCC peripheral instance.
-   * 
+   *
    * @return Pointer to underlaying RCC peripheral instance.
    */
   inline void* getRawPointer(void) const
@@ -74,9 +74,9 @@ public:
     return reinterpret_cast<void*>(m_RCCPeripheralPtr);
   }
 #endif // #ifdef UNIT_TEST_DRIVER
-  
+
 private:
-  
+
   // TODO
   typedef uint32_t (ClockControl::*GetClockFrequencyFunction_t)(void) const;
 
@@ -97,6 +97,7 @@ private:
   uint32_t getNoClockFrequency(void) const;
 
   uint32_t getUSART1ClockFrequency(void) const;
+  uint32_t getUSART2ClockFrequency(void) const;
 
   static const uint32_t s_msiClockFreq[];
 

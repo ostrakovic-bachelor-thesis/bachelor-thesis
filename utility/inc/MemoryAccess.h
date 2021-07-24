@@ -11,10 +11,10 @@
 class MemoryAccess
 {
 public:
-  
+
   /**
    * @brief Static method sets register, pointed by 'registerPtr', to value 'value'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @param[in] value       - Value to which register will be set.
    */
@@ -31,7 +31,7 @@ public:
 
   /**
    * @brief Static method sets register, pointed by 'registerPtr', to value 'value'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @param[in] value       - Value to which register will be set.
    */
@@ -48,7 +48,7 @@ public:
 
   /**
    * @brief Static method sets register, pointed by 'registerPtr', to value 'value'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @param[in] value       - Value to which register will be set.
    */
@@ -65,7 +65,7 @@ public:
 
   /**
    * @brief Static method gets value of register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @return Register value.
    */
@@ -79,10 +79,10 @@ public:
 #endif // #ifdef UNIT_TEST_DRIVER
     return *registerPtr;
   }
-  
+
   /**
    * @brief Static method gets value of register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @return Register value.
    */
@@ -99,7 +99,7 @@ public:
 
   /**
    * @brief Static method gets value of register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @return Register value.
    */
@@ -116,10 +116,10 @@ public:
 
 #ifdef UNIT_TEST_DRIVER
   /**
-   * @brief   Method sets memory access hook. 
-   * @details It is used only for purpose of driver testing, to verify expectations about setting 
+   * @brief   Method sets memory access hook.
+   * @details It is used only for purpose of driver testing, to verify expectations about setting
    *          registers to correct values.
-   * 
+   *
    * @param[in] memoryAccessHookPtr - Pointer to memory access hook.
    */
   static inline void setMemoryAccessHook(NiceMock<MemoryAccessHook> *memoryAccessHookPtr)
@@ -128,7 +128,7 @@ public:
   }
 
 private:
-  //! Pointer to memory access hook, used to verify set and get register value expectations 
+  //! Pointer to memory access hook, used to verify set and get register value expectations
   static NiceMock<MemoryAccessHook> *s_memoryAccessHookPtr;
 #endif // #ifdef UNIT_TEST_DRIVER
 

@@ -16,7 +16,7 @@ public:
 
   NiceMock<MemoryAccessHook> memoryAccessHook;
   volatile uint32_t virtualRegister;
-  
+
   void SetUp() override
   {
     MemoryAccess::setMemoryAccessHook(&memoryAccessHook);
@@ -33,7 +33,7 @@ TEST_F(TheRegisterUtility, SetsBitInRegisterProperly)
 {
   virtualRegister = 0u;
   EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, 1u << BIT_IN_ALLOWED_SCOPE))
-    .Times(1u); 
+    .Times(1u);
 
   RegisterUtility<uint32_t>::setBitInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE);
 
@@ -44,7 +44,7 @@ TEST_F(TheRegisterUtility, SetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllowed
 {
   virtualRegister = 0u;
   EXPECT_CALL(memoryAccessHook, setRegisterValue(Matcher<volatile uint32_t*>(_), _))
-    .Times(0u); 
+    .Times(0u);
 
   RegisterUtility<uint32_t>::setBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
 
@@ -55,7 +55,7 @@ TEST_F(TheRegisterUtility, ResetsBitInRegisterProperly)
 {
   virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
   EXPECT_CALL(memoryAccessHook, setRegisterValue(&virtualRegister, 0u))
-    .Times(1u); 
+    .Times(1u);
 
   RegisterUtility<uint32_t>::resetBitInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE);
 
@@ -66,7 +66,7 @@ TEST_F(TheRegisterUtility, ResetBitInRegisterDoesNotChangeValueIfBitIsOutOfAllow
 {
   virtualRegister = 1u << BIT_IN_ALLOWED_SCOPE;
   EXPECT_CALL(memoryAccessHook, setRegisterValue(Matcher<volatile uint32_t*>(_), _))
-    .Times(0u); 
+    .Times(0u);
 
   RegisterUtility<uint32_t>::resetBitInRegister(&virtualRegister, BIT_OUT_OF_ALLOWED_SCOPE);
 
@@ -77,7 +77,7 @@ TEST_F(TheRegisterUtility, ChecksIsBitSetProperly)
 {
   virtualRegister = 1 << BIT_IN_ALLOWED_SCOPE;
   EXPECT_CALL(memoryAccessHook, getRegisterValue(&virtualRegister))
-    .Times(2u); 
+    .Times(2u);
 
   ASSERT_THAT(RegisterUtility<uint32_t>::isBitSetInRegister(&virtualRegister, 0u), Eq(false));
   ASSERT_THAT(RegisterUtility<uint32_t>::isBitSetInRegister(&virtualRegister, BIT_IN_ALLOWED_SCOPE), Eq(true));

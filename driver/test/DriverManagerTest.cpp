@@ -15,14 +15,14 @@ using namespace ::testing;
 
 
 TEST(TheDriverManager, GetsGPIOInstance)
-{ 
+{
   const GPIO &gpioD = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOD);
 
   ASSERT_THAT(reinterpret_cast<uintptr_t>(gpioD.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::GPIOD)));
 }
 
 TEST(TheDriverManager, GetsUSARTInstance)
-{ 
+{
   const USART &usart3 = DriverManager::getInstance(DriverManager::USARTInstance::USART3);
 
   ASSERT_THAT(reinterpret_cast<uintptr_t>(usart3.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::USART3)));
@@ -51,11 +51,11 @@ TEST(TheDriverManager, GetsSysTickInstance)
 
 TEST(TheDriverManager, GetsInterruptControllerInstance)
 {
-  const InterruptController &interruptController = 
+  const InterruptController &interruptController =
     DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
 
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerNVIC()), 
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerNVIC()),
     Eq(static_cast<uintptr_t>(CoreHardware::NVIC)));
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerSCB()), 
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerSCB()),
     Eq(static_cast<uintptr_t>(CoreHardware::SCB)));
 }

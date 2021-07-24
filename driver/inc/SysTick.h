@@ -32,10 +32,17 @@ public:
 
   ErrorCode init(const SysTickConfig& sysTickConfig);
 
+  inline uint64_t getTicks(void) const
+  {
+    return m_ticks;
+  }
+
+  void IRQHandler(void);
+
 #ifdef UNIT_TEST_DRIVER
   /**
    * @brief Method gets raw pointer to underlaying SysTick core hardware instance.
-   * 
+   *
    * @return Pointer to underlaying SysTick core hardware instance.
    */
   inline void* getRawPointer(void) const
@@ -55,15 +62,18 @@ private:
   ErrorCode ticksPerSecondToReloadValue(uint32_t ticksPerSecond, uint32_t &reloadValue);
 
   static bool isReloadValueInValidRangeOfValue(uint32_t reloadValue);
-  
+
   //! TODO
   SysTick_Type *m_sysTickPtr;
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
-  
+
   //! TODO
   InterruptController *m_interruptControllerPtr;
+
+  //! TODO
+  uint64_t m_ticks;
 };
 
 #endif // #ifndef SYS_TICK_H

@@ -14,13 +14,13 @@ public:
 
   /**
    * @brief Constructor of ResetControl class instance.
-   * 
+   *
    * @param[in] - Pointer to a RCC peripheral instance.
    */
   ResetControl(RCC_TypeDef *RCCPeripheralPtr);
 
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ~ResetControl() = default;
 
@@ -36,7 +36,7 @@ public:
    * @brief Method enables peripheral clock.
    *
    * @param[in] peripheral - Peripheral which clock will be enabled.
-   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
 #ifdef UNIT_TEST_DRIVER
@@ -48,7 +48,7 @@ public:
    * @brief Method disables peripheral clock.
    *
    * @param[in] peripheral - Peripheral which clock will be disabled.
-   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
 #ifdef UNIT_TEST_DRIVER
@@ -61,7 +61,7 @@ public:
    *
    * @param[in]  peripheral     - Peripheral which clock will checked.
    * @param[out] isClockEnabled - Reference to variable in which state of enabling will be written.
-   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure, 
+   * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
 #ifdef UNIT_TEST_DRIVER
@@ -72,7 +72,7 @@ public:
 #ifdef UNIT_TEST_DRIVER
   /**
    * @brief Method gets raw pointer to underlaying RCC peripheral instance.
-   * 
+   *
    * @return Pointer to underlaying RCC peripheral instance.
    */
   inline void* getRawPointer(void) const
@@ -103,7 +103,7 @@ private:
   const EnablePeripheralClockRegisterMapping* findEnableClockRegisterMapping(Peripheral peripheral) const;
 
   volatile uint32_t* getPointerToRegister(Register register) const;
-  
+
   bool setBitInRegister(Register register, uint8_t bitInRegister);
 
   bool resetBitInRegister(Register rccRegister, uint8_t bitInRegister);

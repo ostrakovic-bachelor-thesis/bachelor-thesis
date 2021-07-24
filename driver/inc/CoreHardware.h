@@ -5,9 +5,9 @@
 #include <cstdint>
 
 
-#ifdef SysTick 
-#undef SysTick 
-#endif // #ifdef SysTick 
+#ifdef SysTick
+#undef SysTick
+#endif // #ifdef SysTick
 
 #ifdef NVIC
 #undef NVIC

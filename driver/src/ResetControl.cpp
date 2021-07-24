@@ -14,6 +14,13 @@ const ResetControl::EnablePeripheralClockRegisterMapping ResetControl::s_enableP
   { .peripheral = Peripheral::GPIOG, .enableRegister = Register::AHB2ENR, .enableBitPosition = 6u },
   { .peripheral = Peripheral::GPIOH, .enableRegister = Register::AHB2ENR, .enableBitPosition = 7u },
   { .peripheral = Peripheral::GPIOI, .enableRegister = Register::AHB2ENR, .enableBitPosition = 8u },
+
+  { .peripheral = Peripheral::USART1,  .enableRegister = Register::APB2ENR,  .enableBitPosition = 14u },
+  { .peripheral = Peripheral::USART2,  .enableRegister = Register::APB1ENR1, .enableBitPosition = 17u },
+  { .peripheral = Peripheral::USART3,  .enableRegister = Register::APB1ENR1, .enableBitPosition = 18u },
+  { .peripheral = Peripheral::UART4,   .enableRegister = Register::APB1ENR1, .enableBitPosition = 19u },
+  { .peripheral = Peripheral::UART5,   .enableRegister = Register::APB1ENR1, .enableBitPosition = 20u },
+  { .peripheral = Peripheral::LPUART1, .enableRegister = Register::APB1ENR2, .enableBitPosition = 0u },
 };
 
 
@@ -45,7 +52,7 @@ ResetControl::ErrorCode ResetControl::disablePeripheralClock(Peripheral peripher
   {
     return ErrorCode::NOT_IMPLEMENTED;
   }
-  
+
   bool isBitReset = resetBitInRegister(mappingPtr->enableRegister, mappingPtr->enableBitPosition);
   if (not isBitReset)
   {
@@ -62,7 +69,7 @@ ResetControl::ErrorCode ResetControl::isPeripheralClockEnabled(Peripheral periph
   {
     return ErrorCode::NOT_IMPLEMENTED;
   }
-  
+
   bool isBitChecked = isBitSetInRegister(mappingPtr->enableRegister, mappingPtr->enableBitPosition, isClockEnabled);
   if (not isBitChecked)
   {
@@ -114,7 +121,7 @@ bool ResetControl::isBitSetInRegister(Register rccRegister, uint8_t bitInRegiste
   return isBitChecked;
 }
 
-const ResetControl::EnablePeripheralClockRegisterMapping* 
+const ResetControl::EnablePeripheralClockRegisterMapping*
 ResetControl::findEnableClockRegisterMapping(Peripheral peripheral) const
 {
   for (auto i = 0u; i < sizeof(s_enablePeripheralClockMapping) / sizeof(EnablePeripheralClockRegisterMapping); ++i)

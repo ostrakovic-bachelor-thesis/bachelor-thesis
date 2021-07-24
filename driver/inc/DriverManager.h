@@ -27,7 +27,7 @@ public:
     GPIOH = 7u,
     GPIOI = 8u
   };
-  
+
   enum class USARTInstance : uint8_t
   {
     USART1  = 0u,

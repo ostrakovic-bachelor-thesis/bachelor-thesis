@@ -15,7 +15,7 @@ public:
   static constexpr uint32_t ALL_BITS_SET             = ~0u;
 
   NiceMock<MemoryAccessHook> memoryAccessHook;
-  
+
   void SetUp() override
   {
     MemoryAccess::setMemoryAccessHook(&memoryAccessHook);

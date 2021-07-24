@@ -26,30 +26,30 @@ const uint32_t USART::s_prescaler[] =
 
 const USART::CSRegisterMapping USART::s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)] =
 {
-  [static_cast<uint8_t>(USART::Interrupt::FIFO_THRESHOLD)] = 
-  { 
-    .registerOffset = offsetof(USART_TypeDef, CR3), 
+  [static_cast<uint8_t>(USART::Interrupt::FIFO_THRESHOLD)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR3),
     .bitPosition = 23u,
   },
 
-  [static_cast<uint8_t>(USART::Interrupt::TRANSMISSION_COMPLETE)] = 
-  { 
-    .registerOffset = offsetof(USART_TypeDef, CR1), 
+  [static_cast<uint8_t>(USART::Interrupt::TRANSMISSION_COMPLETE)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR1),
     .bitPosition = 6u,
   },
 };
 
 const USART::CSRegisterMapping USART::s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)] =
 {
-  [static_cast<uint8_t>(USART::Flag::TX_FIFO_NOT_FULL)] = 
-  { 
-    .registerOffset = offsetof(USART_TypeDef, ISR), 
+  [static_cast<uint8_t>(USART::Flag::TX_FIFO_NOT_FULL)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
     .bitPosition = 7u,
   },
 
-  [static_cast<uint8_t>(USART::Flag::IS_TRANMISSION_COMPLETED)] = 
-  { 
-    .registerOffset = offsetof(USART_TypeDef, ISR), 
+  [static_cast<uint8_t>(USART::Flag::IS_TRANMISSION_COMPLETED)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
     .bitPosition = 6u,
   },
 };
@@ -72,7 +72,8 @@ USART::ErrorCode USART::init(const USARTConfig &usartConfig)
 
   uint32_t registerValueCR1 = MemoryAccess::getRegisterValue(&(m_USARTPeripheralPtr->CR1));
   uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_USARTPeripheralPtr->CR2));
- 
+
+  enableFIFOMode(registerValueCR1);
   setFrameFormat(registerValueCR1, usartConfig.frameFormat);
   setOversampling(registerValueCR1, usartConfig.oversampling);
   setParity(registerValueCR1, usartConfig.parity);
@@ -99,7 +100,9 @@ USART::ErrorCode USART::write(const void *messagePtr, uint32_t messageLen)
     m_txMessageLen = messageLen;
     m_txMessagePos = 0u;
 
+    disableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
     enableInterrupt(Interrupt::FIFO_THRESHOLD);
+    enableTransmitter();
   }
   else
   {
@@ -122,26 +125,41 @@ bool USART::startTxTransaction(void)
   return isTxTransacationStarted;
 }
 
+inline void USART::endTxTransaction(void)
+{
+  m_isTxTransactionCompleted = true;
+}
+
 void USART::IRQHandler(void)
 {
-  while (isInterruptEnabled(Interrupt::FIFO_THRESHOLD) && isFlagSet(Flag::TX_FIFO_NOT_FULL))
-  {
-    if (m_txMessagePos != m_txMessageLen)
-    {
-      writeData(reinterpret_cast<const uint8_t*>(m_txMessagePtr)[m_txMessagePos++]);
-    }
-    else
-    {
-      disableInterrupt(Interrupt::FIFO_THRESHOLD);
-      enableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
-    }
-  }
-
   if (isInterruptEnabled(Interrupt::TRANSMISSION_COMPLETE) && isFlagSet(Flag::IS_TRANMISSION_COMPLETED))
   {
     disableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
-    m_isTxTransactionCompleted = true;
+    disableTransmitter();
+    endTxTransaction();
   }
+
+  if (isWriteTransactionOngoing())
+  {
+    while (isInterruptEnabled(Interrupt::FIFO_THRESHOLD) && isFlagSet(Flag::TX_FIFO_NOT_FULL))
+    {
+      if (m_txMessagePos != m_txMessageLen)
+      {
+        writeData(reinterpret_cast<const uint8_t*>(m_txMessagePtr)[m_txMessagePos++]);
+      }
+      else
+      {
+        disableInterrupt(Interrupt::FIFO_THRESHOLD);
+        enableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
+      }
+    }
+  }
+}
+
+void USART::enableFIFOMode(uint32_t &registerValueCR1)
+{
+  constexpr uint32_t USART_CR1_FIFOEN_POSITION = 29u;
+  registerValueCR1 = MemoryUtility<uint32_t>::setBit(registerValueCR1, USART_CR1_FIFOEN_POSITION);
 }
 
 void USART::setFrameFormat(uint32_t &registerValueCR1, FrameFormat frameFormat)
@@ -158,7 +176,7 @@ void USART::setFrameFormat(uint32_t &registerValueCR1, FrameFormat frameFormat)
   {
     registerValueCR1 = MemoryUtility<uint32_t>::resetBit(registerValueCR1, USART_CR1_PCE_POSITION);
   }
-  
+
   if (MemoryUtility<uint8_t>::isBitSet(static_cast<uint8_t>(frameFormat), 0u))
   {
     registerValueCR1 = MemoryUtility<uint32_t>::setBit(registerValueCR1, USART_CR1_M0_POSITION);
@@ -184,7 +202,7 @@ void USART::setOversampling(uint32_t &registerValueCR1, Oversampling oversamplin
   constexpr uint8_t USART_CR1_OVER8_POSITION = 15u;
 
   registerValueCR1 = MemoryUtility<uint32_t>::setBits(
-    registerValueCR1, 
+    registerValueCR1,
     USART_CR1_OVER8_POSITION,
     OVERSAMPLING_NUM_OF_BITS,
     static_cast<uint32_t>(oversampling));
@@ -196,7 +214,7 @@ void USART::setParity(uint32_t &registerValueCR1, Parity parity)
   constexpr uint8_t USART_CR1_PS_POSITION = 9u;
 
   registerValueCR1 = MemoryUtility<uint32_t>::setBits(
-    registerValueCR1, 
+    registerValueCR1,
     USART_CR1_PS_POSITION,
     PARITY_NUM_OF_BITS,
     static_cast<uint32_t>(parity));
@@ -208,7 +226,7 @@ void USART::setStopBits(uint32_t &registerValueCR2, StopBits stopBits)
   constexpr uint8_t USART_CR2_STOP_POSITION = 12u;
 
   registerValueCR2 = MemoryUtility<uint32_t>::setBits(
-    registerValueCR2, 
+    registerValueCR2,
     USART_CR2_STOP_POSITION,
     STOP_BITS_NUM_OF_BITS,
     static_cast<uint32_t>(stopBits));
@@ -226,11 +244,23 @@ inline void USART::enableUSART(void)
   RegisterUtility<uint32_t>::setBitInRegister(&(m_USARTPeripheralPtr->CR1), USART_CR1_UE_POSITION);
 }
 
+inline void USART::enableTransmitter(void)
+{
+  constexpr uint8_t USART_CR1_TE_POSITION = 3u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_USARTPeripheralPtr->CR1), USART_CR1_TE_POSITION);
+}
+
+inline void USART::disableTransmitter(void)
+{
+  constexpr uint8_t USART_CR1_TE_POSITION = 3u;
+  RegisterUtility<uint32_t>::resetBitInRegister(&(m_USARTPeripheralPtr->CR1), USART_CR1_TE_POSITION);
+}
+
 void USART::enableInterrupt(Interrupt interrupt)
 {
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
-  uint32_t *registerPtr = 
+  uint32_t *registerPtr =
     reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_USARTPeripheralPtr) + registerOffset));
 
   RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitPosition);
@@ -240,7 +270,7 @@ void USART::disableInterrupt(Interrupt interrupt)
 {
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
-  uint32_t *registerPtr = 
+  uint32_t *registerPtr =
     reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_USARTPeripheralPtr) + registerOffset));
 
   RegisterUtility<uint32_t>::resetBitInRegister(registerPtr, bitPosition);
@@ -250,7 +280,7 @@ bool USART::isInterruptEnabled(Interrupt interrupt) const
 {
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
-  const uint32_t *registerPtr = 
+  const uint32_t *registerPtr =
     reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_USARTPeripheralPtr) + registerOffset));
 
   const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
@@ -270,13 +300,13 @@ USART::ErrorCode USART::setBaudrate(Baudrate baudrate, Oversampling oversampling
   uint32_t inputClockFrequency = 0u;
 
   const auto clockControlErrorCode =  m_clockControlPtr->getClockFrequency(
-    static_cast<Peripheral>(reinterpret_cast<uintptr_t>(m_USARTPeripheralPtr)), 
+    static_cast<Peripheral>(reinterpret_cast<uintptr_t>(m_USARTPeripheralPtr)),
     inputClockFrequency);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
     return ErrorCode::BAUDRATE_SETUP_PROBLEM;
   }
-  
+
   uint32_t BRRValue;
   uint32_t PRESCValue;
 
@@ -285,7 +315,7 @@ USART::ErrorCode USART::setBaudrate(Baudrate baudrate, Oversampling oversampling
   {
     return ErrorCode::BAUDRATE_SETUP_PROBLEM;
   }
-  
+
   setPRESCRegister(PRESCValue);
   setBRRRegister(BRRValue);
 
@@ -293,10 +323,10 @@ USART::ErrorCode USART::setBaudrate(Baudrate baudrate, Oversampling oversampling
 }
 
 bool USART::findBRRAndPRESCValue(
-  uint32_t baudrate, 
-  uint32_t inputClockFrequency, 
-  Oversampling oversampling, 
-  uint32_t &BRRValue, 
+  uint32_t baudrate,
+  uint32_t inputClockFrequency,
+  Oversampling oversampling,
+  uint32_t &BRRValue,
   uint32_t &PRESCValue)
 {
   bool isBaudrateFind = false;
@@ -317,9 +347,9 @@ bool USART::findBRRAndPRESCValue(
 
 uint32_t USART::findBRR(uint32_t baudrate, uint32_t inputClockFrequency, uint32_t prescaler, Oversampling oversampling)
 {
-  const uint32_t clockMultiplier = (Oversampling::OVERSAMPLING_8 == oversampling) ? 2u : 1u; 
+  const uint32_t clockMultiplier = (Oversampling::OVERSAMPLING_8 == oversampling) ? 2u : 1u;
   const uint32_t clockFrequency  = (clockMultiplier * inputClockFrequency) / prescaler;
-    
+
   uint32_t usartDiv = (clockFrequency + (baudrate / 2u)) / baudrate ;
   if (Oversampling::OVERSAMPLING_8 == oversampling)
   {
@@ -333,7 +363,7 @@ uint32_t USART::findBRR(uint32_t baudrate, uint32_t inputClockFrequency, uint32_
 
   const uint32_t generatedBaudrate = clockFrequency / usartDiv;
   const float baudrateDeviation = 100.0f * (static_cast<float>(baudrate) - static_cast<float>(generatedBaudrate)) / baudrate;
-  
+
   if (not isBaudrateDeviationWithinTolerance(baudrateDeviation))
   {
     return BRR_INVALID_VALUE;
@@ -358,7 +388,7 @@ inline uint32_t USART::usartDivToBRR(uint32_t usartDiv, Oversampling oversamplin
   {
     usartDiv = ((usartDiv & 0x0000FFF0u) | ((usartDiv & 0x0000000Fu) >> 1));
   }
-  
+
   return usartDiv;
 }
 
@@ -407,7 +437,7 @@ bool USART::isFrameFormatInValidRangeOfValues(FrameFormat frameFormat)
 bool USART::isUSARTConfigurationValid(const USARTConfig &usartConfig)
 {
   bool isUSARTConfigValid = true;
-  
+
   isUSARTConfigValid &= isFrameFormatInValidRangeOfValues(usartConfig.frameFormat);
   isUSARTConfigValid &= isOversamplingInValidRangeOfValues(usartConfig.oversampling);
   isUSARTConfigValid &= isParityInValidRangeOfValues(usartConfig.parity);

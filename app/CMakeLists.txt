@@ -10,9 +10,12 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/ClockControl.cpp
     ../driver/src/ResetControl.cpp
     ../driver/src/USART.cpp
+    ../driver/src/SysTick.cpp
+    ../driver/src/InterruptController.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
+    src/InterruptDispatcher.cpp
     src/Startup.cpp)
 
 add_executable(app ${BachelorThesis_driver_component_cpp_sources}
@@ -20,6 +23,7 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    src/startup_stm32l4r9xx.s
                    src/system_stm32l4xx.c
                    src/syscalls.c
+                   src/sysclock.c
                    src/main.c)
                   
 target_include_directories(app PRIVATE
@@ -45,7 +49,7 @@ target_compile_options(app PRIVATE
                        -Wfatal-errors
                        -Wall
                        -g 
-                       -O2)
+                       -O0)
 
 # TODO remove later
 #ASFLAGS  = -g -O2 -Wfatal-errors

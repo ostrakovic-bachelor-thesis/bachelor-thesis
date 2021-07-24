@@ -13,7 +13,7 @@ public:
   InterruptController(NVIC_Type *NVICPtr, SCB_Type *SCBPtr);
 
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ~InterruptController() = default;
 
@@ -26,19 +26,19 @@ public:
   };
 
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode setInterruptPriority(int32_t irqNumber, uint32_t interruptPriority);
 
 #ifdef UNIT_TEST_DRIVER
-  virtual 
+  virtual
 #endif // #ifdef UNIT_TEST_DRIVER
   ErrorCode enableInterrupt(int32_t irqNumber);
 
 #ifdef UNIT_TEST_DRIVER
   /**
   * @brief Method gets raw pointer to underlaying NVIC core hardware instance.
-   * 
+   *
    * @return Pointer to underlaying NVIC core hardware instance.
    */
   inline void* getRawPointerNVIC(void) const
@@ -48,7 +48,7 @@ public:
 
   /**
    * @brief Method gets raw pointer to underlaying SCB core hardware instance.
-   * 
+   *
    * @return Pointer to underlaying SCB core hardware instance.
    */
   inline void* getRawPointerSCB(void) const
@@ -65,7 +65,7 @@ private:
   static bool isIRQProcessorException(int32_t irqNumber);
   static bool isIRQNumberInValidRangeOfValues(int32_t irqNumber);
   static bool isInterruptPriorityInValidRangeOfValues(uint32_t interruptPriority);
-  
+
   //! TODO
   NVIC_Type *m_NVICPtr;
 

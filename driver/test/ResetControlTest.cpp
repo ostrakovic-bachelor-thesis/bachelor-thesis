@@ -51,11 +51,11 @@ TEST_F(AResetControl, EnablesPeripheralClock)
 {
   constexpr uint32_t CLOCK_ENABLED    = 1u;
   constexpr uint32_t POSITION_GPIOCEN = 2u;
-  const uint32_t expectedAHB2ENRValue = 
+  const uint32_t expectedAHB2ENRValue =
     expectedRegVal(RCC_AHB2ENR_RESET_VALUE, POSITION_GPIOCEN, 1u, CLOCK_ENABLED);
   expectRegisterSetOnlyOnce(&(virtualRCCPeripheral.AHB2ENR), expectedAHB2ENRValue);
-  
-  const ResetControl::ErrorCode errorCode = 
+
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.enablePeripheralClock(Peripheral::GPIOC);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::OK));
@@ -65,8 +65,8 @@ TEST_F(AResetControl, EnablesPeripheralClock)
 TEST_F(AResetControl, EnablesPeripheralClockFailsIfEnablingIsNotImplementedForPeripheral)
 {
   expectNoRegisterToChange();
-  
-  const ResetControl::ErrorCode errorCode = 
+
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.enablePeripheralClock(Peripheral::INVALID_PERIPHERAL);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::NOT_IMPLEMENTED));
@@ -76,12 +76,12 @@ TEST_F(AResetControl, DisablesPeripheralClock)
 {
   constexpr uint32_t CLOCK_DISABLED   = 0u;
   constexpr uint32_t POSITION_GPIOEEN = 4u;
-  const uint32_t expectedAHB2ENRValue = 
+  const uint32_t expectedAHB2ENRValue =
     expectedRegVal(RCC_AHB2ENR_RESET_VALUE, POSITION_GPIOEEN, 1u, CLOCK_DISABLED);
   virtualResetControl.enablePeripheralClock(Peripheral::GPIOE);
   expectRegisterSetOnlyOnce(&(virtualRCCPeripheral.AHB2ENR), expectedAHB2ENRValue);
-  
-  const ResetControl::ErrorCode errorCode = 
+
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.disablePeripheralClock(Peripheral::GPIOE);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::OK));
@@ -91,8 +91,8 @@ TEST_F(AResetControl, DisablesPeripheralClock)
 TEST_F(AResetControl, DisablesPeripheralClockFailsIfDisablingIsNotImplementedForPeripheral)
 {
   expectNoRegisterToChange();
-  
-  const ResetControl::ErrorCode errorCode = 
+
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.disablePeripheralClock(Peripheral::INVALID_PERIPHERAL);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::NOT_IMPLEMENTED));
@@ -102,9 +102,9 @@ TEST_F(AResetControl, ChecksIsPeripheralClockEnabled)
 {
   virtualResetControl.enablePeripheralClock(Peripheral::GPIOF);
   expectNoRegisterToChange();
-  
+
   bool isEnabledGPIOFClock;
-  const ResetControl::ErrorCode errorCode = 
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.isPeripheralClockEnabled(Peripheral::GPIOF, isEnabledGPIOFClock);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::OK));
@@ -114,9 +114,9 @@ TEST_F(AResetControl, ChecksIsPeripheralClockEnabled)
 TEST_F(AResetControl, ChecksIsPeripheralClockEnabledFailsIfEnablingIsNotImplementedForPeripheral)
 {
   expectNoRegisterToChange();
-  
+
   bool isClockEnabled;
-  const ResetControl::ErrorCode errorCode = 
+  const ResetControl::ErrorCode errorCode =
     virtualResetControl.isPeripheralClockEnabled(Peripheral::INVALID_PERIPHERAL, isClockEnabled);
 
   ASSERT_THAT(errorCode, Eq(ResetControl::ErrorCode::NOT_IMPLEMENTED));

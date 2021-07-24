@@ -31,8 +31,8 @@ set(BachelorThesis_driver_test_cpp_sources
     test/InterruptControllerTest.cpp
     test/DriverManagerTest.cpp)
 
-add_executable(test ${BachelorThesis_utility_component_cpp_sources} 
-                    ${BachelorThesis_driver_component_cpp_sources} 
+add_executable(test ${BachelorThesis_utility_component_cpp_sources}
+                    ${BachelorThesis_driver_component_cpp_sources}
                     ${BachelorThesis_driver_test_cpp_sources})
 
 target_link_libraries(test libgtest.a)

@@ -81,11 +81,10 @@ public:
 
   void IRQHandler(void);
 
-
 #ifdef UNIT_TEST_DRIVER
   /**
    * @brief Method gets raw pointer to underlaying USART peripheral instance.
-   * 
+   *
    * @return Pointer to underlaying USART peripheral instance.
    */
   inline void* getRawPointer(void) const
@@ -95,7 +94,7 @@ public:
 #endif // #ifdef UNIT_TEST_DRIVER
 
 private:
-  
+
   static constexpr uint32_t BRR_INVALID_VALUE = 0u;
 
   enum class Interrupt : uint8_t
@@ -118,16 +117,17 @@ private:
   //! Constrol/status operation to register mapping
   struct CSRegisterMapping
   {
-    uint32_t registerOffset; 
+    uint32_t registerOffset;
     uint8_t  bitPosition;
   };
 
-  void setFrameFormat(uint32_t &registerValueCR1, FrameFormat frameFormat);
-  void setOversampling(uint32_t &registerValueCR1, Oversampling oversampling);
-  void setParity(uint32_t &registerValueCR1, Parity parity);
-  void setStopBits(uint32_t &registerValueCR2, StopBits stopBits);
+  static void setFrameFormat(uint32_t &registerValueCR1, FrameFormat frameFormat);
+  static void setOversampling(uint32_t &registerValueCR1, Oversampling oversampling);
+  static void setParity(uint32_t &registerValueCR1, Parity parity);
+  static void setStopBits(uint32_t &registerValueCR2, StopBits stopBits);
+  static void enableFIFOMode(uint32_t &registerValueCR1);
   ErrorCode setBaudrate(Baudrate baudrateValue, Oversampling oversampling);
-  
+
   static bool isUSARTConfigurationValid(const USARTConfig &usartConfig);
   static bool isFrameFormatInValidRangeOfValues(FrameFormat frameFormat);
   static bool isOversamplingInValidRangeOfValues(Oversampling oversampling);
@@ -136,16 +136,16 @@ private:
   static bool isBaudrateInValidRangeOfValues(Baudrate baudrate);
 
   bool findBRRAndPRESCValue(
-    uint32_t baudrate, 
-    uint32_t inputClockFrequency, 
-    Oversampling oversampling, 
-    uint32_t &BRRValue, 
+    uint32_t baudrate,
+    uint32_t inputClockFrequency,
+    Oversampling oversampling,
+    uint32_t &BRRValue,
     uint32_t &PRESCValue);
 
   uint32_t findBRR(
-    uint32_t baudrate, 
-    uint32_t inputClockFrequency, 
-    uint32_t prescaler, 
+    uint32_t baudrate,
+    uint32_t inputClockFrequency,
+    uint32_t prescaler,
     Oversampling oversampling);
 
   static bool isValidUsartDiv(uint32_t value);
@@ -160,7 +160,11 @@ private:
   void disableUSART(void);
   void enableUSART(void);
 
+  void disableTransmitter(void);
+  void enableTransmitter(void);
+
   bool startTxTransaction(void);
+  void endTxTransaction(void);
 
   void enableInterrupt(Interrupt interrupt);
   void disableInterrupt(Interrupt interrupt);
@@ -170,7 +174,7 @@ private:
 
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
-  
+
   //! TODO
   static const CSRegisterMapping s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)];
 
@@ -182,12 +186,12 @@ private:
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
 
-  //! Pointer to message to transmit 
+  //! Pointer to message to transmit
   const void *m_txMessagePtr;
-  
+
   //! Size of message to transmit
   uint32_t m_txMessageLen;
-  
+
   //! Position of next data chunk to transmit
   uint32_t m_txMessagePos;
 

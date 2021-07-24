@@ -9,7 +9,7 @@ InterruptController::InterruptController(NVIC_Type *NVICPtr, SCB_Type *SCBPtr):
   m_SCBPtr(SCBPtr)
 {}
 
-InterruptController::ErrorCode 
+InterruptController::ErrorCode
 InterruptController::setInterruptPriority(int32_t irqNumber, uint32_t interruptPriority)
 {
   if (not isIRQNumberInValidRangeOfValues(irqNumber))
@@ -43,12 +43,12 @@ InterruptController::ErrorCode InterruptController::enableInterrupt(int32_t irqN
   {
     return ErrorCode::IRQ_NUMBER_OUT_OF_RANGE;
   }
-  
+
   if (not isIRQProcessorException(irqNumber))
   {
     const uint32_t index       = irqNumber / NUMBER_OF_BITS_IN_UINT32_T;
     const uint32_t bitPosition = irqNumber % NUMBER_OF_BITS_IN_UINT32_T;
-    
+
     RegisterUtility<uint32_t>::setBitInRegister(&(m_NVICPtr->ISER[index]), bitPosition);
   }
 

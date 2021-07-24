@@ -31,7 +31,7 @@ public:
       return m_errorCode;
     }));
   }
-  
+
   virtual ~ClockControlMock() = default;
 
   inline void setReturnClockFrequency(uint32_t clockFrequency)
@@ -43,13 +43,13 @@ public:
   {
     m_errorCode = errorCode;
   }
-   
+
   // Mock methods
   MOCK_METHOD(ErrorCode, getClockFrequency, (ClockSource, uint32_t &), (const, override));
   MOCK_METHOD(ErrorCode, getClockFrequency, (Peripheral, uint32_t &), (const, override));
 
 private:
-  
+
   uint32_t m_clockFrequency = 16000000u; // 16 MHz
 
   ErrorCode m_errorCode = ErrorCode::OK;

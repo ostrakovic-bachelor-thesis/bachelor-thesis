@@ -10,8 +10,8 @@
  * @brief   Utility class designed for manipulating with values of bits in registers.
  * @details Template parameter T should be set to appropriate type according to the
  *          size of register on which manipulations will be performed.
- *  
- * @tparam T - Should be: uint8_t, uint16_t, uint32_t or uint64_t. 
+ *
+ * @tparam T - Should be: uint8_t, uint16_t, uint32_t or uint64_t.
  */
 template <typename T>
 class RegisterUtility
@@ -19,20 +19,20 @@ class RegisterUtility
 public:
 
   //! Max allowed value for bit parameter.
-  static constexpr uint8_t MAX_ALLOWED_BIT = 8u * sizeof(T); 
+  static constexpr uint8_t MAX_ALLOWED_BIT = 8u * sizeof(T);
 
   /**
    * @brief Static method sets bit 'bit' in register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in,out] registerPtr - Pointer to register.
    * @param[in]     bit         - Bit to set in register.
    */
   static void setBitInRegister(volatile T *registerPtr, uint8_t bit);
-  
+
 
   /**
    * @brief Static method resets bit 'bit' in register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in,out] registerPtr - Pointer to register.
    * @param[in]     bit         - Bit to reset in register.
    */
@@ -40,7 +40,7 @@ public:
 
   /**
    * @brief Static method checks is bit 'bit' set in register, pointed by 'registerPtr'.
-   * 
+   *
    * @param[in] registerPtr - Pointer to register.
    * @param[in] bit         - Bit to set in register.
    * @return true if bit is set in register, false otherwise.
@@ -53,7 +53,7 @@ public:
    * @details If you want to change value of bits which are out of scope of register, then
    *          this method will do nothing. Value will be masked, so that only first 'numberOfBits'
    *          may be set.
-   * 
+   *
    * @param[in,out] registerPtr  - Pointer to register.
    * @param[in]     startBit     - Bit starting from which value will be set/inserted.
    * @param[in]     numberOfBits - Size of value in bits.
@@ -66,7 +66,7 @@ public:
    *          pointed by 'registerPtr'.
    * @details If you want to read value of bits which are out of scope of register, then
    *          this method will return 0u.
-   * 
+   *
    * @param[in] registerPtr  - Pointer to register.
    * @param[in] startBit     - Bit starting from which value will be get.
    * @param[in] numberOfBits - Size of value in bits.

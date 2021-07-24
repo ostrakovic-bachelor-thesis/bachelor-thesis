@@ -22,7 +22,7 @@ public:
   static const uint32_t RANDOM_SYSCLOCK_FREQ;
   static const uint32_t RANDOM_TICKS_PER_SECOND;
 
-  SysTick_Type virtualSysTickCoreHardware = 
+  SysTick_Type virtualSysTickCoreHardware =
   {
     .CTRL  = SYSTICK_CTRL_RESET_VALUE,
     .LOAD  = SYSTICK_LOAD_RESET_VALUE,
@@ -48,7 +48,7 @@ void ASysTick::SetUp()
 
   sysTickConfig.ticksPerSecond  = 10000u;
   sysTickConfig.enableInterrupt = false;
-  sysTickConfig.enableOnInit    = false;
+  sysTickConfig.enableOnInit    = true;
 }
 
 void ASysTick::TearDown()
@@ -63,7 +63,7 @@ TEST_F(ASysTick, InitSetsLOADRegisterAccordingToTicksPerSecondValueAndSystemCloc
   sysTickConfig.ticksPerSecond = RANDOM_TICKS_PER_SECOND;
   clockControlMock.setReturnClockFrequency(RANDOM_SYSCLOCK_FREQ);
   expectRegisterSetOnlyOnce(&(virtualSysTickCoreHardware.LOAD), expectedLoadValue);
-  
+
   const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
   ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
@@ -73,7 +73,7 @@ TEST_F(ASysTick, InitSetsLOADRegisterAccordingToTicksPerSecondValueAndSystemCloc
 TEST_F(ASysTick, InitSetsVALRegisterToZero)
 {
   expectRegisterSetOnlyOnce(&(virtualSysTickCoreHardware.VAL), 0u);
-  
+
   const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
   ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::OK));
@@ -84,7 +84,7 @@ TEST_F(ASysTick, InitSetsTICKINTBitInCTRLRegisterAccordingToEnableInterruptValue
 {
   constexpr uint32_t SYSTICK_CTRL_TICKINT_POSITION       = 1u;
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_TICKINT_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(SYSTICK_CTRL_TICKINT_POSITION, EXPECTED_SYSTICK_CTRL_TICKINT_VALUE);
   sysTickConfig.enableInterrupt = true;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
@@ -99,7 +99,7 @@ TEST_F(ASysTick, InitSetsENABLEBitInCTRLRegisterAccordingToEnableOnInitValueFrom
 {
   constexpr uint32_t SYSTICK_CTRL_ENABLE_POSITION       = 0u;
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_ENABLE_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(SYSTICK_CTRL_ENABLE_POSITION, EXPECTED_SYSTICK_CTRL_ENABLE_VALUE);
   sysTickConfig.enableOnInit = true;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
@@ -114,7 +114,7 @@ TEST_F(ASysTick, InitSetsCLKSOURCEBitInCTRLRegisterToOneAkaSysTickUsesCPUClock)
 {
   constexpr uint32_t SYSTICK_CTRL_CLKSOURCE_POSITION       = 2u;
   constexpr uint32_t EXPECTED_SYSTICK_CTRL_CLKSOURCE_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(SYSTICK_CTRL_CLKSOURCE_POSITION, EXPECTED_SYSTICK_CTRL_CLKSOURCE_VALUE);
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualSysTickCoreHardware.CTRL), bitValueMatcher);
 
@@ -141,4 +141,20 @@ TEST_F(ASysTick, InitFailsIfReloadValueForGivenTicksPerSecondIsOutOfRange)
   const SysTick::ErrorCode errorCode = virtualSysTick.init(sysTickConfig);
 
   ASSERT_THAT(errorCode, Eq(SysTick::ErrorCode::RELOAD_VALUE_OUT_OF_RANGE));
+}
+
+TEST_F(ASysTick, getTicksReturnsZeroIfIRQHandlerHasNotBeenCalledSoFar)
+{
+  const uint64_t ticks = virtualSysTick.getTicks();
+
+  ASSERT_THAT(ticks, Eq(0ull));
+}
+
+TEST_F(ASysTick, IRQHandlerCallIncreasesTickCountByOne)
+{
+  const uint64_t startTicks = virtualSysTick.getTicks();
+  virtualSysTick.IRQHandler();
+  const uint64_t endTicks = virtualSysTick.getTicks();
+
+  ASSERT_THAT(endTicks - startTicks, Eq(1ull));
 }

@@ -39,7 +39,7 @@ const uint32_t ClockControl::s_AHBPrescaler[] =
   [0b1111] = 256u
 };
 
-const uint32_t ClockControl::s_APBxPrescaler[] = 
+const uint32_t ClockControl::s_APBxPrescaler[] =
 {
   [0b000] = 1u,
   [0b001] = 1u,
@@ -94,14 +94,14 @@ ClockControl::ClockControl(RCC_TypeDef *RCCPeripheralPtr):
   m_RCCPeripheralPtr(RCCPeripheralPtr)
 {}
 
-ClockControl::ErrorCode 
+ClockControl::ErrorCode
 ClockControl::getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const
 {
   clockFrequency = (this->*(s_clockFrequency[static_cast<uint8_t>(clockSource)]))();
   return ErrorCode::OK;
 }
 
-ClockControl::ErrorCode 
+ClockControl::ErrorCode
 ClockControl::getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency) const
 {
   ErrorCode errorCode = ErrorCode::OK;
@@ -111,6 +111,12 @@ ClockControl::getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency)
     case Peripheral::USART1:
     {
       clockFrequency = getUSART1ClockFrequency();
+    }
+    break;
+
+    case Peripheral::USART2:
+    {
+      clockFrequency = getUSART2ClockFrequency();
     }
     break;
 
@@ -130,7 +136,7 @@ uint32_t ClockControl::getNoClockFrequency(void) const
 }
 
 uint32_t ClockControl::getHSIClockFrequency(void) const
-{  
+{
   return 16000000u; // 16 MHz
 }
 
@@ -166,8 +172,8 @@ bool ClockControl::isMSIClockFrequencyDefinedInCR(void) const
   constexpr uint8_t MSIRGSEL_NUM_OF_BITS = 1u;
 
   uint32_t isClockFrequencyDefinedInCR = RegisterUtility<uint32_t>::getBitsInRegister(
-      &(m_RCCPeripheralPtr->CR), 
-      MSIRGSEL_POSITION, 
+      &(m_RCCPeripheralPtr->CR),
+      MSIRGSEL_POSITION,
       MSIRGSEL_NUM_OF_BITS);
 
   return (0u != isClockFrequencyDefinedInCR);
@@ -179,8 +185,8 @@ uint32_t ClockControl::getMsiClockFreqencyIndexFromCR(void) const
   constexpr uint8_t MSIRANGE_NUM_OF_BITS = 4u;
 
   uint32_t msiClockFreqIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CR), 
-    MSIRANGE_POSITION, 
+    &(m_RCCPeripheralPtr->CR),
+    MSIRANGE_POSITION,
     MSIRANGE_NUM_OF_BITS);
 
   return msiClockFreqIndex;
@@ -192,8 +198,8 @@ uint32_t ClockControl::getMsiClockFreqencyIndexFromCSR(void) const
   constexpr uint8_t MSISRANGE_NUM_OF_BITS = 4u;
 
   uint32_t msiClockFreqIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CSR), 
-    MSISRANGE_POSITION, 
+    &(m_RCCPeripheralPtr->CSR),
+    MSISRANGE_POSITION,
     MSISRANGE_NUM_OF_BITS);
 
   return msiClockFreqIndex;
@@ -205,8 +211,8 @@ uint32_t ClockControl::getPLLInputClockFrequency(void) const
   constexpr uint8_t PLLSRC_NUM_OF_BITS = 2u;
 
   uint32_t PLLClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->PLLCFGR), 
-    PLLSRC_POSITION, 
+    &(m_RCCPeripheralPtr->PLLCFGR),
+    PLLSRC_POSITION,
     PLLSRC_NUM_OF_BITS);
 
   return (this->*(s_PLLInputClockFrequency[PLLClockSourceIndex]))();
@@ -236,8 +242,8 @@ uint32_t ClockControl::getSystemClockFrequency(void) const
   constexpr uint8_t SYS_CLOCK_SWITCH_STATUS_NUM_OF_BITS = 2u;
 
   uint32_t systemClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CFGR), 
-    SYS_CLOCK_SWITCH_STATUS_POSITION, 
+    &(m_RCCPeripheralPtr->CFGR),
+    SYS_CLOCK_SWITCH_STATUS_POSITION,
     SYS_CLOCK_SWITCH_STATUS_NUM_OF_BITS);
 
   return (this->*(s_systemClockFrequency[systemClockSourceIndex]))();
@@ -249,8 +255,8 @@ uint32_t ClockControl::getAHBClockFrequency(void) const
   constexpr uint8_t HPRE_NUM_OF_BITS = 4u;
 
   const uint32_t AHBPrescalerIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CFGR), 
-    HPRE_POSITION, 
+    &(m_RCCPeripheralPtr->CFGR),
+    HPRE_POSITION,
     HPRE_NUM_OF_BITS);
 
   return getSystemClockFrequency() / s_AHBPrescaler[AHBPrescalerIndex];
@@ -262,8 +268,8 @@ uint32_t ClockControl::getAPB1ClockFrequency(void) const
   constexpr uint8_t PPRE1_NUM_OF_BITS = 3u;
 
   const uint32_t APB1PrescalerIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CFGR), 
-    PPRE1_POSITION, 
+    &(m_RCCPeripheralPtr->CFGR),
+    PPRE1_POSITION,
     PPRE1_NUM_OF_BITS);
 
   return getAHBClockFrequency() / s_APBxPrescaler[APB1PrescalerIndex];
@@ -275,8 +281,8 @@ uint32_t ClockControl::getAPB2ClockFrequency(void) const
   constexpr uint8_t PPRE2_NUM_OF_BITS = 3u;
 
   const uint32_t APB2PrescalerIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CFGR), 
-    PPRE2_POSITION, 
+    &(m_RCCPeripheralPtr->CFGR),
+    PPRE2_POSITION,
     PPRE2_NUM_OF_BITS);
 
   return getAHBClockFrequency() / s_APBxPrescaler[APB2PrescalerIndex];
@@ -288,8 +294,21 @@ uint32_t ClockControl::getUSART1ClockFrequency(void) const
   constexpr uint8_t USART1SEL_NUM_OF_BITS = 2u;
 
   const uint32_t USART1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_RCCPeripheralPtr->CCIPR), 
-    USART1SEL_POSITION, 
+    &(m_RCCPeripheralPtr->CCIPR),
+    USART1SEL_POSITION,
+    USART1SEL_NUM_OF_BITS);
+
+  return (this->*(s_usart1ClockFrequency[USART1ClockSourceIndex]))();
+}
+
+uint32_t ClockControl::getUSART2ClockFrequency(void) const
+{
+  constexpr uint8_t USART1SEL_POSITION = 2u;
+  constexpr uint8_t USART1SEL_NUM_OF_BITS = 2u;
+
+  const uint32_t USART1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
+    &(m_RCCPeripheralPtr->CCIPR),
+    USART1SEL_POSITION,
     USART1SEL_NUM_OF_BITS);
 
   return (this->*(s_usart1ClockFrequency[USART1ClockSourceIndex]))();

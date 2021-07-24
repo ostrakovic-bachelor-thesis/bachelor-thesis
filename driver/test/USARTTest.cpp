@@ -35,7 +35,7 @@ public:
   NiceMock<ClockControlMock> clockControlMock;
   USART virtualUSART = USART(&virtualUSARTPeripheral, &clockControlMock);
   USART::USARTConfig usartConfig;
-  
+
   uint32_t m_txCounter;
   uint32_t m_messageIdx;
 
@@ -94,7 +94,7 @@ void AnUSART::setupISRRegisterReadings(void)
     .WillByDefault([&](volatile const uint32_t *registerPtr)
     {
       constexpr uint32_t USART_ISR_TXFNF_POSITION = 7u;
-      virtualUSARTPeripheral.ISR = 
+      virtualUSARTPeripheral.ISR =
         expectedRegVal(USART_ISR_RESET_VALUE, USART_ISR_TXFNF_POSITION, 1u, (((m_txCounter++) % 4u) != 0u));
 
       return virtualUSARTPeripheral.ISR;
@@ -105,14 +105,28 @@ void AnUSART::expectDataToBeWrittenInTDR(const void *messagePtr, uint32_t messag
 {
   EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualUSARTPeripheral.TDR), _))
     .Times(messageLen)
-    .WillRepeatedly([=](volatile void *registerPtr, uint32_t registerValue) 
+    .WillRepeatedly([=](volatile void *registerPtr, uint32_t registerValue)
     {
       ASSERT_THAT(registerValue, reinterpret_cast<const uint8_t*>(messagePtr)[m_messageIdx++]);
       if (m_messageIdx != messageLen)
-      {    
+      {
         virtualUSART.IRQHandler();
       }
     });
+}
+
+TEST_F(AnUSART, InitEnablesFIFOMode)
+{
+  constexpr uint32_t USART_CR1_FIFOEN_POSITION = 29u;
+  constexpr uint32_t EXPECTED_USART_CR1_FIFOEN_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(USART_CR1_FIFOEN_POSITION, EXPECTED_USART_CR1_FIFOEN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
 TEST_F(AnUSART, InitSetsWordLengthAndParityControlBitsInCR1AccordingToChoosenFrameFormat)
@@ -123,8 +137,8 @@ TEST_F(AnUSART, InitSetsWordLengthAndParityControlBitsInCR1AccordingToChoosenFra
   constexpr uint32_t EXPECTED_USART_CR1_PCE_VALUE = 1u;
   constexpr uint32_t EXPECTED_USART_CR1_M0_VALUE  = 1u;
   constexpr uint32_t EXPECTED_USART_CR1_M1_VALUE  = 0u;
-  auto bitValueMatcher = 
-    AllOf(BitHasValue(USART_CR1_M0_POSITION, EXPECTED_USART_CR1_M0_VALUE), 
+  auto bitValueMatcher =
+    AllOf(BitHasValue(USART_CR1_M0_POSITION, EXPECTED_USART_CR1_M0_VALUE),
           BitHasValue(USART_CR1_M1_POSITION, EXPECTED_USART_CR1_M1_VALUE),
           BitHasValue(USART_CR1_PCE_POSITION, EXPECTED_USART_CR1_PCE_VALUE));
   usartConfig.frameFormat = USART::FrameFormat::BITS_8_WITH_PARITY;
@@ -150,7 +164,7 @@ TEST_F(AnUSART, InitSetsOversamplingModeBitInCR1AccordingToChoosenOversampling)
 {
   constexpr uint32_t USART_CR1_OVER8_POSITION = 15u;
   constexpr uint32_t EXPECTED_USART_CR1_OVER8_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR1_OVER8_POSITION, EXPECTED_USART_CR1_OVER8_VALUE);
   usartConfig.oversampling = USART::Oversampling::OVERSAMPLING_8;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
@@ -158,7 +172,7 @@ TEST_F(AnUSART, InitSetsOversamplingModeBitInCR1AccordingToChoosenOversampling)
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
 TEST_F(AnUSART, InitFailsIfOversamplingIsOutOfAllowedRange)
@@ -175,7 +189,7 @@ TEST_F(AnUSART, InitSetsParityBitInCR1AccordingToChoosenParity)
 {
   constexpr uint32_t USART_CR1_PS_POSITION = 9u;
   constexpr uint32_t EXPECTED_USART_CR1_PS_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR1_PS_POSITION, EXPECTED_USART_CR1_PS_VALUE);
   usartConfig.parity = USART::Parity::ODD;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
@@ -183,7 +197,7 @@ TEST_F(AnUSART, InitSetsParityBitInCR1AccordingToChoosenParity)
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher); 
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
 TEST_F(AnUSART, InitFailsIfParityIsOutOfAllowedRange)
@@ -200,7 +214,7 @@ TEST_F(AnUSART, InitSetsStopBitsInCR2AccordingToChoosenStopBitsValue)
 {
   constexpr uint32_t USART_CR2_STOP_POSITION = 12u;
   constexpr uint32_t EXPECTED_USART_CR2_STOP_VALUE = 0x3;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR2_STOP_POSITION, EXPECTED_USART_CR2_STOP_VALUE);
   usartConfig.stopBits = USART::StopBits::BIT_1_5;
   expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR2), bitValueMatcher);
@@ -208,7 +222,7 @@ TEST_F(AnUSART, InitSetsStopBitsInCR2AccordingToChoosenStopBitsValue)
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.CR2, bitValueMatcher); 
+  ASSERT_THAT(virtualUSARTPeripheral.CR2, bitValueMatcher);
 }
 
 TEST_F(AnUSART, InitFailsIfStopBitsIsOutOfAllowedRange)
@@ -232,7 +246,7 @@ TEST_F(AnUSART, InitSetsPRESCRegisterAccordingToChoosenBaudrateValue)
   const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.PRESC, EXPECTED_USART_PRESC_VALUE); 
+  ASSERT_THAT(virtualUSARTPeripheral.PRESC, EXPECTED_USART_PRESC_VALUE);
 }
 
 TEST_F(AnUSART, InitSetsBRRRegisterAccordingToChoosenBaudrateValue)
@@ -263,7 +277,7 @@ TEST_F(AnUSART, InitDisablesUsartOnTheBeginningOfInitFunctionCall)
 {
   constexpr uint32_t USART_CR1_UE_POSITION = 0u;
   constexpr uint32_t EXPECTED_USART_CR1_UE_VALUE = 0u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR1_UE_POSITION, EXPECTED_USART_CR1_UE_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
@@ -276,7 +290,7 @@ TEST_F(AnUSART, InitEnablesUsartOnTheEndOfInitFunctionCall)
 {
   constexpr uint32_t USART_CR1_UE_POSITION = 0u;
   constexpr uint32_t EXPECTED_USART_CR1_UE_VALUE = 1u;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR1_UE_POSITION, EXPECTED_USART_CR1_UE_VALUE);
   expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
@@ -285,18 +299,46 @@ TEST_F(AnUSART, InitEnablesUsartOnTheEndOfInitFunctionCall)
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
 }
 
-TEST_F(AnUSART, WritesDataEnablesTxFifoThresholdInterrupt)
+TEST_F(AnUSART, WriteEnablesTransmitter)
+{
+  constexpr uint32_t USART_CR1_TE_POSITION = 3u;
+  constexpr uint32_t EXPECTED_USART_CR1_TE_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(USART_CR1_TE_POSITION, EXPECTED_USART_CR1_TE_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
+}
+
+TEST_F(AnUSART, WriteEnablesTxFifoThresholdInterrupt)
 {
   constexpr uint32_t USART_CR3_TXFTIE_POSITION = 23u;
   constexpr uint32_t EXPECTED_USART_CR3_TXFTIE_VALUE = 0x1;
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR3_TXFTIE_POSITION, EXPECTED_USART_CR3_TXFTIE_VALUE);
   expectRegisterSetOnlyOnce(&(virtualUSARTPeripheral.CR3), bitValueMatcher);
 
   const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
 
   ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
-  ASSERT_THAT(virtualUSARTPeripheral.CR3, bitValueMatcher); 
+  ASSERT_THAT(virtualUSARTPeripheral.CR3, bitValueMatcher);
+}
+
+TEST_F(AnUSART, WriteDisablesTransmissionCompletedInterrupt)
+{
+  constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
+  constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x0;
+  auto bitValueMatcher =
+    BitHasValue(USART_CR1_TCIE_POSITION, EXPECTED_USART_CR1_TCIE_VALUE);
+  expectRegisterSet(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  ASSERT_THAT(virtualUSARTPeripheral.CR1, bitValueMatcher);
 }
 
 TEST_F(AnUSART, IRQHandlerWritesToTDROnlyIfTxFifoNotFullInterruptFlagIsSet)
@@ -310,11 +352,11 @@ TEST_F(AnUSART, IRQHandlerWritesToTDROnlyIfTxFifoNotFullInterruptFlagIsSet)
 
 TEST_F(AnUSART, IRQHandlerDoesNotWriteToTDRRegisterIfTxFifoThresholdInterruptIsNotEnabled)
 {
-  setupISRRegisterReadings();
   constexpr uint32_t USART_CR3_TXFTIE_POSITION = 23u;
   constexpr uint32_t EXPECTED_USART_CR3_TXFTIE_VALUE = 0x0;
-  virtualUSARTPeripheral.CR3 = 
+  virtualUSARTPeripheral.CR3 =
     expectedRegVal(USART_CR3_RESET_VALUE, USART_CR3_TXFTIE_POSITION, 1u, EXPECTED_USART_CR3_TXFTIE_VALUE);
+  setupISRRegisterReadings();
   expectRegisterNotToChange(&(virtualUSARTPeripheral.TDR));
 
   virtualUSART.IRQHandler();
@@ -323,13 +365,11 @@ TEST_F(AnUSART, IRQHandlerDoesNotWriteToTDRRegisterIfTxFifoThresholdInterruptIsN
 TEST_F(AnUSART, IRQHandlerWritesDataToTransmitInTDR)
 {
   setupISRRegisterReadings();
+  virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
   expectDataToBeWrittenInTDR(RANDOM_MSG, RANDOM_MSG_LEN);
 
-  const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-  
   // trigger calling of IRQ handler and writting to TDR register
-  virtualUSART.IRQHandler(); 
-  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  virtualUSART.IRQHandler();
 }
 
 TEST_F(AnUSART, IRQHandlerDisablesTxFifoThresholdInterruptWhenThereIsNoMoreDataToTransmit)
@@ -337,16 +377,14 @@ TEST_F(AnUSART, IRQHandlerDisablesTxFifoThresholdInterruptWhenThereIsNoMoreDataT
   constexpr uint32_t USART_CR3_TXFTIE_POSITION = 23u;
   constexpr uint32_t EXPECTED_USART_CR3_TXFTIE_VALUE = 0x0;
   setupISRRegisterReadings();
+  virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
   expectDataToBeWrittenInTDR(RANDOM_MSG, RANDOM_MSG_LEN);
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR3_TXFTIE_POSITION, EXPECTED_USART_CR3_TXFTIE_VALUE);
   expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR3), bitValueMatcher);
 
-  const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-
   // trigger calling of IRQ handler and writting to TDR register
-  virtualUSART.IRQHandler(); 
-  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  virtualUSART.IRQHandler();
 }
 
 TEST_F(AnUSART, IRQHandlerEnablesTransmissionCompleteInterruptWhenThereIsNoMoreDataToTransmit)
@@ -354,29 +392,26 @@ TEST_F(AnUSART, IRQHandlerEnablesTransmissionCompleteInterruptWhenThereIsNoMoreD
   constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x1;
   setupISRRegisterReadings();
+  virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
   expectDataToBeWrittenInTDR(RANDOM_MSG, RANDOM_MSG_LEN);
-  auto bitValueMatcher = 
+  auto bitValueMatcher =
     BitHasValue(USART_CR1_TCIE_POSITION, EXPECTED_USART_CR1_TCIE_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
-  const USART::ErrorCode errorCode = virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-
   // trigger calling of IRQ handler and writting to TDR register
-  virtualUSART.IRQHandler(); 
-  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+  virtualUSART.IRQHandler();
 }
 
 TEST_F(AnUSART, IRQHandlerStopsTransmissionOnTranmissionCompleteInterrupt)
 {
   constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
-  constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x1;
   constexpr uint32_t USART_ISR_TC_POSITION = 6u;
-  constexpr uint32_t EXPECTED_USART_ISR_TC_VALUE = 0x1;
-  virtualUSARTPeripheral.CR1 =
-    expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, EXPECTED_USART_CR1_TCIE_VALUE);
-  virtualUSARTPeripheral.ISR =
-    expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, EXPECTED_USART_ISR_TC_VALUE);
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if tranmission compleate interrupt happened
+  virtualUSARTPeripheral.CR1 =
+    expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, 1u);
+  virtualUSARTPeripheral.ISR =
+    expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, 1u);
 
   virtualUSART.IRQHandler();
 
@@ -385,18 +420,37 @@ TEST_F(AnUSART, IRQHandlerStopsTransmissionOnTranmissionCompleteInterrupt)
 
 TEST_F(AnUSART, IRQHandlerDisablesTransmissionCompletedInterruptWhenTransmissionIsCompleted)
 {
-  constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
-  constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x1;
   constexpr uint32_t USART_ISR_TC_POSITION = 6u;
-  constexpr uint32_t EXPECTED_USART_ISR_TC_VALUE = 0x1;
-  virtualUSARTPeripheral.CR1 =
-    expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, EXPECTED_USART_CR1_TCIE_VALUE);
-  virtualUSARTPeripheral.ISR =
-    expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, EXPECTED_USART_ISR_TC_VALUE);
-  auto bitValueMatcher = 
-    BitHasValue(USART_CR1_TCIE_POSITION, 0u);
-  expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+  constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
+  constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x0;
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if tranmission compleate interrupt happened
+  virtualUSARTPeripheral.ISR =
+    expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, 1u);
+  virtualUSARTPeripheral.CR1 =
+    expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(USART_CR1_TCIE_POSITION, EXPECTED_USART_CR1_TCIE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
+
+  virtualUSART.IRQHandler();
+}
+
+TEST_F(AnUSART, IRQHandlerDisablesTransmitterWhenTransmissionIsCompleted)
+{
+  constexpr uint32_t USART_ISR_TC_POSITION = 6u;
+  constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
+  constexpr uint32_t USART_CR1_TE_POSITION = 3u;
+  constexpr uint32_t EXPECTED_USART_CR1_TE_VALUE = 0x0;
+  virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if tranmission compleate interrupt happened
+  virtualUSARTPeripheral.ISR =
+    expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, 1u);
+  virtualUSARTPeripheral.CR1 =
+    expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(USART_CR1_TE_POSITION, EXPECTED_USART_CR1_TE_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualUSARTPeripheral.CR1), bitValueMatcher);
 
   virtualUSART.IRQHandler();
 }

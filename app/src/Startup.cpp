@@ -5,41 +5,149 @@
 #include "USART.h"
 #include "DriverManager.h"
 #include <cstdint>
+#include <cstdio>
+#include <cinttypes>
 
+
+//extern "C" void initSYSCLOCK(void);
+
+void panic(void)
+{
+  volatile bool loopWhileTrue = true;
+
+  while (loopWhileTrue);
+}
 
 void startup(void)
 {
   ResetControl &resetControl = DriverManager::getInstance(DriverManager::ResetControlInstance::GENERIC);
+  GPIO &gpioA = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOA);
   GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
+  SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
+  USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
+  InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
+
+  //initSYSCLOCK();
+
+  {
+    SysTick::SysTickConfig sysTickConfig =
+    {
+      .ticksPerSecond  = 1000u,
+      .enableInterrupt = true,
+      .enableOnInit    = true
+    };
+
+    SysTick::ErrorCode error = sysTick.init(sysTickConfig);
+    if (SysTick::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
 
   {
     ResetControl::ErrorCode error = resetControl.enablePeripheralClock(Peripheral::GPIOH);
     if (ResetControl::ErrorCode::OK != error)
     {
-      // Report the error
+      panic();
+    }
+
+    error = resetControl.enablePeripheralClock(Peripheral::GPIOA);
+    if (ResetControl::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = resetControl.enablePeripheralClock(Peripheral::USART2);
+    if (ResetControl::ErrorCode::OK != error)
+    {
+      panic();
     }
   }
 
   {
-    GPIO::PinConfiguration pinConfig;
-  
-    pinConfig.mode        = GPIO::PinMode::OUTPUT;
-    pinConfig.pullConfig  = GPIO::PullConfig::PULL_DOWN;
-    pinConfig.outputSpeed = GPIO::OutputSpeed::HIGH;
-    pinConfig.outputType  = GPIO::OutputType::PUSH_PULL;
+    USART::USARTConfig usartConfig =
+    {
+      .frameFormat  = USART::FrameFormat::BITS_8_WITHOUT_PARITY,
+      .oversampling = USART::Oversampling::OVERSAMPLING_16,
+      .stopBits     = USART::StopBits::BIT_1_0,
+      .baudrate     = USART::Baudrate::BAUDRATE_115200
+    };
+
+    USART::ErrorCode error = usart2.init(usartConfig);
+    if (USART::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    InterruptController::ErrorCode error = interruptController.enableInterrupt(USART2_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    GPIO::PinConfiguration pinConfig =
+    {
+      .mode        = GPIO::PinMode::OUTPUT,
+      .pullConfig  = GPIO::PullConfig::PULL_DOWN,
+      .outputSpeed = GPIO::OutputSpeed::HIGH,
+      .outputType  = GPIO::OutputType::PUSH_PULL
+    };
 
     GPIO::ErrorCode error = gpioH.configurePin(GPIO::Pin::PIN4, pinConfig);
     if (GPIO::ErrorCode::OK != error)
     {
-      // Report the error
+      panic();
     }
   }
 
+  {
+    GPIO::PinConfiguration pinConfig =
+    {
+      .mode              = GPIO::PinMode::AF,
+      .pullConfig        = GPIO::PullConfig::NO_PULL,
+      .outputSpeed       = GPIO::OutputSpeed::HIGH,
+      .outputType        = GPIO::OutputType::PUSH_PULL,
+      .alternateFunction = GPIO::AlternateFunction::AF7
+    };
+
+    GPIO::ErrorCode error = gpioA.configurePin(GPIO::Pin::PIN2, pinConfig);
+    if (GPIO::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = gpioA.configurePin(GPIO::Pin::PIN3, pinConfig);
+    if (GPIO::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  uint8_t message[100];
+  uint32_t messageLen;
+
   while (true)
   {
-    for (volatile uint32_t i = 0u; i < 100000u; ++i);
-    gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::HIGH);
-    for (volatile uint32_t i = 0u; i < 100000u; ++i);
-    gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
+    const uint64_t ticks = sysTick.getTicks();
+
+    if (not usart2.isWriteTransactionOngoing())
+    {
+      messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+        "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+      usart2.write(message, messageLen);
+    }
+
+    if ((ticks % 10000u) < 5000u)
+    {
+      gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::HIGH);
+    }
+    else
+    {
+      gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
+    }
   }
 }
