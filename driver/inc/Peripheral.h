@@ -69,6 +69,10 @@
 #undef LPUART1
 #endif // #ifdef LPUART1
 
+#ifdef DMA2D
+#undef DMA2D
+#endif // #ifdef DMA2D
+
 
 enum class Peripheral : uintptr_t
 {
@@ -88,6 +92,7 @@ enum class Peripheral : uintptr_t
   UART4   = UART4_BASE,
   UART5   = UART5_BASE,
   LPUART1 = LPUART1_BASE,
+  DMA2D   = DMA2D_BASE,
 
 #ifdef UNIT_TEST_DRIVER
   INVALID_PERIPHERAL = 0u,

@@ -2,6 +2,7 @@
 #define SYS_TICK_H
 
 #include "stm32l4r9xx.h"
+#include "Peripheral.h"
 #include "ClockControl.h"
 #include "CoreHardware.h"
 #include "InterruptController.h"
