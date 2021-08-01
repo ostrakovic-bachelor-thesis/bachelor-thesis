@@ -461,14 +461,14 @@ TEST_F(AnUSART, WriteFailsIfAnotherWriteTransactionIsOngoing)
   ASSERT_THAT(virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN), Eq(USART::ErrorCode::BUSY));
 }
 
-TEST_F(AnUSART, IsWriteTransacationOngoingReturnsTrueIfThereIsAnOngoingWrite)
+TEST_F(AnUSART, IsWriteTransactionOngoingReturnsTrueIfThereIsAnOngoingWrite)
 {
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
 
   ASSERT_THAT(virtualUSART.isWriteTransactionOngoing(), true);
 }
 
-TEST_F(AnUSART, IsWriteTransacationOngoingReturnsFalseIfAnotherTransactionIsNotStarted)
+TEST_F(AnUSART, IsWriteTransactionOngoingReturnsFalseIfAnotherTransactionIsNotStarted)
 {
   ASSERT_THAT(virtualUSART.isWriteTransactionOngoing(), false);
 }

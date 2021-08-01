@@ -37,7 +37,8 @@
     "new": "cpp",
     "utility": "cpp",
     "xstddef": "cpp",
-    "xtr1common": "cpp"
+    "xtr1common": "cpp",
+    "*.tcc": "cpp"
   },
   "files.trimTrailingWhitespace" : true,
   "cmake.cmakePath": "C:\\Program Files\\CMake\\bin\\cmake.exe",

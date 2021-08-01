@@ -39,6 +39,9 @@ public:
   void expectNoRegisterToChange(void);
 
   template<typename GMockMatcher>
+  void doesNotExpectRegisterSet(volatile uint32_t *registerPtr, GMockMatcher matcher);
+
+  template<typename GMockMatcher>
   void expectRegisterSet(volatile uint32_t *registerPtr, GMockMatcher matcher);
 
   template<typename GMockMatcher>
@@ -62,6 +65,13 @@ public:
   void SetUp() override;
   void TearDown() override;
 };
+
+template<typename GMockMatcher>
+void DriverTest::doesNotExpectRegisterSet(volatile uint32_t *registerPtr, GMockMatcher matcher)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(registerPtr, matcher))
+    .Times(0u);
+}
 
 template<typename GMockMatcher>
 void DriverTest::expectRegisterSet(volatile uint32_t *registerPtr, GMockMatcher matcher)

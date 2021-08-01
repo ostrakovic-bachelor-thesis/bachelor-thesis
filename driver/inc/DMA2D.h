@@ -67,6 +67,10 @@ public:
 
   ErrorCode fillRectangle(const FillRectangleConfig &fillRectangleConfig);
 
+  bool isTransactionOngoing(void) const;
+
+  void IRQHandler(void);
+
 private:
 
   enum class Mode : uint8_t
@@ -85,33 +89,79 @@ private:
     MEMORY_TO_MEMORY_WITH_BLENDING_AND_FIX_COLOR_BG = 0b101
   };
 
-  bool isTransactionOngoing(void) const;
+  enum class Interrupt : uint8_t
+  {
+    TRANSFER_COMPLETE = 0u,
+
+    COUNT
+  };
+
+  //! Interrupt and status flags
+  enum class Flag : uint8_t
+  {
+    IS_TRANSFER_COMPLETED = 0,
+
+    COUNT
+  };
+
+  //! Constrol/status operation to register mapping
+  struct CSRegisterMapping
+  {
+    uint32_t registerOffset;
+    uint8_t  bitPosition;
+  };
 
   void setMode(Mode mode);
 
   static void setLineOffsetModeToBytes(uint32_t &registerValueCR);
+
   static void setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
+
   static void setRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
 
   template<uint32_t t_alphaSize, uint32_t t_redSize, uint32_t t_greenSize, uint32_t t_blueSize>
   void setOutputColor(Color color);
+
   void setOutputColor(OutputColorFormat outputColorFormat, Color color);
+
   void setOutputMemoryAddress(
     void *frameBufferPtr,
     Dimension frameBufferDimension,
     Position position,
     OutputColorFormat outputColorFormat);
+
   void setOutputLineOffset(
     Dimension frameBufferDimension,
     Dimension rectangleDimension,
     OutputColorFormat outputColorFormat);
+
   void setOutputDimension(Dimension rectangleDimension);
 
+  void startDMA2D(void);
+
+  bool startTransaction(void);
+  void endTransaction(void);
+
+  void enableInterrupt(Interrupt interrupt);
+  void disableInterrupt(Interrupt interrupt);
+  bool isInterruptEnabled(Interrupt interrupt) const;
+
+  bool isFlagSet(Flag flag) const;
+  void clearFlag(Flag flag);
+
+  //! TODO
+  static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
+
+  //! TODO
+  static const CSRegisterMapping s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)];
 
   //! TODO
   DMA2D_TypeDef *m_DMA2DPtr;
+
+  //! Is DMA2D transaction completed
+  bool m_isTransactionCompleted;
 
 };
 

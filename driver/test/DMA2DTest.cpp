@@ -124,7 +124,7 @@ TEST_F(ADMA2D, InitSetsThatLineOffsetsAreExpressedInBytes)
   ASSERT_THAT(virtualDMA2DPeripheral.CR, bitValueMatcher);
 }
 
-TEST_F(ADMA2D, InitFailsIfAnDMA2DTransactionIsOngoing)
+TEST_F(ADMA2D, InitFailsIfAnDMA2DTransactionIsOngoing) // TODO
 {
   constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
   constexpr uint32_t DMA2D_CR_START_FORCED_VALUE = 1u;
@@ -284,4 +284,77 @@ TEST_F(ADMA2D, FillRectangleSetsNLRRegisterValueAccordingRectangleDimension)
 
   ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
   ASSERT_THAT(virtualDMA2DPeripheral.NLR, EXPECTED_DMA2D_NLR_VALUE);
+}
+
+TEST_F(ADMA2D, FillRectangleStartsDMA2DAtTheEndOfFillRectangleFunctionCall)
+{
+  constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DMA2D_CR_START_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_CR_START_POSITION, EXPECTED_DMA2D_CR_START_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualDMA2DPeripheral.CR), bitValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.fillRectangle(fillRectangleConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+}
+
+TEST_F(ADMA2D, FillRectangleFailsIfAnotherDMA2DTransactionIsOngoing)
+{
+  ASSERT_THAT(virtualDMA2D.fillRectangle(fillRectangleConfig), Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2D.fillRectangle(fillRectangleConfig), Eq(DMA2D::ErrorCode::BUSY));
+}
+
+TEST_F(ADMA2D, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingDMATransaction)
+{
+  virtualDMA2D.fillRectangle(fillRectangleConfig);
+
+  ASSERT_THAT(virtualDMA2D.isTransactionOngoing(), true);
+}
+
+TEST_F(ADMA2D, IsTransactionOngoingReturnsFalseIfAnotherTransactionIsNotStarted)
+{
+  ASSERT_THAT(virtualDMA2D.isTransactionOngoing(), false);
+}
+
+TEST_F(ADMA2D, IsTransactionOngoingReturnsTrueIfStartBitInCRRegisterIsSet)
+{
+  constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
+  constexpr uint32_t DMA2D_CR_START_FORCED_VALUE = 1u;
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(DMA2D_CR_RESET_VALUE, DMA2D_CR_START_POSITION, 1u, DMA2D_CR_START_FORCED_VALUE);
+
+  ASSERT_THAT(virtualDMA2D.isTransactionOngoing(), true);
+}
+
+TEST_F(ADMA2D, IRQHandlerClearsTCIFFlagInISRRegisterOnlyIfItIsSetAndTransferCompleteInterruptIsEnabled)
+{
+  constexpr uint32_t DMA2D_ISR_TCIF_POSITION = 1u;
+  constexpr uint32_t EXPECTED_DMA2D_ISR_TCIF_VALUE = 0u;
+  constexpr uint32_t DMA2D_CR_TCIE_POSITION = 9u;
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(DMA2D_CR_RESET_VALUE, DMA2D_CR_TCIE_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_ISR_TCIF_POSITION, EXPECTED_DMA2D_ISR_TCIF_VALUE);
+  expectRegisterSet(&(virtualDMA2DPeripheral.ISR), bitValueMatcher);
+
+  virtualDMA2D.IRQHandler();
+}
+
+TEST_F(ADMA2D, IRQHandlerDoesNotClearsTCIFFlagIfTransferCompleteInterruptIsNotEnabled)
+{
+  constexpr uint32_t DMA2D_ISR_TCIF_POSITION = 1u;
+  constexpr uint32_t DMA2D_CR_TCIE_POSITION = 9u;
+  constexpr uint32_t NOT_EXPECTED_DMA2D_CR_TCIE_VALUE = 0u;
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(DMA2D_CR_RESET_VALUE, DMA2D_CR_TCIE_POSITION, 1u, 0u);
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_CR_TCIE_POSITION, NOT_EXPECTED_DMA2D_CR_TCIE_VALUE);
+  doesNotExpectRegisterSet(&(virtualDMA2DPeripheral.ISR), bitValueMatcher);
+
+  virtualDMA2D.IRQHandler();
 }

@@ -4,6 +4,7 @@
 #include "RegisterUtility.h"
 #include <cstddef>
 
+
 const uint32_t USART::s_prescaler[] =
 {
   [0b0000] = 1u,

@@ -106,7 +106,7 @@ private:
   };
 
   //! Interrupt and status flags
-  enum class Flag
+  enum class Flag : uint8_t
   {
     TX_FIFO_NOT_FULL,
     IS_TRANMISSION_COMPLETED,
@@ -196,7 +196,7 @@ private:
   uint32_t m_txMessagePos;
 
   //! Is transmit transaction completed
-  uint32_t m_isTxTransactionCompleted;
+  bool m_isTxTransactionCompleted;
 
 };
 
