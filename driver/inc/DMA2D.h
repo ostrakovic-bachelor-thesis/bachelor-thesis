@@ -67,7 +67,7 @@ public:
 
   ErrorCode fillRectangle(const FillRectangleConfig &fillRectangleConfig);
 
-  bool isTransactionOngoing(void) const;
+  bool isTransferOngoing(void) const;
 
   void IRQHandler(void);
 
@@ -141,8 +141,8 @@ private:
 
   void startDMA2D(void);
 
-  bool startTransaction(void);
-  void endTransaction(void);
+  bool startTransfer(void);
+  void endTransfer(void);
 
   void enableInterrupt(Interrupt interrupt);
   void disableInterrupt(Interrupt interrupt);
@@ -160,8 +160,8 @@ private:
   //! TODO
   DMA2D_TypeDef *m_DMA2DPtr;
 
-  //! Is DMA2D transaction completed
-  bool m_isTransactionCompleted;
+  //! Is DMA2D transfer completed
+  bool m_isTransferCompleted;
 
 };
 

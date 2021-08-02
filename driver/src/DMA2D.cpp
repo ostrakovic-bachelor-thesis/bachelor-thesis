@@ -2,6 +2,8 @@
 #include "MemoryAccess.h"
 #include "RegisterUtility.h"
 #include <cstddef>
+// TODO remove
+#include <iostream>
 
 
 const DMA2D::CSRegisterMapping DMA2D::s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)] =
@@ -25,12 +27,12 @@ const DMA2D::CSRegisterMapping DMA2D::s_interruptStatusFlagsRegisterMapping[stat
 
 DMA2D::DMA2D(DMA2D_TypeDef *DMA2DPtr):
   m_DMA2DPtr(DMA2DPtr),
-  m_isTransactionCompleted(true)
+  m_isTransferCompleted(true)
 {}
 
 DMA2D::ErrorCode DMA2D::init(void)
 {
-  if (isTransactionOngoing())
+  if (isTransferOngoing())
   {
     return ErrorCode::BUSY;
 
@@ -49,7 +51,7 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
 {
   ErrorCode errorCode = ErrorCode::OK;
 
-  if (startTransaction())
+  if (startTransfer())
   {
     setMode(Mode::REGISTER_TO_MEMORY);
 
@@ -69,6 +71,7 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
       fillRectangleConfig.outputColorFormat);
     setOutputDimension(fillRectangleConfig.rectangleDimension);
 
+    enableInterrupt(Interrupt::TRANSFER_COMPLETE);
     startDMA2D();
   }
   else
@@ -83,26 +86,28 @@ void DMA2D::IRQHandler(void)
 {
   if (isInterruptEnabled(Interrupt::TRANSFER_COMPLETE) && isFlagSet(Flag::IS_TRANSFER_COMPLETED))
   {
+    disableInterrupt(Interrupt::TRANSFER_COMPLETE);
     clearFlag(Flag::IS_TRANSFER_COMPLETED);
+    endTransfer();
   }
 }
 
-bool DMA2D::startTransaction(void)
+bool DMA2D::startTransfer(void)
 {
   bool isTransacationStarted = false;
 
-  if (not isTransactionOngoing())
+  if (not isTransferOngoing())
   {
-    m_isTransactionCompleted = false;
-    isTransacationStarted    = true;
+    m_isTransferCompleted = false;
+    isTransacationStarted = true;
   }
 
   return isTransacationStarted;
 }
 
-inline void DMA2D::endTransaction(void)
+inline void DMA2D::endTransfer(void)
 {
-  m_isTransactionCompleted = true;
+  m_isTransferCompleted = true;
 }
 
 inline void DMA2D::setLineOffsetModeToBytes(uint32_t &registerValueCR)
@@ -111,13 +116,13 @@ inline void DMA2D::setLineOffsetModeToBytes(uint32_t &registerValueCR)
   registerValueCR = MemoryUtility<uint32_t>::setBit(registerValueCR, DMA2D_CR_LOM_POSITION);
 }
 
-inline bool DMA2D::isTransactionOngoing(void) const
+inline bool DMA2D::isTransferOngoing(void) const
 {
   constexpr uint8_t DMA2D_CR_START_POSITION = 0u;
   const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->CR));
   const bool isStartBitSet = MemoryUtility<uint32_t>::isBitSet(registerValue, DMA2D_CR_START_POSITION);
 
-  return isStartBitSet || (not m_isTransactionCompleted);
+  return isStartBitSet || (not m_isTransferCompleted);
 }
 
 inline void DMA2D::setMode(Mode mode)
