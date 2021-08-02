@@ -91,6 +91,13 @@ void ADMA2D::SetUp()
   virtualDMA2DPeripheral.AMTCR   = DMA2D_AMTCR_RESET_VALUE;
 
   fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::ARGB8888;
+  fillRectangleConfig.color =
+  {
+    .alpha = 0,
+    .red   = 15u,
+    .green = 15u,
+    .blue  = 15u
+  };
   fillRectangleConfig.position =
   {
     .x = DEFAULT_CONFIG_VALUE_X_POS,
@@ -318,6 +325,19 @@ TEST_F(ADMA2D, FillRectangleFailsIfAnotherDMA2DTransferIsOngoing)
 {
   ASSERT_THAT(virtualDMA2D.fillRectangle(fillRectangleConfig), Eq(DMA2D::ErrorCode::OK));
   ASSERT_THAT(virtualDMA2D.fillRectangle(fillRectangleConfig), Eq(DMA2D::ErrorCode::BUSY));
+}
+
+TEST_F(ADMA2D, FillRectangleFailsIfForGivenOutputColorFormatAnyComponentOfOutputColorIsOutOfRange)
+{
+  fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::RGB565;
+  fillRectangleConfig.color =
+  {
+    .alpha = 0,
+    .red   = 40,
+    .green = 0,
+    .blue  = 10
+  };
+  ASSERT_THAT(virtualDMA2D.fillRectangle(fillRectangleConfig), Eq(DMA2D::ErrorCode::COLOR_VALUE_OUT_OF_RANGE));
 }
 
 TEST_F(ADMA2D, isTransferOngoingReturnsTrueIfThereIsAnOngoingDMATransfer)

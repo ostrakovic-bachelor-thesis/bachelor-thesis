@@ -50,3 +50,10 @@ void LPUART1_IRQHandler(void)
 
   lpUart1.IRQHandler();
 }
+
+void DMA2D_IRQHandler(void)
+{
+  static DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
+
+  dma2D.IRQHandler();
+}

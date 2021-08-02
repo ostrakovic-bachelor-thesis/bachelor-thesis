@@ -3,11 +3,14 @@
 #include "ClockControl.h"
 #include "GPIO.h"
 #include "USART.h"
+#include "DMA2D.h"
 #include "DriverManager.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
 
+
+uint16_t g_frameBuffer[100][150] = { 0u };
 
 //extern "C" void initSYSCLOCK(void);
 
@@ -26,6 +29,7 @@ void startup(void)
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
   InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
+  DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
 
   //initSYSCLOCK();
 
@@ -62,6 +66,12 @@ void startup(void)
     {
       panic();
     }
+
+    error = resetControl.enablePeripheralClock(Peripheral::DMA2D);
+    if (ResetControl::ErrorCode::OK != error)
+    {
+      panic();
+    }
   }
 
   {
@@ -81,7 +91,21 @@ void startup(void)
   }
 
   {
+    DMA2D::ErrorCode error = dma2D.init();
+    if (DMA2D::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
     InterruptController::ErrorCode error = interruptController.enableInterrupt(USART2_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = interruptController.enableInterrupt(DMA2D_IRQn);
     if (InterruptController::ErrorCode::OK != error)
     {
       panic();
@@ -127,7 +151,43 @@ void startup(void)
     }
   }
 
-  uint8_t message[100];
+  {
+    DMA2D::FillRectangleConfig fillRectangleConfig =
+    {
+      .outputColorFormat = DMA2D::OutputColorFormat::BGR565,
+      .color =
+      {
+        .alpha = 0,
+        .red   = 10,
+        .green = 20,
+        .blue  = 10
+      },
+      .position =
+      {
+        .x = 50,
+        .y = 50
+      },
+      .rectangleDimension =
+      {
+        .width  = 50,
+        .height = 50
+      },
+      .frameBufferDimension =
+      {
+        .width  = 150,
+        .height = 100
+      },
+      .frameBufferPtr = g_frameBuffer
+    };
+
+    DMA2D::ErrorCode error = dma2D.fillRectangle(fillRectangleConfig);
+    if (DMA2D::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  uint8_t message[2000];
   uint32_t messageLen;
 
   while (true)
@@ -136,8 +196,17 @@ void startup(void)
 
     if (not usart2.isWriteTransactionOngoing())
     {
-      messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-        "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+      if (dma2D.isTransferOngoing())
+      {
+        messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+          "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+      }
+      else
+      {
+        messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+          "DMA2D completed, systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+      }
+
       usart2.write(message, messageLen);
     }
 

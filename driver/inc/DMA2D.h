@@ -15,8 +15,9 @@ public:
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK   = 0u,
-    BUSY = 1u
+    OK                       = 0u,
+    BUSY                     = 1u,
+    COLOR_VALUE_OUT_OF_RANGE = 2u
   };
 
   enum class OutputColorFormat : uint8_t
@@ -71,6 +72,18 @@ public:
 
   void IRQHandler(void);
 
+#ifdef UNIT_TEST_DRIVER
+  /**
+   * @brief Method gets raw pointer to underlaying DMA2D peripheral instance.
+   *
+   * @return Pointer to underlaying DMA2D peripheral instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_DMA2DPtr);
+  }
+#endif // #ifdef UNIT_TEST_DRIVER
+
 private:
 
   enum class Mode : uint8_t
@@ -120,6 +133,10 @@ private:
   static void setRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
+
+  static ErrorCode checkFillRectangleConfig(const FillRectangleConfig &fillRectangleConfig);
+
+  static Color getMaximumColorValue(OutputColorFormat outputColorFormat);
 
   template<uint32_t t_alphaSize, uint32_t t_redSize, uint32_t t_greenSize, uint32_t t_blueSize>
   void setOutputColor(Color color);

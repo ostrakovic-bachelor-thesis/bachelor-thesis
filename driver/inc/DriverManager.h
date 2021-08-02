@@ -2,6 +2,7 @@
 #define DRIVER_MANAGER_H
 
 #include "Peripheral.h"
+#include "DMA2D.h"
 #include "GPIO.h"
 #include "USART.h"
 #include "ClockControl.h"
@@ -58,6 +59,11 @@ public:
     GENERIC = 0u
   };
 
+  enum class DMA2DInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -88,6 +94,11 @@ public:
     return s_interruptControllerDriverInstance;
   }
 
+  inline static DMA2D& getInstance(DMA2DInstance dma2DInstance)
+  {
+    return s_dma2dInstance;
+  }
+
 private:
 
   //! TODO
@@ -103,10 +114,14 @@ private:
   static SysTick s_sysTickDriverInstance;
 
   //! TODO
+  static DMA2D s_dma2dInstance;
+
+  //! TODO
   static GPIO s_gpioDriverInstance[];
 
   //! TODO
   static USART s_usartDriverInstance[];
+
 };
 
 #endif // #ifndef DRIVER_MANAGER_H

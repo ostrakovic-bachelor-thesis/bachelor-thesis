@@ -49,6 +49,13 @@ TEST(TheDriverManager, GetsSysTickInstance)
   ASSERT_THAT(reinterpret_cast<uintptr_t>(sysTick.getRawPointer()), Eq(static_cast<uintptr_t>(CoreHardware::SYSTICK)));
 }
 
+TEST(TheDriverManager, GetsDMA2DInstance)
+{
+  const DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
+
+  ASSERT_THAT(reinterpret_cast<uintptr_t>(dma2D.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::DMA2D)));
+}
+
 TEST(TheDriverManager, GetsInterruptControllerInstance)
 {
   const InterruptController &interruptController =

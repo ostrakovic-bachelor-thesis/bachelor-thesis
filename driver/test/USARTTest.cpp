@@ -407,7 +407,7 @@ TEST_F(AnUSART, IRQHandlerStopsTransmissionOnTranmissionCompleteInterrupt)
   constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t USART_ISR_TC_POSITION = 6u;
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-  // force values as if tranmission compleate interrupt happened
+  // force values as if tranmission complete interrupt happened
   virtualUSARTPeripheral.CR1 =
     expectedRegVal(virtualUSARTPeripheral.CR1, USART_CR1_TCIE_POSITION, 1u, 1u);
   virtualUSARTPeripheral.ISR =
@@ -424,7 +424,7 @@ TEST_F(AnUSART, IRQHandlerDisablesTransmissionCompletedInterruptWhenTransmission
   constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t EXPECTED_USART_CR1_TCIE_VALUE = 0x0;
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-  // force values as if tranmission compleate interrupt happened
+  // force values as if tranmission complete interrupt happened
   virtualUSARTPeripheral.ISR =
     expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, 1u);
   virtualUSARTPeripheral.CR1 =
@@ -443,7 +443,7 @@ TEST_F(AnUSART, IRQHandlerDisablesTransmitterWhenTransmissionIsCompleted)
   constexpr uint32_t USART_CR1_TE_POSITION = 3u;
   constexpr uint32_t EXPECTED_USART_CR1_TE_VALUE = 0x0;
   virtualUSART.write(RANDOM_MSG, RANDOM_MSG_LEN);
-  // force values as if tranmission compleate interrupt happened
+  // force values as if tranmission complete interrupt happened
   virtualUSARTPeripheral.ISR =
     expectedRegVal(virtualUSARTPeripheral.ISR, USART_ISR_TC_POSITION, 1u, 1u);
   virtualUSARTPeripheral.CR1 =

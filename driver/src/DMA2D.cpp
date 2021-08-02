@@ -2,8 +2,6 @@
 #include "MemoryAccess.h"
 #include "RegisterUtility.h"
 #include <cstddef>
-// TODO remove
-#include <iostream>
 
 
 const DMA2D::CSRegisterMapping DMA2D::s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)] =
@@ -49,9 +47,18 @@ DMA2D::ErrorCode DMA2D::init(void)
 
 DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleConfig)
 {
-  ErrorCode errorCode = ErrorCode::OK;
+  ErrorCode errorCode = checkFillRectangleConfig(fillRectangleConfig);
 
-  if (startTransfer())
+  if (ErrorCode::OK == errorCode)
+  {
+    bool isTransferStarted = startTransfer();
+    if (not isTransferStarted)
+    {
+      errorCode = ErrorCode::BUSY;
+    }
+  }
+
+  if (ErrorCode::OK == errorCode)
   {
     setMode(Mode::REGISTER_TO_MEMORY);
 
@@ -73,10 +80,6 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
 
     enableInterrupt(Interrupt::TRANSFER_COMPLETE);
     startDMA2D();
-  }
-  else
-  {
-    errorCode = ErrorCode::BUSY;
   }
 
   return errorCode;
@@ -256,6 +259,108 @@ bool DMA2D::isInterruptEnabled(Interrupt interrupt) const
 
   const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
   return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
+}
+
+DMA2D::ErrorCode DMA2D::checkFillRectangleConfig(const FillRectangleConfig &fillRectangleConfig)
+{
+  const Color maximumColorValue = getMaximumColorValue(fillRectangleConfig.outputColorFormat);
+
+  if ((maximumColorValue.alpha < fillRectangleConfig.color.alpha) ||
+      (maximumColorValue.red   < fillRectangleConfig.color.red)   ||
+      (maximumColorValue.green < fillRectangleConfig.color.green) ||
+      (maximumColorValue.blue  < fillRectangleConfig.color.blue))
+  {
+    return ErrorCode::COLOR_VALUE_OUT_OF_RANGE;
+  }
+
+  return ErrorCode::OK;
+}
+
+DMA2D::Color DMA2D::getMaximumColorValue(OutputColorFormat outputColorFormat)
+{
+  DMA2D::Color maxColorValue;
+
+  switch (outputColorFormat)
+  {
+    case DMA2D::OutputColorFormat::ARGB8888:
+    case DMA2D::OutputColorFormat::ABGR8888:
+    {
+      maxColorValue =
+      {
+        .alpha = 255u,
+        .red   = 255u,
+        .green = 255u,
+        .blue  = 255u
+      };
+    }
+    break;
+
+    case DMA2D::OutputColorFormat::RGB888:
+    case DMA2D::OutputColorFormat::BGR888:
+    {
+      maxColorValue =
+      {
+        .alpha = 0u,
+        .red   = 255u,
+        .green = 255u,
+        .blue  = 255u
+      };
+    }
+    break;
+
+    case DMA2D::OutputColorFormat::RGB565:
+    case DMA2D::OutputColorFormat::BGR565:
+    {
+      maxColorValue =
+      {
+        .alpha = 0u,
+        .red   = 31u,
+        .green = 63u,
+        .blue  = 31u
+      };
+    }
+    break;
+
+    case DMA2D::OutputColorFormat::ARGB1555:
+    case DMA2D::OutputColorFormat::ABGR1555:
+    {
+      maxColorValue =
+      {
+        .alpha = 1u,
+        .red   = 31u,
+        .green = 31u,
+        .blue  = 31u
+      };
+    }
+    break;
+
+    case DMA2D::OutputColorFormat::ARGB4444:
+    case DMA2D::OutputColorFormat::ABGR4444:
+    {
+      maxColorValue =
+      {
+        .alpha = 15u,
+        .red   = 15u,
+        .green = 15u,
+        .blue  = 15u
+      };
+    }
+    break;
+
+    default:
+    {
+      maxColorValue =
+      {
+        .alpha = 0u,
+        .red   = 0u,
+        .green = 0u,
+        .blue  = 0u
+      };
+    }
+    break;
+  }
+
+  return maxColorValue;
 }
 
 uint8_t DMA2D::getPixelSize(OutputColorFormat outputColorFormat)

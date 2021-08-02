@@ -12,6 +12,7 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/USART.cpp
     ../driver/src/SysTick.cpp
     ../driver/src/InterruptController.cpp
+    ../driver/src/DMA2D.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_app_component_cpp_sources

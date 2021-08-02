@@ -21,6 +21,8 @@ const ResetControl::EnablePeripheralClockRegisterMapping ResetControl::s_enableP
   { .peripheral = Peripheral::UART4,   .enableRegister = Register::APB1ENR1, .enableBitPosition = 19u },
   { .peripheral = Peripheral::UART5,   .enableRegister = Register::APB1ENR1, .enableBitPosition = 20u },
   { .peripheral = Peripheral::LPUART1, .enableRegister = Register::APB1ENR2, .enableBitPosition = 0u },
+
+  { .peripheral = Peripheral::DMA2D, .enableRegister = Register::AHB1ENR, .enableBitPosition = 17u}
 };
 
 

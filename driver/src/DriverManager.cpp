@@ -13,6 +13,9 @@ InterruptController DriverManager::s_interruptControllerDriverInstance =
 SysTick DriverManager::s_sysTickDriverInstance =
   SysTick(reinterpret_cast<SysTick_Type*>(CoreHardware::SYSTICK), &s_clockControlDriverInstance, &s_interruptControllerDriverInstance);
 
+DMA2D DriverManager::s_dma2dInstance =
+  DMA2D(reinterpret_cast<DMA2D_TypeDef*>(Peripheral::DMA2D));
+
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
   [static_cast<uint8_t>(GPIOInstance::GPIOA)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOA)),
