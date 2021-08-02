@@ -34,6 +34,26 @@ public:
     ABGR4444 = 0b1100,
   };
 
+  enum class InputColorFormat : uint8_t
+  {
+    ARGB8888 = 0b00000,
+    RGB888   = 0b00001,
+    RGB565   = 0b00010,
+    ARGB1555 = 0b00011,
+    ARGB4444 = 0b00100,
+    L8       = 0b00101,
+    AL44     = 0b00110,
+    AL88     = 0b00111,
+    L4       = 0b01000,
+    A8       = 0b01001,
+    A4       = 0b01010,
+    ABGR8888 = 0b10000,
+    BGR888   = 0b10001,
+    BGR565   = 0b10010,
+    ABGR1555 = 0b10011,
+    ABGR4444 = 0b10100
+  };
+
   struct Color
   {
     uint8_t alpha;
@@ -64,9 +84,16 @@ public:
     void *frameBufferPtr;
   };
 
+  struct CopyBitmapConfig
+  {
+    InputColorFormat inputColorFormat;
+  };
+
   ErrorCode init(void);
 
   ErrorCode fillRectangle(const FillRectangleConfig &fillRectangleConfig);
+
+  ErrorCode copyBitmap(const CopyBitmapConfig &copyBitmapConfig);
 
   bool isTransferOngoing(void) const;
 
@@ -129,8 +156,10 @@ private:
   static void setLineOffsetModeToBytes(uint32_t &registerValueCR);
 
   static void setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
+  inline void setFgInputColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat);
 
-  static void setRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
+  static void setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
+  static void setFgInputColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
 

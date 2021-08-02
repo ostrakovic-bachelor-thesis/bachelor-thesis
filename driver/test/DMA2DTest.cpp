@@ -56,6 +56,7 @@ public:
     PIXEL_SIZE_ARGB8888 * (DEFAULT_CONFIG_VALUE_X_POS + DEFAULT_CONFIG_VALUE_Y_POS * DEFAULT_CONFIG_VALUE_FB_WIDTH);
 
   DMA2D::FillRectangleConfig fillRectangleConfig;
+  DMA2D::CopyBitmapConfig copyBitmapConfig;
 
   DMA2D_TypeDef virtualDMA2DPeripheral;
   DMA2D virtualDMA2D = DMA2D(&virtualDMA2DPeripheral);
@@ -90,6 +91,7 @@ void ADMA2D::SetUp()
   virtualDMA2DPeripheral.LWR     = DMA2D_LWR_RESET_VALUE;
   virtualDMA2DPeripheral.AMTCR   = DMA2D_AMTCR_RESET_VALUE;
 
+  // fill rectange default configuration value
   fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::ARGB8888;
   fillRectangleConfig.color =
   {
@@ -109,6 +111,9 @@ void ADMA2D::SetUp()
     .height = DEFAULT_CONFIG_VALUE_FB_HEIGHT
   };
   fillRectangleConfig.frameBufferPtr = reinterpret_cast<void*>(DEFAULT_CONFIG_VALUES_FRAME_BUFFER_ADDRESS);
+
+  // copy bitmap default configuration value
+  copyBitmapConfig.inputColorFormat = DMA2D::InputColorFormat::BGR565;
 }
 
 void ADMA2D::TearDown()
@@ -421,4 +426,50 @@ TEST_F(ADMA2D, IRQHandlerWhenClearsTCIFFlagSetTransferStatusToCompleted)
   virtualDMA2D.IRQHandler();
 
   ASSERT_THAT(virtualDMA2D.isTransferOngoing(), false);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsModeToMemoryToMemoryWithPixelFormatConversion)
+{
+  constexpr uint32_t DMA2D_CR_MODE_POSITION = 16u;
+  constexpr uint32_t DMA2D_CR_MODE_SIZE = 3u;
+  constexpr uint32_t EXPECTED_DMA2D_CR_MODE_VALUE = 0b001;
+  auto bitsValueMatcher =
+    BitsHaveValue(DMA2D_CR_MODE_POSITION, DMA2D_CR_MODE_SIZE, EXPECTED_DMA2D_CR_MODE_VALUE);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualDMA2DPeripheral.CR), bitsValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.CR, bitsValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsWantedInputColorFormatInFGPFCCRRegister)
+{
+  constexpr uint32_t DMA2D_FGPFCCR_CM_POSITION = 0u;
+  constexpr uint32_t DMA2D_FGPFCCR_CM_SIZE = 3u;
+  constexpr uint32_t EXPECTED_DMA2D_FGPFCCR_CM_VALUE = 0b0100;
+  copyBitmapConfig.inputColorFormat = DMA2D::InputColorFormat::ABGR4444;
+  auto bitsValueMatcher =
+    BitsHaveValue(DMA2D_FGPFCCR_CM_POSITION, DMA2D_FGPFCCR_CM_SIZE, EXPECTED_DMA2D_FGPFCCR_CM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.FGPFCCR), bitsValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.FGPFCCR, bitsValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsRBSBitInFGPFCCRRegisterIfWantedInputColorFormatHasInversedOrderOfRedAndBlue)
+{
+  constexpr uint32_t DMA2D_FGPFCCR_RBS_POSITION = 21u;
+  constexpr uint32_t EXPECTED_DMA2D_FGPFCCR_RBS_VALUE = 0x1;
+  fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::ABGR4444;
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_FGPFCCR_RBS_POSITION, EXPECTED_DMA2D_FGPFCCR_RBS_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.FGPFCCR), bitValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.FGPFCCR, bitValueMatcher);
 }

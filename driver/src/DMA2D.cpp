@@ -64,7 +64,7 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
 
     uint32_t registerValueOPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->OPFCCR));
     setOutputColorFormat(registerValueOPFCCR, fillRectangleConfig.outputColorFormat);
-    setRedBlueSwap(registerValueOPFCCR, fillRectangleConfig.outputColorFormat);
+    setOutputColorRedBlueSwap(registerValueOPFCCR, fillRectangleConfig.outputColorFormat);
     MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OPFCCR), registerValueOPFCCR);
 
     setOutputColor(fillRectangleConfig.outputColorFormat,
@@ -83,6 +83,18 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
   }
 
   return errorCode;
+}
+
+DMA2D::ErrorCode DMA2D::copyBitmap(const CopyBitmapConfig &copyBitmapConfig)
+{
+  setMode(Mode::MEMORY_TO_MEMORY_PFC);
+
+  uint32_t registerValueFGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->FGPFCCR));
+  setFgInputColorFormat(registerValueFGPFCCR, copyBitmapConfig.inputColorFormat);
+  setFgInputColorRedBlueSwap(registerValueFGPFCCR, copyBitmapConfig.inputColorFormat);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->FGPFCCR), registerValueFGPFCCR);
+
+  return ErrorCode::OK;
 }
 
 void DMA2D::IRQHandler(void)
@@ -152,7 +164,19 @@ inline void DMA2D::setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputCol
     static_cast<uint32_t>(outputColorFormat));
 }
 
-inline void DMA2D::setRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat)
+inline void DMA2D::setFgInputColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat)
+{
+  constexpr uint8_t DMA2D_FGPFCCR_CM_POSITION    = 0u;
+  constexpr uint8_t DMA2D_FGPFCCR_CM_NUM_OF_BITS = 4u;
+
+  registerValueFGPFCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueFGPFCCR,
+    DMA2D_FGPFCCR_CM_POSITION,
+    DMA2D_FGPFCCR_CM_NUM_OF_BITS,
+    static_cast<uint32_t>(inputColorFormat));
+}
+
+inline void DMA2D::setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat)
 {
   constexpr uint8_t DMA2D_OPFCCR_RBS_POSITION    = 21u;
   constexpr uint8_t DMA2D_OPFCCR_RBS_NUM_OF_BITS = 1u;
@@ -162,6 +186,18 @@ inline void DMA2D::setRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorForm
     DMA2D_OPFCCR_RBS_POSITION,
     DMA2D_OPFCCR_RBS_NUM_OF_BITS,
     (static_cast<uint32_t>(outputColorFormat) >> 3));
+}
+
+inline void DMA2D::setFgInputColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat)
+{
+  constexpr uint8_t DMA2D_FGPFCCR_RBS_POSITION    = 21u;
+  constexpr uint8_t DMA2D_FGPFCCR_RBS_NUM_OF_BITS = 1u;
+
+  registerValueFGPFCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueFGPFCCR,
+    DMA2D_FGPFCCR_RBS_POSITION,
+    DMA2D_FGPFCCR_RBS_NUM_OF_BITS,
+    (static_cast<uint32_t>(inputColorFormat) >> 4));
 }
 
 inline void DMA2D::setOutputMemoryAddress(
