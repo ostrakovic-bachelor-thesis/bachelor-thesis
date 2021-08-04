@@ -44,16 +44,26 @@ public:
   static constexpr uint32_t DMA2D_OCOLR_ARGB4444_RED_SIZE   = 4u;
   static constexpr uint32_t DMA2D_OCOLR_ARGB4444_ALPHA_SIZE = 4u;
 
+  static constexpr uint32_t PIXEL_SIZE_RGB565 = 2u;
+  static constexpr uint32_t PIXEL_SIZE_BGR565 = 2u;
   static constexpr uint32_t PIXEL_SIZE_RGB888 = 3u;
   static constexpr uint32_t PIXEL_SIZE_ARGB8888 = 4u;
 
-  static constexpr uint16_t DEFAULT_CONFIG_VALUE_X_POS = 50u;
-  static constexpr uint16_t DEFAULT_CONFIG_VALUE_Y_POS = 50u;
-  static constexpr uint16_t DEFAULT_CONFIG_VALUE_FB_WIDTH = 100u;
-  static constexpr uint16_t DEFAULT_CONFIG_VALUE_FB_HEIGHT = 100u;
-  static constexpr uintptr_t DEFAULT_CONFIG_VALUES_FRAME_BUFFER_ADDRESS = 0xBEEF0000;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_OUTPUT_X_POS = 50u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_OUTPUT_Y_POS = 50u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_WIDTH = 100u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_HEIGHT = 100u;
+  static constexpr uintptr_t DEFAULT_CONFIG_VALUES_OUTPUT_BUFFER_ADDRESS = 0xBEEF0000;
   static constexpr uintptr_t DEFAULT_CONFIG_VALUES_DMA2D_OMAR_OFFSET_VALUE =
-    PIXEL_SIZE_ARGB8888 * (DEFAULT_CONFIG_VALUE_X_POS + DEFAULT_CONFIG_VALUE_Y_POS * DEFAULT_CONFIG_VALUE_FB_WIDTH);
+    PIXEL_SIZE_ARGB8888 * (DEFAULT_CONFIG_VALUE_OUTPUT_X_POS + DEFAULT_CONFIG_VALUE_OUTPUT_Y_POS * DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_WIDTH);
+
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_INPUT_X_POS = 100u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_INPUT_Y_POS = 150u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_INPUT_BUFFER_WIDTH = 300u;
+  static constexpr uint16_t DEFAULT_CONFIG_VALUE_INPUT_BUFFER_HEIGHT = 300u;
+  static constexpr uintptr_t DEFAULT_CONFIG_VALUES_INPUT_BUFFER_ADDRESS = 0xAEE00000;
+  static constexpr uintptr_t DEFAULT_CONFIG_VALUES_DMA2D_FGMAR_OFFSET_VALUE =
+    PIXEL_SIZE_BGR565 * (DEFAULT_CONFIG_VALUE_INPUT_X_POS + DEFAULT_CONFIG_VALUE_INPUT_Y_POS * DEFAULT_CONFIG_VALUE_INPUT_BUFFER_WIDTH);
 
   DMA2D::FillRectangleConfig fillRectangleConfig;
   DMA2D::CopyBitmapConfig copyBitmapConfig;
@@ -102,18 +112,41 @@ void ADMA2D::SetUp()
   };
   fillRectangleConfig.position =
   {
-    .x = DEFAULT_CONFIG_VALUE_X_POS,
-    .y = DEFAULT_CONFIG_VALUE_Y_POS
+    .x = DEFAULT_CONFIG_VALUE_OUTPUT_X_POS,
+    .y = DEFAULT_CONFIG_VALUE_OUTPUT_Y_POS
   };
-  fillRectangleConfig.frameBufferDimension =
+  fillRectangleConfig.bufferDimension =
   {
-    .width  = DEFAULT_CONFIG_VALUE_FB_WIDTH,
-    .height = DEFAULT_CONFIG_VALUE_FB_HEIGHT
+    .width  = DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_WIDTH,
+    .height = DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_HEIGHT
   };
-  fillRectangleConfig.frameBufferPtr = reinterpret_cast<void*>(DEFAULT_CONFIG_VALUES_FRAME_BUFFER_ADDRESS);
+  fillRectangleConfig.bufferPtr = reinterpret_cast<void*>(DEFAULT_CONFIG_VALUES_OUTPUT_BUFFER_ADDRESS);
 
   // copy bitmap default configuration value
   copyBitmapConfig.inputColorFormat = DMA2D::InputColorFormat::BGR565;
+  copyBitmapConfig.inputPosition =
+  {
+    .x = DEFAULT_CONFIG_VALUE_INPUT_X_POS,
+    .y = DEFAULT_CONFIG_VALUE_INPUT_Y_POS
+  };
+  copyBitmapConfig.inputBufferDimension =
+  {
+    .width  = DEFAULT_CONFIG_VALUE_INPUT_BUFFER_WIDTH,
+    .height = DEFAULT_CONFIG_VALUE_INPUT_BUFFER_HEIGHT
+  };
+  copyBitmapConfig.inputBufferPtr = reinterpret_cast<void*>(DEFAULT_CONFIG_VALUES_INPUT_BUFFER_ADDRESS);
+  copyBitmapConfig.outputColorFormat = DMA2D::OutputColorFormat::ARGB8888;
+  copyBitmapConfig.outputPosition =
+  {
+    .x = DEFAULT_CONFIG_VALUE_OUTPUT_X_POS,
+    .y = DEFAULT_CONFIG_VALUE_OUTPUT_Y_POS
+  };
+  copyBitmapConfig.outputBufferDimension =
+  {
+    .width  = DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_WIDTH,
+    .height = DEFAULT_CONFIG_VALUE_OUTPUT_BUFFER_HEIGHT
+  };
+  copyBitmapConfig.outputBufferPtr = reinterpret_cast<void*>(DEFAULT_CONFIG_VALUES_OUTPUT_BUFFER_ADDRESS);
 }
 
 void ADMA2D::TearDown()
@@ -227,7 +260,7 @@ TEST_F(ADMA2D, FillRectangleSetsOMARRegisterValueRelativeToFrameBufferAddress)
   constexpr uintptr_t FRAME_BUFFER_ADDRESS = 0xAB000000;
   constexpr uint32_t EXPECTED_DMA2D_OMAR_VALUE =
     FRAME_BUFFER_ADDRESS + DEFAULT_CONFIG_VALUES_DMA2D_OMAR_OFFSET_VALUE;
-  fillRectangleConfig.frameBufferPtr = reinterpret_cast<void*>(FRAME_BUFFER_ADDRESS);
+  fillRectangleConfig.bufferPtr = reinterpret_cast<void*>(FRAME_BUFFER_ADDRESS);
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OMAR), EXPECTED_DMA2D_OMAR_VALUE);
 
   const DMA2D::ErrorCode errorCode = virtualDMA2D.fillRectangle(fillRectangleConfig);
@@ -245,14 +278,14 @@ TEST_F(ADMA2D, FillRectangleAddsOffsetToFrameBufferAddressAccordingToPositionAnd
     PIXEL_SIZE_RGB888 * (static_cast<uintptr_t>(RECTANGLE_X_POS) +
     static_cast<uintptr_t>(RECTANGLE_Y_POS) * static_cast<uintptr_t>(FRAME_BUFFER_WIDTH));
   constexpr uint32_t EXPECTED_DMA2D_OMAR_VALUE =
-    DEFAULT_CONFIG_VALUES_FRAME_BUFFER_ADDRESS + FRAME_BUFFER_OFFSET;
+    DEFAULT_CONFIG_VALUES_OUTPUT_BUFFER_ADDRESS + FRAME_BUFFER_OFFSET;
   fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::RGB888;
   fillRectangleConfig.position =
   {
     .x = RECTANGLE_X_POS,
     .y = RECTANGLE_Y_POS
   };
-  fillRectangleConfig.frameBufferDimension.width = FRAME_BUFFER_WIDTH;
+  fillRectangleConfig.bufferDimension.width = FRAME_BUFFER_WIDTH;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OMAR), EXPECTED_DMA2D_OMAR_VALUE);
 
   const DMA2D::ErrorCode errorCode = virtualDMA2D.fillRectangle(fillRectangleConfig);
@@ -268,7 +301,7 @@ TEST_F(ADMA2D, FillRectangleSetsOORRegisterValueAccordingToFrameBufferWidthAndRe
   constexpr uint32_t EXPECTED_DMA2D_OOR_VALUE =
     PIXEL_SIZE_RGB888 * (FRAME_BUFFER_WIDTH - RECTANGLE_WIDTH);
   fillRectangleConfig.rectangleDimension.width = RECTANGLE_WIDTH,
-  fillRectangleConfig.frameBufferDimension.width = FRAME_BUFFER_WIDTH;
+  fillRectangleConfig.bufferDimension.width = FRAME_BUFFER_WIDTH;
   fillRectangleConfig.outputColorFormat = DMA2D::OutputColorFormat::RGB888;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OOR), EXPECTED_DMA2D_OOR_VALUE);
 
@@ -278,7 +311,7 @@ TEST_F(ADMA2D, FillRectangleSetsOORRegisterValueAccordingToFrameBufferWidthAndRe
   ASSERT_THAT(virtualDMA2DPeripheral.OOR, EXPECTED_DMA2D_OOR_VALUE);
 }
 
-TEST_F(ADMA2D, FillRectangleSetsNLRRegisterValueAccordingRectangleDimension)
+TEST_F(ADMA2D, FillRectangleSetsNLRRegisterValueAccordingToRectangleDimension)
 {
   constexpr uint16_t DMA2D_NLR_PL_POSITION = 16;
   constexpr uint16_t RECTANGLE_WIDTH = 100u;
@@ -472,4 +505,201 @@ TEST_F(ADMA2D, CopyBitmapSetsRBSBitInFGPFCCRRegisterIfWantedInputColorFormatHasI
 
   ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
   ASSERT_THAT(virtualDMA2DPeripheral.FGPFCCR, bitValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsFGMARRegisterValueRelativeToInputFrameBufferAddress)
+{
+  constexpr uintptr_t INPUT_FRAME_BUFFER_ADDRESS = 0xAB000000;
+  constexpr uint32_t EXPECTED_DMA2D_FGMAR_VALUE =
+    INPUT_FRAME_BUFFER_ADDRESS + DEFAULT_CONFIG_VALUES_DMA2D_FGMAR_OFFSET_VALUE;
+  copyBitmapConfig.inputBufferPtr = reinterpret_cast<void*>(INPUT_FRAME_BUFFER_ADDRESS);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.FGMAR), EXPECTED_DMA2D_FGMAR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.FGMAR, EXPECTED_DMA2D_FGMAR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapAddsOffsetToInputFrameBufferAddressAccordingToPositionAndInputColorFormatAndInputFrameBufferWidth)
+{
+  constexpr uint16_t RECTANGLE_X_POS = 100u;
+  constexpr uint16_t RECTANGLE_Y_POS = 50u;
+  constexpr uint16_t INPUT_FRAME_BUFFER_WIDTH = 200u;
+  constexpr uintptr_t INPUT_FRAME_BUFFER_OFFSET =
+    PIXEL_SIZE_RGB565 * (static_cast<uintptr_t>(RECTANGLE_X_POS) +
+    static_cast<uintptr_t>(RECTANGLE_Y_POS) * static_cast<uintptr_t>(INPUT_FRAME_BUFFER_WIDTH));
+  constexpr uint32_t EXPECTED_DMA2D_FGMAR_VALUE =
+    DEFAULT_CONFIG_VALUES_INPUT_BUFFER_ADDRESS + INPUT_FRAME_BUFFER_OFFSET;
+  copyBitmapConfig.inputColorFormat = DMA2D::InputColorFormat::RGB565;
+  copyBitmapConfig.inputPosition =
+  {
+    .x = RECTANGLE_X_POS,
+    .y = RECTANGLE_Y_POS
+  };
+  copyBitmapConfig.inputBufferDimension.width = INPUT_FRAME_BUFFER_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.FGMAR), EXPECTED_DMA2D_FGMAR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.FGMAR, EXPECTED_DMA2D_FGMAR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsFGORRegisterValueAccordingToInputBufferWidthAndCopyRectangleWidthAndInputColorFormat)
+{
+  constexpr uint16_t COPY_RECTANGLE_WIDTH = 100u;
+  constexpr uint16_t INPUT_BUFFER_WIDTH = 200u;
+  constexpr uint32_t EXPECTED_DMA2D_FGOR_VALUE =
+    PIXEL_SIZE_RGB565 * (INPUT_BUFFER_WIDTH - COPY_RECTANGLE_WIDTH);
+  copyBitmapConfig.copyRectangleDimension.width = COPY_RECTANGLE_WIDTH,
+  copyBitmapConfig.inputBufferDimension.width = INPUT_BUFFER_WIDTH;
+  copyBitmapConfig.inputColorFormat = DMA2D::InputColorFormat::RGB565;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.FGOR), EXPECTED_DMA2D_FGOR_VALUE);
+
+ const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.FGOR, EXPECTED_DMA2D_FGOR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsWantedOutputColorFormatInOPFCCRRegister)
+{
+  constexpr uint32_t DMA2D_OPFCCR_CM_POSITION = 0u;
+  constexpr uint32_t DMA2D_OPFCCR_CM_SIZE = 3u;
+  constexpr uint32_t EXPECTED_DMA2D_OPFCCR_CM_VALUE = 0b0011;
+  copyBitmapConfig.outputColorFormat = DMA2D::OutputColorFormat::ARGB1555;
+  auto bitsValueMatcher =
+    BitsHaveValue(DMA2D_OPFCCR_CM_POSITION, DMA2D_OPFCCR_CM_SIZE, EXPECTED_DMA2D_OPFCCR_CM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OPFCCR), bitsValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.OPFCCR, bitsValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsRBSBitInOPFCCRRegisterIfWantedOutputColorFormatHasInversedOrderOfRedAndBlue)
+{
+  constexpr uint32_t DMA2D_OPFCCR_RBS_POSITION = 21u;
+  constexpr uint32_t EXPECTED_DMA2D_OPFCCR_RBS_VALUE = 0x1;
+  copyBitmapConfig.outputColorFormat = DMA2D::OutputColorFormat::BGR888;
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_OPFCCR_RBS_POSITION, EXPECTED_DMA2D_OPFCCR_RBS_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OPFCCR), bitValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.OPFCCR, bitValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsOMARRegisterValueRelativeToOutputBufferAddress)
+{
+  constexpr uintptr_t OUTPUT_BUFFER_ADDRESS = 0xAB000000;
+  constexpr uint32_t EXPECTED_DMA2D_OMAR_VALUE =
+    OUTPUT_BUFFER_ADDRESS + DEFAULT_CONFIG_VALUES_DMA2D_OMAR_OFFSET_VALUE;
+  copyBitmapConfig.outputBufferPtr = reinterpret_cast<void*>(OUTPUT_BUFFER_ADDRESS);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OMAR), EXPECTED_DMA2D_OMAR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.OMAR, EXPECTED_DMA2D_OMAR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapAddsOffsetToOutputBufferAddressAccordingToOutputPositionAndOutputColorFormatAndOutputBufferWidth)
+{
+  constexpr uint16_t OUTPUT_X_POS = 100u;
+  constexpr uint16_t OUTPUT_Y_POS = 50u;
+  constexpr uint16_t OUTPUT_BUFFER_WIDTH = 200u;
+  constexpr uintptr_t OUTPUT_BUFFER_OFFSET =
+    PIXEL_SIZE_RGB888 * (static_cast<uintptr_t>(OUTPUT_X_POS) +
+    static_cast<uintptr_t>(OUTPUT_Y_POS) * static_cast<uintptr_t>(OUTPUT_BUFFER_WIDTH));
+  constexpr uint32_t EXPECTED_DMA2D_OMAR_VALUE =
+    DEFAULT_CONFIG_VALUES_OUTPUT_BUFFER_ADDRESS + OUTPUT_BUFFER_OFFSET;
+  copyBitmapConfig.outputColorFormat = DMA2D::OutputColorFormat::RGB888;
+  copyBitmapConfig.outputPosition =
+  {
+    .x = OUTPUT_X_POS,
+    .y = OUTPUT_Y_POS
+  };
+  copyBitmapConfig.outputBufferDimension.width = OUTPUT_BUFFER_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OMAR), EXPECTED_DMA2D_OMAR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.OMAR, EXPECTED_DMA2D_OMAR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsOORRegisterValueAccordingToOutputBufferWidthAndCopyRectangleWidthAndOutputColorFormat)
+{
+  constexpr uint16_t RECTANGLE_WIDTH = 100u;
+  constexpr uint16_t OUTPUT_BUFFER_WIDTH = 200u;
+  constexpr uint32_t EXPECTED_DMA2D_OOR_VALUE =
+    PIXEL_SIZE_RGB888 * (OUTPUT_BUFFER_WIDTH - RECTANGLE_WIDTH);
+  copyBitmapConfig.copyRectangleDimension.width = RECTANGLE_WIDTH,
+  copyBitmapConfig.outputBufferDimension.width = OUTPUT_BUFFER_WIDTH;
+  copyBitmapConfig.outputColorFormat = DMA2D::OutputColorFormat::RGB888;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.OOR), EXPECTED_DMA2D_OOR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.OOR, EXPECTED_DMA2D_OOR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapSetsNLRRegisterValueAccordingToCopyRectangleDimension)
+{
+  constexpr uint16_t DMA2D_NLR_PL_POSITION = 16;
+  constexpr uint16_t RECTANGLE_WIDTH = 100u;
+  constexpr uint16_t RECTANGLE_HEIGHT = 100u;
+  constexpr uint32_t EXPECTED_DMA2D_NLR_VALUE =
+    (static_cast<uint32_t>(RECTANGLE_WIDTH) << DMA2D_NLR_PL_POSITION) | static_cast<uint32_t>(RECTANGLE_HEIGHT);
+  copyBitmapConfig.copyRectangleDimension =
+  {
+    .width  = RECTANGLE_WIDTH,
+    .height = RECTANGLE_HEIGHT
+  };
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.NLR), EXPECTED_DMA2D_NLR_VALUE);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.NLR, EXPECTED_DMA2D_NLR_VALUE);
+}
+
+TEST_F(ADMA2D, CopyBitmapEnablesDMA2DTransferCompleteInterrupt)
+{
+  constexpr uint32_t DMA2D_CR_TCIE_POSITION = 9u;
+  constexpr uint32_t EXPECTED_DMA2D_CR_TCIE_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_CR_TCIE_POSITION, EXPECTED_DMA2D_CR_TCIE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDMA2DPeripheral.CR), bitValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.CR, bitValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapStartsDMA2DAtTheEndOfCopyBitmapFunctionCall)
+{
+  constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DMA2D_CR_START_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(DMA2D_CR_START_POSITION, EXPECTED_DMA2D_CR_START_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualDMA2DPeripheral.CR), bitValueMatcher);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2DPeripheral.CR, bitValueMatcher);
+}
+
+TEST_F(ADMA2D, CopyBitmapFailsIfAnotherDMA2DTransferIsOngoing)
+{
+  ASSERT_THAT(virtualDMA2D.copyBitmap(copyBitmapConfig), Eq(DMA2D::ErrorCode::OK));
+  ASSERT_THAT(virtualDMA2D.copyBitmap(copyBitmapConfig), Eq(DMA2D::ErrorCode::BUSY));
 }

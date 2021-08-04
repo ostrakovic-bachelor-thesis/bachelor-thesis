@@ -80,13 +80,21 @@ public:
     Color color;
     Position position;
     Dimension rectangleDimension;
-    Dimension frameBufferDimension;
-    void *frameBufferPtr;
+    Dimension bufferDimension;
+    void *bufferPtr;
   };
 
   struct CopyBitmapConfig
   {
+    Dimension copyRectangleDimension;
     InputColorFormat inputColorFormat;
+    Position inputPosition;
+    Dimension inputBufferDimension;
+    const void *inputBufferPtr;
+    OutputColorFormat outputColorFormat;
+    Position outputPosition;
+    Dimension outputBufferDimension;
+    void *outputBufferPtr;
   };
 
   ErrorCode init(void);
@@ -151,6 +159,20 @@ private:
     uint8_t  bitPosition;
   };
 
+  void configureOutputStage(
+    OutputColorFormat colorFormat,
+    Dimension rectangleDimension,
+    Position position,
+    Dimension bufferDimension,
+    void *bufferPtr);
+
+  void configureForegroundInputStage(
+    InputColorFormat colorFormat,
+    Dimension rectangleDimension,
+    Position position,
+    Dimension bufferDimension,
+    const void *bufferPtr);
+
   void setMode(Mode mode);
 
   static void setLineOffsetModeToBytes(uint32_t &registerValueCR);
@@ -162,6 +184,7 @@ private:
   static void setFgInputColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
+  static uint8_t getPixelSize(InputColorFormat inputColorFormat);
 
   static ErrorCode checkFillRectangleConfig(const FillRectangleConfig &fillRectangleConfig);
 
@@ -173,15 +196,26 @@ private:
   void setOutputColor(OutputColorFormat outputColorFormat, Color color);
 
   void setOutputMemoryAddress(
-    void *frameBufferPtr,
-    Dimension frameBufferDimension,
+    void *bufferPtr,
+    Dimension bufferDimension,
     Position position,
     OutputColorFormat outputColorFormat);
 
+  void setForegroundMemoryAddress(
+    const void *bufferPtr,
+    Dimension bufferDimension,
+    Position position,
+    InputColorFormat inputColorFormat);
+
   void setOutputLineOffset(
-    Dimension frameBufferDimension,
+    Dimension bufferDimension,
     Dimension rectangleDimension,
     OutputColorFormat outputColorFormat);
+
+  void setForegroundLineOffset(
+    Dimension bufferDimension,
+    Dimension rectangleDimension,
+    InputColorFormat inputColorFormat);
 
   void setOutputDimension(Dimension rectangleDimension);
 
