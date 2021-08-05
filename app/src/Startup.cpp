@@ -9,41 +9,65 @@
 #include <cstdio>
 #include <cinttypes>
 
-const uint16_t g_bitmap[30][30] =
+const uint32_t g_fgBitmap[20][20] =
 {
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF,
+    0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
+  {0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF,
+    0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF, 0x0FFF00FF},
+  {0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F,
+    0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F, 0xFF00FF0F},
 };
 
-uint16_t g_frameBuffer[100][150] = { 0u };
+const uint32_t g_bgBitmap[9][9] =
+{
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+  {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}
+};
+
+
+uint16_t g_frameBuffer[100][100] = { 0u };
 
 //extern "C" void initSYSCLOCK(void);
 
@@ -184,81 +208,76 @@ void startup(void)
     }
   }
 
-  // {
-  //   DMA2D::FillRectangleConfig fillRectangleConfig =
-  //   {
-  //     .outputColorFormat = DMA2D::OutputColorFormat::BGR565,
-  //     .color =
-  //     {
-  //       .alpha = 0,
-  //       .red   = 10,
-  //       .green = 20,
-  //       .blue  = 10
-  //     },
-  //     .position =
-  //     {
-  //       .x = 50,
-  //       .y = 50
-  //     },
-  //     .rectangleDimension =
-  //     {
-  //       .width  = 50,
-  //       .height = 50
-  //     },
-  //     .frameBufferDimension =
-  //     {
-  //       .width  = 150,
-  //       .height = 100
-  //     },
-  //     .frameBufferPtr = g_frameBuffer
-  //   };
-
-  //   DMA2D::ErrorCode error = dma2D.fillRectangle(fillRectangleConfig);
-  //   if (DMA2D::ErrorCode::OK != error)
-  //   {
-  //     panic();
-  //   }
-  // }
-
+  DMA2D::BlendBitmapConfig blendBitmapConfig =
   {
-    DMA2D::CopyBitmapConfig copyBitmapConfig =
+    .blendRectangleDimension =
     {
-      .copyRectangleDimension =
-      {
-        .width  = 30,
-        .height = 30
-      },
-      .inputColorFormat = DMA2D::InputColorFormat::RGB565,
-      .inputPosition =
+      .width  = 10,
+      .height = 10
+    },
+
+    .foregroundBufferConfig =
+    {
+      .colorFormat = DMA2D::InputColorFormat::ABGR8888,
+
+      .position =
       {
         .x = 0,
         .y = 0
       },
-      .inputBufferDimension =
+
+      .bufferDimension =
       {
-        .width  = 30,
-        .height = 30,
+        .width  = 20,
+        .height = 20
       },
-      .inputBufferPtr = g_bitmap,
-      .outputColorFormat = DMA2D::OutputColorFormat::RGB565,
-      .outputPosition =
+
+      .bufferPtr = g_fgBitmap
+    },
+
+    .backgroundBufferConfig =
+    {
+      .colorFormat = DMA2D::InputColorFormat::RGB888,
+
+      .position =
       {
-        .x = 50,
-        .y = 50
+        .x = 0,
+        .y = 0
       },
-      .outputBufferDimension =
+
+      .bufferDimension =
       {
-        .width  = 150,
+        .width  = 12,
+        .height = 12
+      },
+
+      .bufferPtr = g_bgBitmap
+    },
+
+    .outputBufferConfig =
+    {
+      .colorFormat = DMA2D::OutputColorFormat::RGB565,
+
+      .position =
+      {
+        .x = 40,
+        .y = 40
+      },
+
+      .bufferDimension =
+      {
+        .width  = 100,
         .height = 100
       },
-      .outputBufferPtr = g_frameBuffer
-    };
 
-    DMA2D::ErrorCode error = dma2D.copyBitmap(copyBitmapConfig);
-    if (DMA2D::ErrorCode::OK != error)
-    {
-      panic();
+      .bufferPtr = g_frameBuffer
     }
+  };
+
+  DMA2D::ErrorCode errorCode = dma2D.blendBitmap(blendBitmapConfig);
+  if (DMA2D::ErrorCode::OK != errorCode)
+  {
+    panic();
   }
 
   uint8_t message[2000];

@@ -74,27 +74,42 @@ public:
     uint16_t height;
   };
 
-  struct FillRectangleConfig
+  struct OutputBufferConfiguration
   {
-    OutputColorFormat outputColorFormat;
-    Color color;
+    OutputColorFormat colorFormat;
     Position position;
-    Dimension rectangleDimension;
     Dimension bufferDimension;
     void *bufferPtr;
+  };
+
+  struct InputBufferConfiguration
+  {
+    InputColorFormat colorFormat;
+    Position position;
+    Dimension bufferDimension;
+    const void *bufferPtr;
+  };
+
+  struct FillRectangleConfig
+  {
+    Color color;
+    Dimension rectangleDimension;
+    OutputBufferConfiguration outputBufferConfig;
   };
 
   struct CopyBitmapConfig
   {
     Dimension copyRectangleDimension;
-    InputColorFormat inputColorFormat;
-    Position inputPosition;
-    Dimension inputBufferDimension;
-    const void *inputBufferPtr;
-    OutputColorFormat outputColorFormat;
-    Position outputPosition;
-    Dimension outputBufferDimension;
-    void *outputBufferPtr;
+    InputBufferConfiguration inputBufferConfig;
+    OutputBufferConfiguration outputBufferConfig;
+  };
+
+  struct BlendBitmapConfig
+  {
+    Dimension blendRectangleDimension;
+    InputBufferConfiguration foregroundBufferConfig;
+    InputBufferConfiguration backgroundBufferConfig;
+    OutputBufferConfiguration outputBufferConfig;
   };
 
   ErrorCode init(void);
@@ -102,6 +117,8 @@ public:
   ErrorCode fillRectangle(const FillRectangleConfig &fillRectangleConfig);
 
   ErrorCode copyBitmap(const CopyBitmapConfig &copyBitmapConfig);
+
+  ErrorCode blendBitmap(const BlendBitmapConfig &blendBitmapConfig);
 
   bool isTransferOngoing(void) const;
 
@@ -173,15 +190,24 @@ private:
     Dimension bufferDimension,
     const void *bufferPtr);
 
+  void configureBackgroundInputStage(
+    InputColorFormat colorFormat,
+    Dimension rectangleDimension,
+    Position position,
+    Dimension bufferDimension,
+    const void *bufferPtr);
+
   void setMode(Mode mode);
 
   static void setLineOffsetModeToBytes(uint32_t &registerValueCR);
 
-  static void setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
-  inline void setFgInputColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat);
+  static void setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat);
+  static void setForegroundColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat);
+  static void setBackgroundColorFormat(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat);
 
-  static void setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat outputColorFormat);
-  static void setFgInputColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat inputColorFormat);
+  static void setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat);
+  static void setForegroundColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat);
+  static void setBackgroundColorRedBlueSwap(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
   static uint8_t getPixelSize(InputColorFormat inputColorFormat);
@@ -207,15 +233,26 @@ private:
     Position position,
     InputColorFormat inputColorFormat);
 
+  void setBackgroundMemoryAddress(
+    const void *bufferPtr,
+    Dimension bufferDimension,
+    Position position,
+    InputColorFormat colorFormat);
+
   void setOutputLineOffset(
     Dimension bufferDimension,
     Dimension rectangleDimension,
-    OutputColorFormat outputColorFormat);
+    OutputColorFormat colorFormat);
 
   void setForegroundLineOffset(
     Dimension bufferDimension,
     Dimension rectangleDimension,
-    InputColorFormat inputColorFormat);
+    InputColorFormat colorFormat);
+
+  void setBackgroundLineOffset(
+    Dimension bufferDimension,
+    Dimension rectangleDimension,
+    InputColorFormat colorFormat);
 
   void setOutputDimension(Dimension rectangleDimension);
 
