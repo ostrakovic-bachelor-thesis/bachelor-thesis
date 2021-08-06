@@ -74,42 +74,46 @@ public:
     uint16_t height;
   };
 
-  struct OutputBufferConfiguration
-  {
-    OutputColorFormat colorFormat;
-    Position position;
-    Dimension bufferDimension;
-    void *bufferPtr;
-  };
-
   struct InputBufferConfiguration
   {
     InputColorFormat colorFormat;
-    Position position;
     Dimension bufferDimension;
     const void *bufferPtr;
+  };
+
+  struct OutputBufferConfiguration
+  {
+    OutputColorFormat colorFormat;
+    Dimension bufferDimension;
+    void *bufferPtr;
   };
 
   struct FillRectangleConfig
   {
     Color color;
-    Dimension rectangleDimension;
-    OutputBufferConfiguration outputBufferConfig;
+    Dimension dimension;
+    Position position;
+    OutputBufferConfiguration destinationBufferConfig;
   };
 
   struct CopyBitmapConfig
   {
-    Dimension copyRectangleDimension;
-    InputBufferConfiguration inputBufferConfig;
-    OutputBufferConfiguration outputBufferConfig;
+    Dimension dimension;
+    Position sourceRectanglePosition;
+    InputBufferConfiguration sourceBufferConfig;
+    Position destinationRectanglePosition;
+    OutputBufferConfiguration destinationBufferConfig;
   };
 
   struct BlendBitmapConfig
   {
-    Dimension blendRectangleDimension;
+    Dimension dimension;
+    Position foregroundRectanglePosition;
     InputBufferConfiguration foregroundBufferConfig;
+    Position backgroundRectanglePosition;
     InputBufferConfiguration backgroundBufferConfig;
-    OutputBufferConfiguration outputBufferConfig;
+    Position destinationRectanglePosition;
+    OutputBufferConfiguration destinationBufferConfig;
   };
 
   ErrorCode init(void);
@@ -178,21 +182,21 @@ private:
 
   void configureOutputStage(
     OutputColorFormat colorFormat,
-    Dimension rectangleDimension,
+    Dimension transactionRectangleDimension,
     Position position,
     Dimension bufferDimension,
     void *bufferPtr);
 
   void configureForegroundInputStage(
     InputColorFormat colorFormat,
-    Dimension rectangleDimension,
+    Dimension transactionRectangleDimension,
     Position position,
     Dimension bufferDimension,
     const void *bufferPtr);
 
   void configureBackgroundInputStage(
     InputColorFormat colorFormat,
-    Dimension rectangleDimension,
+    Dimension transactionRectangleDimension,
     Position position,
     Dimension bufferDimension,
     const void *bufferPtr);
@@ -201,13 +205,28 @@ private:
 
   static void setLineOffsetModeToBytes(uint32_t &registerValueCR);
 
-  static void setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat);
-  static void setForegroundColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat);
-  static void setBackgroundColorFormat(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat);
+  template<typename ColorFormat, uint32_t t_colorFormatSize>
+  static void setColorFormat(uint32_t &registerValuePFCCR, ColorFormat colorFormat);
 
-  static void setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat);
-  static void setForegroundColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat);
-  static void setBackgroundColorRedBlueSwap(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat);
+  template<typename ColorFormat, uint32_t t_colorFormatSize>
+  static void setColorRedBlueSwap(uint32_t &registerValuePFCCR, ColorFormat colorFormat);
+
+  template<typename ColorFormat, typename MemberReference>
+  void setMemoryAddress(
+    MemberReference memoryAddressRegister,
+    void *bufferPtr,
+    Dimension bufferDimension,
+    Position position,
+    ColorFormat colorFormat);
+
+  template<typename ColorFormat, typename MemberReference>
+  void setLineOffset(
+    MemberReference lineOffsetRegister,
+    Dimension bufferDimension,
+    Dimension rectangleDimension,
+    ColorFormat colorFormat);
+
+  void setTransactionRectangleDimension(Dimension transactionRectangleDimension);
 
   static uint8_t getPixelSize(OutputColorFormat outputColorFormat);
   static uint8_t getPixelSize(InputColorFormat inputColorFormat);
@@ -220,41 +239,6 @@ private:
   void setOutputColor(Color color);
 
   void setOutputColor(OutputColorFormat outputColorFormat, Color color);
-
-  void setOutputMemoryAddress(
-    void *bufferPtr,
-    Dimension bufferDimension,
-    Position position,
-    OutputColorFormat outputColorFormat);
-
-  void setForegroundMemoryAddress(
-    const void *bufferPtr,
-    Dimension bufferDimension,
-    Position position,
-    InputColorFormat inputColorFormat);
-
-  void setBackgroundMemoryAddress(
-    const void *bufferPtr,
-    Dimension bufferDimension,
-    Position position,
-    InputColorFormat colorFormat);
-
-  void setOutputLineOffset(
-    Dimension bufferDimension,
-    Dimension rectangleDimension,
-    OutputColorFormat colorFormat);
-
-  void setForegroundLineOffset(
-    Dimension bufferDimension,
-    Dimension rectangleDimension,
-    InputColorFormat colorFormat);
-
-  void setBackgroundLineOffset(
-    Dimension bufferDimension,
-    Dimension rectangleDimension,
-    InputColorFormat colorFormat);
-
-  void setOutputDimension(Dimension rectangleDimension);
 
   void startDMA2D(void);
 

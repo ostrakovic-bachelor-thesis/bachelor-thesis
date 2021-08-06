@@ -33,13 +33,10 @@ DMA2D::ErrorCode DMA2D::init(void)
   if (isTransferOngoing())
   {
     return ErrorCode::BUSY;
-
   }
 
   uint32_t registerValueCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->CR));
-
   setLineOffsetModeToBytes(registerValueCR);
-
   MemoryAccess::setRegisterValue(&(m_DMA2DPtr->CR), registerValueCR);
 
   return ErrorCode::OK;
@@ -61,13 +58,15 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
 
   setMode(Mode::REGISTER_TO_MEMORY);
 
-  configureOutputStage(fillRectangleConfig.outputBufferConfig.colorFormat,
-    fillRectangleConfig.rectangleDimension,
-    fillRectangleConfig.outputBufferConfig.position,
-    fillRectangleConfig.outputBufferConfig.bufferDimension,
-    fillRectangleConfig.outputBufferConfig.bufferPtr);
+  configureOutputStage(fillRectangleConfig.destinationBufferConfig.colorFormat,
+    fillRectangleConfig.dimension,
+    fillRectangleConfig.position,
+    fillRectangleConfig.destinationBufferConfig.bufferDimension,
+    fillRectangleConfig.destinationBufferConfig.bufferPtr);
 
-  setOutputColor(fillRectangleConfig.outputBufferConfig.colorFormat, fillRectangleConfig.color);
+  setTransactionRectangleDimension(fillRectangleConfig.dimension);
+
+  setOutputColor(fillRectangleConfig.destinationBufferConfig.colorFormat, fillRectangleConfig.color);
 
   enableInterrupt(Interrupt::TRANSFER_COMPLETE);
   startDMA2D();
@@ -85,17 +84,19 @@ DMA2D::ErrorCode DMA2D::copyBitmap(const CopyBitmapConfig &copyBitmapConfig)
 
   setMode(Mode::MEMORY_TO_MEMORY_PFC);
 
-  configureForegroundInputStage(copyBitmapConfig.inputBufferConfig.colorFormat,
-    copyBitmapConfig.copyRectangleDimension,
-    copyBitmapConfig.inputBufferConfig.position,
-    copyBitmapConfig.inputBufferConfig.bufferDimension,
-    copyBitmapConfig.inputBufferConfig.bufferPtr);
+  configureForegroundInputStage(copyBitmapConfig.sourceBufferConfig.colorFormat,
+    copyBitmapConfig.dimension,
+    copyBitmapConfig.sourceRectanglePosition,
+    copyBitmapConfig.sourceBufferConfig.bufferDimension,
+    copyBitmapConfig.sourceBufferConfig.bufferPtr);
 
-  configureOutputStage(copyBitmapConfig.outputBufferConfig.colorFormat,
-    copyBitmapConfig.copyRectangleDimension,
-    copyBitmapConfig.outputBufferConfig.position,
-    copyBitmapConfig.outputBufferConfig.bufferDimension,
-    copyBitmapConfig.outputBufferConfig.bufferPtr);
+  configureOutputStage(copyBitmapConfig.destinationBufferConfig.colorFormat,
+    copyBitmapConfig.dimension,
+    copyBitmapConfig.destinationRectanglePosition,
+    copyBitmapConfig.destinationBufferConfig.bufferDimension,
+    copyBitmapConfig.destinationBufferConfig.bufferPtr);
+
+  setTransactionRectangleDimension(copyBitmapConfig.dimension);
 
   enableInterrupt(Interrupt::TRANSFER_COMPLETE);
   startDMA2D();
@@ -114,22 +115,24 @@ DMA2D::ErrorCode DMA2D::blendBitmap(const BlendBitmapConfig &blendBitmapConfig)
   setMode(Mode::MEMORY_TO_MEMORY_WITH_BLENDING);
 
   configureForegroundInputStage(blendBitmapConfig.foregroundBufferConfig.colorFormat,
-    blendBitmapConfig.blendRectangleDimension,
-    blendBitmapConfig.foregroundBufferConfig.position,
+    blendBitmapConfig.dimension,
+    blendBitmapConfig.foregroundRectanglePosition,
     blendBitmapConfig.foregroundBufferConfig.bufferDimension,
     blendBitmapConfig.foregroundBufferConfig.bufferPtr);
 
   configureBackgroundInputStage(blendBitmapConfig.backgroundBufferConfig.colorFormat,
-    blendBitmapConfig.blendRectangleDimension,
-    blendBitmapConfig.backgroundBufferConfig.position,
+    blendBitmapConfig.dimension,
+    blendBitmapConfig.backgroundRectanglePosition,
     blendBitmapConfig.backgroundBufferConfig.bufferDimension,
     blendBitmapConfig.backgroundBufferConfig.bufferPtr);
 
-  configureOutputStage(blendBitmapConfig.outputBufferConfig.colorFormat,
-    blendBitmapConfig.blendRectangleDimension,
-    blendBitmapConfig.outputBufferConfig.position,
-    blendBitmapConfig.outputBufferConfig.bufferDimension,
-    blendBitmapConfig.outputBufferConfig.bufferPtr);
+  configureOutputStage(blendBitmapConfig.destinationBufferConfig.colorFormat,
+    blendBitmapConfig.dimension,
+    blendBitmapConfig.destinationRectanglePosition,
+    blendBitmapConfig.destinationBufferConfig.bufferDimension,
+    blendBitmapConfig.destinationBufferConfig.bufferPtr);
+
+  setTransactionRectangleDimension(blendBitmapConfig.dimension);
 
   enableInterrupt(Interrupt::TRANSFER_COMPLETE);
   startDMA2D();
@@ -149,51 +152,50 @@ void DMA2D::IRQHandler(void)
 
 inline void DMA2D::configureOutputStage(
   OutputColorFormat colorFormat,
-  Dimension rectangleDimension,
+  Dimension transactionRectangleDimension,
   Position position,
   Dimension bufferDimension,
   void *bufferPtr)
 {
   uint32_t registerValueOPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->OPFCCR));
-  setOutputColorFormat(registerValueOPFCCR, colorFormat);
-  setOutputColorRedBlueSwap(registerValueOPFCCR, colorFormat);
+  setColorFormat<OutputColorFormat, 3u>(registerValueOPFCCR, colorFormat);
+  setColorRedBlueSwap<OutputColorFormat, 3u>(registerValueOPFCCR, colorFormat);
   MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OPFCCR), registerValueOPFCCR);
 
-  setOutputMemoryAddress(bufferPtr, bufferDimension, position, colorFormat);
-  setOutputLineOffset(bufferDimension, rectangleDimension, colorFormat);
-  setOutputDimension(rectangleDimension);
+  setMemoryAddress(&DMA2D_TypeDef::OMAR, bufferPtr, bufferDimension, position, colorFormat);
+  setLineOffset(&DMA2D_TypeDef::OOR, bufferDimension, transactionRectangleDimension, colorFormat);
 }
 
 inline void DMA2D::configureForegroundInputStage(
   InputColorFormat colorFormat,
-  Dimension rectangleDimension,
+  Dimension transactionRectangleDimension,
   Position position,
   Dimension bufferDimension,
   const void *bufferPtr)
 {
   uint32_t registerValueFGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->FGPFCCR));
-  setForegroundColorFormat(registerValueFGPFCCR, colorFormat);
-  setForegroundColorRedBlueSwap(registerValueFGPFCCR, colorFormat);
+  setColorFormat<InputColorFormat, 4u>(registerValueFGPFCCR, colorFormat);
+  setColorRedBlueSwap<InputColorFormat, 4u>(registerValueFGPFCCR, colorFormat);
   MemoryAccess::setRegisterValue(&(m_DMA2DPtr->FGPFCCR), registerValueFGPFCCR);
 
-  setForegroundMemoryAddress(bufferPtr, bufferDimension, position, colorFormat);
-  setForegroundLineOffset(bufferDimension, rectangleDimension, colorFormat);
+  setMemoryAddress(&DMA2D_TypeDef::FGMAR, const_cast<void*>(bufferPtr), bufferDimension, position, colorFormat);
+  setLineOffset(&DMA2D_TypeDef::FGOR, bufferDimension, transactionRectangleDimension, colorFormat);
 }
 
 inline void DMA2D::configureBackgroundInputStage(
   InputColorFormat colorFormat,
-  Dimension rectangleDimension,
+  Dimension transactionRectangleDimension,
   Position position,
   Dimension bufferDimension,
   const void *bufferPtr)
 {
   uint32_t registerValueBGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->BGPFCCR));
-  setBackgroundColorFormat(registerValueBGPFCCR, colorFormat);
-  setBackgroundColorRedBlueSwap(registerValueBGPFCCR, colorFormat);
+  setColorFormat<InputColorFormat, 4u>(registerValueBGPFCCR, colorFormat);
+  setColorRedBlueSwap<InputColorFormat, 4u>(registerValueBGPFCCR, colorFormat);
   MemoryAccess::setRegisterValue(&(m_DMA2DPtr->BGPFCCR), registerValueBGPFCCR);
 
-  setBackgroundMemoryAddress(bufferPtr, bufferDimension, position, colorFormat);
-  setBackgroundLineOffset(bufferDimension, rectangleDimension, colorFormat);
+  setMemoryAddress(&DMA2D_TypeDef::BGMAR, const_cast<void*>(bufferPtr), bufferDimension, position, colorFormat);
+  setLineOffset(&DMA2D_TypeDef::BGOR, bufferDimension, transactionRectangleDimension, colorFormat);
 }
 
 bool DMA2D::startTransfer(void)
@@ -241,142 +243,58 @@ inline void DMA2D::setMode(Mode mode)
     static_cast<uint32_t>(mode));
 }
 
-inline void DMA2D::setOutputColorFormat(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat)
+template<typename ColorFormat, uint32_t t_colorFormatSize>
+inline void DMA2D::setColorFormat(uint32_t &registerValuePFCCR, ColorFormat colorFormat)
 {
-  constexpr uint8_t DMA2D_OPFCCR_CM_POSITION    = 0u;
-  constexpr uint8_t DMA2D_OPFCCR_CM_NUM_OF_BITS = 3u;
+  constexpr uint8_t DMA2D_PFCCR_CM_POSITION    = 0u;
+  constexpr uint8_t DMA2D_PFCCR_CM_NUM_OF_BITS = t_colorFormatSize;
 
-  registerValueOPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueOPFCCR,
-    DMA2D_OPFCCR_CM_POSITION,
-    DMA2D_OPFCCR_CM_NUM_OF_BITS,
+  registerValuePFCCR = MemoryUtility<uint32_t>::setBits(
+    registerValuePFCCR,
+    DMA2D_PFCCR_CM_POSITION,
+    DMA2D_PFCCR_CM_NUM_OF_BITS,
     static_cast<uint32_t>(colorFormat));
 }
 
-inline void DMA2D::setForegroundColorFormat(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat)
+template<typename ColorFormat, uint32_t t_colorFormatSize>
+inline void DMA2D::setColorRedBlueSwap(uint32_t &registerValuePFCCR, ColorFormat colorFormat)
 {
-  constexpr uint8_t DMA2D_FGPFCCR_CM_POSITION    = 0u;
-  constexpr uint8_t DMA2D_FGPFCCR_CM_NUM_OF_BITS = 4u;
+  constexpr uint8_t DMA2D_PFCCR_RBS_POSITION    = 21u;
+  constexpr uint8_t DMA2D_PFCCR_RBS_NUM_OF_BITS = 1u;
 
-  registerValueFGPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueFGPFCCR,
-    DMA2D_FGPFCCR_CM_POSITION,
-    DMA2D_FGPFCCR_CM_NUM_OF_BITS,
-    static_cast<uint32_t>(colorFormat));
+  registerValuePFCCR = MemoryUtility<uint32_t>::setBits(
+    registerValuePFCCR,
+    DMA2D_PFCCR_RBS_POSITION,
+    DMA2D_PFCCR_RBS_NUM_OF_BITS,
+    (static_cast<uint32_t>(colorFormat) >> t_colorFormatSize));
 }
 
-inline void DMA2D::setBackgroundColorFormat(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat)
-{
-  constexpr uint8_t DMA2D_BGPFCCR_CM_POSITION    = 0u;
-  constexpr uint8_t DMA2D_BGPFCCR_CM_NUM_OF_BITS = 4u;
-
-  registerValueBGPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueBGPFCCR,
-    DMA2D_BGPFCCR_CM_POSITION,
-    DMA2D_BGPFCCR_CM_NUM_OF_BITS,
-    static_cast<uint32_t>(colorFormat));
-}
-
-inline void DMA2D::setOutputColorRedBlueSwap(uint32_t &registerValueOPFCCR, OutputColorFormat colorFormat)
-{
-  constexpr uint8_t DMA2D_OPFCCR_RBS_POSITION    = 21u;
-  constexpr uint8_t DMA2D_OPFCCR_RBS_NUM_OF_BITS = 1u;
-
-  registerValueOPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueOPFCCR,
-    DMA2D_OPFCCR_RBS_POSITION,
-    DMA2D_OPFCCR_RBS_NUM_OF_BITS,
-    (static_cast<uint32_t>(colorFormat) >> 3));
-}
-
-inline void DMA2D::setForegroundColorRedBlueSwap(uint32_t &registerValueFGPFCCR, InputColorFormat colorFormat)
-{
-  constexpr uint8_t DMA2D_FGPFCCR_RBS_POSITION    = 21u;
-  constexpr uint8_t DMA2D_FGPFCCR_RBS_NUM_OF_BITS = 1u;
-
-  registerValueFGPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueFGPFCCR,
-    DMA2D_FGPFCCR_RBS_POSITION,
-    DMA2D_FGPFCCR_RBS_NUM_OF_BITS,
-    (static_cast<uint32_t>(colorFormat) >> 4));
-}
-
-inline void DMA2D::setBackgroundColorRedBlueSwap(uint32_t &registerValueBGPFCCR, InputColorFormat colorFormat)
-{
-  constexpr uint8_t DMA2D_BGPFCCR_RBS_POSITION    = 21u;
-  constexpr uint8_t DMA2D_BGPFCCR_RBS_NUM_OF_BITS = 1u;
-
-  registerValueBGPFCCR = MemoryUtility<uint32_t>::setBits(
-    registerValueBGPFCCR,
-    DMA2D_BGPFCCR_RBS_POSITION,
-    DMA2D_BGPFCCR_RBS_NUM_OF_BITS,
-    (static_cast<uint32_t>(colorFormat) >> 4));
-}
-
-inline void DMA2D::setOutputMemoryAddress(
+template<typename ColorFormat, typename MemberReference>
+inline void DMA2D::setMemoryAddress(
+  MemberReference memoryAddressRegister,
   void *bufferPtr,
   Dimension bufferDimension,
   Position position,
-  OutputColorFormat colorFormat)
+  ColorFormat colorFormat)
 {
-  uint32_t registerValueOMAR = reinterpret_cast<uintptr_t>(bufferPtr) +
+  uint32_t registerValueMAR = reinterpret_cast<uintptr_t>(bufferPtr) +
     getPixelSize(colorFormat) * (position.x + position.y * bufferDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OMAR), registerValueOMAR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->*memoryAddressRegister), registerValueMAR);
 }
 
-inline void DMA2D::setForegroundMemoryAddress(
-  const void *bufferPtr,
-  Dimension bufferDimension,
-  Position position,
-  InputColorFormat colorFormat)
-{
-  uint32_t registerValueFGMAR = reinterpret_cast<uintptr_t>(bufferPtr) +
-    getPixelSize(colorFormat) * (position.x + position.y * bufferDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->FGMAR), registerValueFGMAR);
-}
-
-inline void DMA2D::setBackgroundMemoryAddress(
-  const void *bufferPtr,
-  Dimension bufferDimension,
-  Position position,
-  InputColorFormat colorFormat)
-{
-  uint32_t registerValueBGMAR = reinterpret_cast<uintptr_t>(bufferPtr) +
-    getPixelSize(colorFormat) * (position.x + position.y * bufferDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->BGMAR), registerValueBGMAR);
-}
-
-inline void DMA2D::setOutputLineOffset(
+template<typename ColorFormat, typename MemberReference>
+inline void DMA2D::setLineOffset(
+  MemberReference lineOffsetRegister,
   Dimension bufferDimension,
   Dimension rectangleDimension,
-  OutputColorFormat colorFormat)
+  ColorFormat colorFormat)
 {
-  uint32_t registerValueOOR =
+  uint32_t registerValueOR =
     getPixelSize(colorFormat) * (bufferDimension.width - rectangleDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OOR), registerValueOOR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->*lineOffsetRegister), registerValueOR);
 }
 
-inline void DMA2D::setForegroundLineOffset(
-  Dimension bufferDimension,
-  Dimension rectangleDimension,
-  InputColorFormat colorFormat)
-{
-  uint32_t registerValueFGOR =
-    getPixelSize(colorFormat) * (bufferDimension.width - rectangleDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->FGOR), registerValueFGOR);
-}
-
-inline void DMA2D::setBackgroundLineOffset(
-  Dimension bufferDimension,
-  Dimension rectangleDimension,
-  InputColorFormat colorFormat)
-{
-  uint32_t registerValueBGOR =
-    getPixelSize(colorFormat) * (bufferDimension.width - rectangleDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->BGOR), registerValueBGOR);
-}
-
-void DMA2D::setOutputDimension(Dimension rectangleDimension)
+void DMA2D::setTransactionRectangleDimension(Dimension transactionRectangleDimension)
 {
   constexpr uint8_t DMA2D_NLR_NL_POSITION = 0u;
   constexpr uint8_t DMA2D_NLR_PL_POSITION = 16;
@@ -389,13 +307,13 @@ void DMA2D::setOutputDimension(Dimension rectangleDimension)
     registerValueNLR,
     DMA2D_NLR_NL_POSITION,
     DMA2D_NLR_NL_NUM_OF_BITS,
-    static_cast<uint32_t>(rectangleDimension.height));
+    static_cast<uint32_t>(transactionRectangleDimension.height));
 
   registerValueNLR = MemoryUtility<uint32_t>::setBits(
     registerValueNLR,
     DMA2D_NLR_PL_POSITION,
     DMA2D_NLR_PL_NUM_OF_BITS,
-    static_cast<uint32_t>(rectangleDimension.width));
+    static_cast<uint32_t>(transactionRectangleDimension.width));
 
   MemoryAccess::setRegisterValue(&(m_DMA2DPtr->NLR), registerValueNLR);
 }
@@ -454,7 +372,7 @@ bool DMA2D::isInterruptEnabled(Interrupt interrupt) const
 
 DMA2D::ErrorCode DMA2D::checkFillRectangleConfig(const FillRectangleConfig &fillRectangleConfig)
 {
-  const Color maximumColorValue = getMaximumColorValue(fillRectangleConfig.outputBufferConfig.colorFormat);
+  const Color maximumColorValue = getMaximumColorValue(fillRectangleConfig.destinationBufferConfig.colorFormat);
 
   if ((maximumColorValue.alpha < fillRectangleConfig.color.alpha) ||
       (maximumColorValue.red   < fillRectangleConfig.color.red)   ||
