@@ -100,8 +100,8 @@ SECTIONS
     . = ALIGN(8);
   } >FLASH
 
-  .ARM.extab   : 
-  { 
+  .ARM.extab   :
+  {
   . = ALIGN(8);
   *(.ARM.extab* .gnu.linkonce.armextab.*)
   . = ALIGN(8);
@@ -122,7 +122,7 @@ SECTIONS
     PROVIDE_HIDDEN (__preinit_array_end = .);
 	. = ALIGN(8);
   } >FLASH
-  
+
   .init_array :
   {
 	. = ALIGN(8);
@@ -146,7 +146,7 @@ SECTIONS
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(8);
     _sdata = .;        /* create a global symbol at data start */
@@ -157,7 +157,7 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
   } >RAM AT> FLASH
 
-  
+
   /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
@@ -192,11 +192,11 @@ SECTIONS
   .backgroundBitmap1 :
   {
     . = ALIGN(12);
-    _backgroundBitmap1_start = .;	
+    _backgroundBitmap1_start = .;
     backgroundBitmap1 = .;
 
     *(.backgroundBitmap1)
-		
+
     _backgroundBitmap1_end = .;
   } > FLASH_BGBMP1
 
@@ -204,11 +204,11 @@ SECTIONS
   .backgroundBitmap2 :
   {
     . = ALIGN(12);
-    _backgroundBitmap2_start = .;	
+    _backgroundBitmap2_start = .;
     backgroundBitmap2 = .;
 
     *(.backgroundBitmap2)
-		
+
     _backgroundBitmap2_end = .;
   } > FLASH_BGBMP2
 
@@ -216,11 +216,11 @@ SECTIONS
   .backgroundBitmap3 :
   {
     . = ALIGN(12);
-    _backgroundBitmap3_start = .;	
+    _backgroundBitmap3_start = .;
     backgroundBitmap3 = .;
-    
+
     *(.backgroundBitmap3)
-		
+
     _backgroundBitmap3_end = .;
   } > FLASH_BGBMP3
 
@@ -228,12 +228,12 @@ SECTIONS
   .bitmaps :
   {
     . = ALIGN(12);
-    _bitmaps_start = .;	
+    _bitmaps_start = .;
     bitmaps = .;
 
     *(.bitmaps)
-		
-    . = ALIGN(12);	
+
+    . = ALIGN(12);
     _bitmaps_end = .;
   } > FLASH_BMPS
 
@@ -241,12 +241,12 @@ SECTIONS
   .bitmapsMetadata :
   {
     . = ALIGN(8);
-    _bitmapsMetadata_start = .;	
+    _bitmapsMetadata_start = .;
     bitmapsMetadata = .;
 
     *(.bitmapsMetadata)
-		
-    . = ALIGN(8);	
+
+    . = ALIGN(8);
     _bitmapsMetadata_end = .;
   } > FLASH_BMPS_META
 
@@ -254,17 +254,17 @@ SECTIONS
   .user_info_flash :
   {
     . = ALIGN(8);
-    _user_info_flash_start = .;	
-		
+    _user_info_flash_start = .;
+
     *(.user_info_flash)
-		
-    . = ALIGN(8);	
-    _user_info_flash_end = .;	
+
+    . = ALIGN(8);
+    _user_info_flash_end = .;
   } > FLASH_INFO
 
   /*===================================================*/
   /*===================================================*/
-  
+
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

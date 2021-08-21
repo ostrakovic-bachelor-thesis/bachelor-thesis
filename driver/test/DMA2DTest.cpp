@@ -1082,7 +1082,7 @@ TEST_F(ADMA2D, BlendBitmapEnablesDMA2DTransferCompleteInterrupt)
   ASSERT_THAT(virtualDMA2DPeripheral.CR, bitValueMatcher);
 }
 
-TEST_F(ADMA2D, BlendBitmapStartsDMA2DAtTheEndOfCopyBitmapFunctionCall)
+TEST_F(ADMA2D, BlendBitmapStartsDMA2DAtTheEndOfBlendBitmapFunctionCall)
 {
   constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
   constexpr uint32_t EXPECTED_DMA2D_CR_START_VALUE = 1u;

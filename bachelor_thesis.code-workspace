@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "app"
+		},
+		{
+			"path": "bsp"
+		},
+		{
+			"path": "driver"
+		},
+		{
+			"path": "module"
+		},
+		{
+			"path": "utility"
+		},
+		{
+			"path": "googletest"
+		}
+	],
+	"settings": {}
+}

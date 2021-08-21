@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Bachelor Thesis",
+            "name": "Bachelor Thesis (app)",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
@@ -22,7 +22,8 @@
                 "-mthumb",
                 "-mfpu=fpv4-sp-d16",
                 "-mfloat-abi=hard"
-            ]
+            ],
+            "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
     "version": 4

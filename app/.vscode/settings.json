@@ -1,0 +1,15 @@
+{
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.trimTrailingWhitespace" : true,
+  "cmake.cmakePath": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "cmake.mingwSearchDirs": [
+    "C:\\msys64\\mingw64\\bin"
+  ],
+  "cmake.generator": "MinGW Makefiles",
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.configureSettings": {
+    "CMAKE_TOOLCHAIN_FILE": "${workspaceFolder}/arm-gcc-toolchain.cmake"
+  }
+}
