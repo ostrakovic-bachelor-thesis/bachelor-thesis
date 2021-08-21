@@ -79,17 +79,23 @@ public:
 template <typename T>
 void RegisterUtility<T>::setBitInRegister(volatile T *registerPtr, uint8_t bit)
 {
-  const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
-  T newRegisterValue    = MemoryUtility<T>::setBit(registerValue, bit);
-  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  if (bit < MAX_ALLOWED_BIT)
+  {
+    const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
+    T newRegisterValue    = MemoryUtility<T>::setBit(registerValue, bit);
+    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  }
 }
 
 template <typename T>
 void RegisterUtility<T>::resetBitInRegister(volatile T *registerPtr, uint8_t bit)
 {
-  const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
-  T newRegisterValue    = MemoryUtility<T>::resetBit(registerValue, bit);
-  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  if (bit < MAX_ALLOWED_BIT)
+  {
+    const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
+    T newRegisterValue    = MemoryUtility<T>::resetBit(registerValue, bit);
+    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  }
 }
 
 template <typename T>
@@ -102,9 +108,12 @@ bool RegisterUtility<T>::isBitSetInRegister(volatile const T *registerPtr, uint8
 template <typename T>
 void RegisterUtility<T>::setBitsInRegister(volatile T *registerPtr, uint8_t startBit, uint8_t numberOfBits, T value)
 {
-  const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
-  T newRegisterValue    = MemoryUtility<T>::setBits(registerValue, startBit, numberOfBits, value);
-  MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  if ((startBit + numberOfBits) < MAX_ALLOWED_BIT)
+  {
+    const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
+    T newRegisterValue    = MemoryUtility<T>::setBits(registerValue, startBit, numberOfBits, value);
+    MemoryAccess::setRegisterValue(registerPtr, newRegisterValue);
+  }
 }
 
 template <typename T>
