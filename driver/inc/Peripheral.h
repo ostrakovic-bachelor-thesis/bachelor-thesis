@@ -73,6 +73,10 @@
 #undef DMA2D
 #endif // #ifdef DMA2D
 
+#ifdef LTDC
+#undef LTDC
+#endif // #ifdef LTDC
+
 
 enum class Peripheral : uintptr_t
 {

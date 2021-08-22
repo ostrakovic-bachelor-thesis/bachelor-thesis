@@ -14,7 +14,7 @@ class AnUSART : public DriverTest
 {
 public:
 
-  //! Based on real reset values for RCC register (source STM32L4R9 reference manual)
+  //! Based on real reset values for USART registers (source STM32L4R9 reference manual)
   static constexpr uint32_t USART_CR1_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t USART_CR2_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t USART_CR3_RESET_VALUE   = 0x00000000;
