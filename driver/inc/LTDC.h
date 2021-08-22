@@ -30,6 +30,8 @@ public:
 
 private:
 
+  void setSynchronizationWidth(uint16_t hsyncWidth, uint16_t vsyncWidth);
+
   //! Pointer to USART peripheral
   LTDC_TypeDef *m_LTDCPeripheralPtr;
 
