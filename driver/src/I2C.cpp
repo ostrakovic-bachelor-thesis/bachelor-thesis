@@ -4,27 +4,143 @@
 #include "RegisterUtility.h"
 
 
+const I2C::CSRegisterMapping I2C::s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)] =
+{
+  [static_cast<uint8_t>(I2C::Interrupt::TRANSMIT)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .bitPosition = 1u,
+  },
+
+  [static_cast<uint8_t>(I2C::Interrupt::RECEIVE)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .bitPosition = 2u,
+  },
+
+  [static_cast<uint8_t>(I2C::Interrupt::TRANSFER_COMPLETE)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .bitPosition = 6u,
+  },
+
+};
+
+
 I2C::I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr):
   m_I2CPeripheralPtr(I2CPeripheralPtr),
-   m_clockControlPtr(clockControlPtr)
+  m_clockControlPtr(clockControlPtr),
+  m_isTxTransactionCompleted(true)
 {}
 
 I2C::ErrorCode I2C::init(const I2CConfig &i2cConfig)
 {
   disableI2C();
 
+  uint32_t registerValueCR1 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR1));
   uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+  disableAnalogNoiseFilter(registerValueCR1);
+  disableDigitalNoiseFilter(registerValueCR1);
+  disableClockStretching(registerValueCR1);
 
   setAddressingMode(registerValueCR2, i2cConfig.addressingMode);
   enableAutoEndMode(registerValueCR2);
+  disableReloadMode(registerValueCR2);
 
+  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR1), registerValueCR1);
   MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
   ErrorCode errorCode = setupSCLClockTiming(i2cConfig.clockFrequencySCL);
 
   enableI2C();
 
-  return ErrorCode::OK;
+  return errorCode;
+}
+
+I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_t messageLen)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  if (startTxTransaction())
+  {
+    m_txMessagePtr = messagePtr;
+    m_txMessageLen = messageLen;
+    m_txMessagePos = 0u;
+
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+    setNumberOfBytesToTransfer(registerValueCR2, messageLen);
+    setSlaveAddress(registerValueCR2, slaveAddress);
+    setTransferDirectionToWrite(registerValueCR2);
+    setStartTransactionFlag(registerValueCR2);
+    clearStopFlag(registerValueCR2);
+
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+
+    enableInterrupt(Interrupt::TRANSMIT);
+    enableInterrupt(Interrupt::TRANSFER_COMPLETE);
+  }
+  else
+  {
+    errorCode = ErrorCode::BUSY;
+  }
+
+  return errorCode;
+}
+
+void I2C::IRQHandler(void)
+{
+  //if (isInterruptEnabled(Interrupt::TRANSMISSION_COMPLETE) && isFlagSet(Flag::IS_TRANMISSION_COMPLETED))
+  //{
+  //  disableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
+  //  disableTransmitter();
+  //  endTxTransaction();
+  //}
+
+  //if (isWriteTransactionOngoing())
+  //{
+  //  while (isInterruptEnabled(Interrupt::FIFO_THRESHOLD) && isFlagSet(Flag::TX_FIFO_NOT_FULL))
+  //  {
+  //    if (m_txMessagePos != m_txMessageLen)
+  //    {
+  //      writeData(reinterpret_cast<const uint8_t*>(m_txMessagePtr)[m_txMessagePos++]);
+  //    }
+  //    else
+  //    {
+  //      disableInterrupt(Interrupt::FIFO_THRESHOLD);
+  //      enableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
+  //    }
+  //  }
+  //}
+}
+
+void I2C::enableInterrupt(Interrupt interrupt)
+{
+  const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
+  const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
+  uint32_t *registerPtr =
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr) + registerOffset));
+
+  RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitPosition);
+}
+
+bool I2C::startTxTransaction(void)
+{
+  bool isTxTransacationStarted = false;
+
+  if (true == m_isTxTransactionCompleted)
+  {
+    m_isTxTransactionCompleted = false;
+    isTxTransacationStarted    = true;
+  }
+
+  return isTxTransacationStarted;
+}
+
+inline void I2C::endTxTransaction(void)
+{
+  m_isTxTransactionCompleted = true;
 }
 
 inline void I2C::disableI2C(void)
@@ -39,7 +155,32 @@ inline void I2C::enableI2C(void)
   RegisterUtility<uint32_t>::setBitInRegister(&(m_I2CPeripheralPtr->CR1), I2C_CR1_PE_POSITION);
 }
 
-void I2C::setAddressingMode(uint32_t &registerValueCR2, AddressingMode addressingMode)
+inline void I2C::disableAnalogNoiseFilter(uint32_t &registerValueCR1)
+{
+  constexpr uint32_t I2C_CR1_ANFOFF_POSITION = 12u;
+  registerValueCR1 = MemoryUtility<uint32_t>::resetBit(registerValueCR1, I2C_CR1_ANFOFF_POSITION);
+}
+
+inline void I2C::disableDigitalNoiseFilter(uint32_t &registerValueCR1)
+{
+  constexpr uint32_t I2C_CR1_DNF_POSITION = 8u;
+  constexpr uint32_t I2C_CR1_DNF_NUM_OF_BITS = 4u;
+  constexpr uint32_t I2C_CR1_DNF_DISABLED_VALUE = 0x0;
+
+  registerValueCR1 = MemoryUtility<uint32_t>::setBits(
+    registerValueCR1,
+    I2C_CR1_DNF_POSITION,
+    I2C_CR1_DNF_NUM_OF_BITS,
+    I2C_CR1_DNF_DISABLED_VALUE);
+}
+
+inline void I2C::disableClockStretching(uint32_t &registerValueCR1)
+{
+  constexpr uint32_t I2C_CR1_NOSTRETCH_POSITION = 17u;
+  registerValueCR1 = MemoryUtility<uint32_t>::setBit(registerValueCR1, I2C_CR1_NOSTRETCH_POSITION);
+}
+
+inline void I2C::setAddressingMode(uint32_t &registerValueCR2, AddressingMode addressingMode)
 {
   constexpr uint32_t I2C_CR2_ADDR10_POSITION = 11u;
   constexpr uint32_t I2C_CR2_ADDR10_NUM_OF_BITS = 1u;
@@ -51,40 +192,301 @@ void I2C::setAddressingMode(uint32_t &registerValueCR2, AddressingMode addressin
     static_cast<uint32_t>(addressingMode));
 }
 
-void I2C::enableAutoEndMode(uint32_t &registerValueCR2)
+inline void I2C::enableAutoEndMode(uint32_t &registerValueCR2)
 {
   constexpr uint32_t I2C_CR2_AUTOEND_POSITION = 25u;
   registerValueCR2 = MemoryUtility<uint32_t>::setBit(registerValueCR2, I2C_CR2_AUTOEND_POSITION);
 }
 
-
-I2C::ErrorCode I2C::setupSCLClockTiming(uint32_t clockFrequencySCL)
+inline void I2C::disableReloadMode(uint32_t &registerValueCR2)
 {
-  uint32_t inputClockFrequency = 0u;
+  constexpr uint32_t I2C_CR2_RELOAD_POSITION = 24u;
+  registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_RELOAD_POSITION);
+}
+
+void I2C::setSlaveAddress(uint32_t &registerValueCR2, uint16_t slaveAddress)
+{
+  if (isAddressingMode10Bits(registerValueCR2))
+  {
+    setSlaveAddress10Bits(registerValueCR2, slaveAddress);
+  }
+  else
+  {
+    setSlaveAddress7Bits(registerValueCR2, slaveAddress);
+  }
+}
+
+inline void I2C::setSlaveAddress7Bits(uint32_t &registerValueCR2, uint16_t slaveAddress)
+{
+  constexpr uint32_t I2C_CR2_SADD_POSITION = 1u;
+  constexpr uint32_t I2C_CR2_SADD_NUM_OF_BITS = 7u;
+
+  registerValueCR2 = MemoryUtility<uint32_t>::setBits(
+    registerValueCR2,
+    I2C_CR2_SADD_POSITION,
+    I2C_CR2_SADD_NUM_OF_BITS,
+    slaveAddress);
+}
+
+inline void I2C::setSlaveAddress10Bits(uint32_t &registerValueCR2, uint16_t slaveAddress)
+{
+  constexpr uint32_t I2C_CR2_SADD_POSITION = 0u;
+  constexpr uint32_t I2C_CR2_SADD_NUM_OF_BITS = 10u;
+
+  registerValueCR2 = MemoryUtility<uint32_t>::setBits(
+    registerValueCR2,
+    I2C_CR2_SADD_POSITION,
+    I2C_CR2_SADD_NUM_OF_BITS,
+    slaveAddress);
+}
+
+inline bool I2C::isAddressingMode10Bits(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_ADDR10_POSITION = 11u;
+  return MemoryUtility<uint32_t>::isBitSet(registerValueCR2, I2C_CR2_ADDR10_POSITION);
+}
+
+void I2C::setNumberOfBytesToTransfer(uint32_t &registerValueCR2, uint32_t numberOfBytes)
+{
+  constexpr uint32_t I2C_CR2_NBYTES_POSITION = 16u;
+  constexpr uint32_t I2C_CR2_NBYTES_NUM_OF_BITS = 8u;
+
+  registerValueCR2 = MemoryUtility<uint32_t>::setBits(
+    registerValueCR2,
+    I2C_CR2_NBYTES_POSITION,
+    I2C_CR2_NBYTES_NUM_OF_BITS,
+    numberOfBytes);
+}
+
+void I2C::setTransferDirectionToWrite(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_RD_WRN_POSITION = 10u;
+  registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_RD_WRN_POSITION);
+}
+
+void I2C::setStartTransactionFlag(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_START_POSITION = 13u;
+  registerValueCR2 = MemoryUtility<uint32_t>::setBit(registerValueCR2, I2C_CR2_START_POSITION);
+}
+
+void I2C::clearStopFlag(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_STOP_POSITION = 14u;
+  registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_STOP_POSITION);
+}
+
+uint32_t I2C::getMinimumSDADEL(uint32_t inputClockPeriod, uint32_t internalClockPeriod)
+{
+  const uint32_t minuend = MAXIMUM_CLOCK_FALLING_TIME + MINIMUM_DATA_HOLD_TIME;
+  const uint32_t subtrahend = MINIMUM_DELAY_ANALOG_FILTER - ((DNF + 3u) * inputClockPeriod);
+
+  return (minuend > subtrahend) ? ((minuend - subtrahend) / internalClockPeriod) : 0u;
+}
+
+uint32_t I2C::getMaximumSDADEL(uint32_t inputClockPeriod, uint32_t internalClockPeriod)
+{
+  constexpr uint32_t SDADEL_NUM_OF_BITS = 4u;
+  constexpr uint32_t SDADEL_MAX_VALUE = (1u << SDADEL_NUM_OF_BITS) - 1u;
+
+  const uint32_t maximumSDADEL =
+    (MAXIMUM_DATA_VALID_TIME - MAXIMUM_CLOCK_RISING_TIME - MAXIMUM_DELAY_ANALOG_FILTER - ((DNF + 4u) * inputClockPeriod)) / internalClockPeriod;
+
+  return (maximumSDADEL <= SDADEL_MAX_VALUE) ? maximumSDADEL : SDADEL_MAX_VALUE;
+}
+
+uint32_t I2C::getMinimumSCLDEL(uint32_t internalClockPeriod)
+{
+  return (MAXIMUM_CLOCK_RISING_TIME + MINIMUM_DATA_SETUP_TIME) / internalClockPeriod - 1u;
+}
+
+uint32_t I2C::getMaximumSCLDEL(void)
+{
+  constexpr uint32_t SCLDEL_NUM_OF_BITS = 4u;
+  constexpr uint32_t SCLDEL_MAX_VALUE = (1u << SCLDEL_NUM_OF_BITS) - 1u;
+
+  return SCLDEL_MAX_VALUE;
+}
+
+uint32_t I2C::getMinimumSCLL(uint32_t internalClockPeriod)
+{
+  constexpr uint32_t MINIMUM_LOW_PERIOD_OF_SCL = 4700u; // ns
+  return (MINIMUM_LOW_PERIOD_OF_SCL / internalClockPeriod);
+}
+
+uint32_t I2C::getMinimumSCLH(uint32_t internalClockPeriod)
+{
+  constexpr uint32_t MINIMUM_HIGH_PERIOD_OF_SCL = 4000u; // ns
+  return (MINIMUM_HIGH_PERIOD_OF_SCL / internalClockPeriod);
+}
+
+uint32_t I2C::getMaximumSCLL(void)
+{
+  constexpr uint32_t SCLL_NUM_OF_BITS = 8u;
+  constexpr uint32_t SCLL_MAX_VALUE = (1u << SCLL_NUM_OF_BITS) - 1u;
+
+  return SCLL_MAX_VALUE;
+}
+
+uint32_t I2C::getMaximumSCLH(void)
+{
+  constexpr uint32_t SCLH_NUM_OF_BITS = 8u;
+  constexpr uint32_t SCLH_MAX_VALUE = (1u << SCLH_NUM_OF_BITS) - 1u;
+
+  return SCLH_MAX_VALUE;
+}
+
+uint32_t I2C::getSync1Period(uint32_t inputClockPeriod)
+{
+  return (MAXIMUM_CLOCK_FALLING_TIME * 6u / 10u) + MAXIMUM_DELAY_ANALOG_FILTER + ((DNF + 3u) * inputClockPeriod);
+}
+
+uint32_t I2C::getSync2Period(uint32_t inputClockPeriod)
+{
+  return (MAXIMUM_CLOCK_RISING_TIME * 6u / 10u) + MAXIMUM_DELAY_ANALOG_FILTER + ((DNF + 3u) * inputClockPeriod);
+}
+
+uint32_t I2C::getOutputClockPeriod(const TimingRegisterConfig &timingRegisterConfig, uint32_t inputClockPeriod)
+{
+  const uint32_t internalClockPeriod = inputClockPeriod * (timingRegisterConfig.PRESC + 1u);
+  return getSync1Period(inputClockPeriod) + getSync2Period(inputClockPeriod) + (timingRegisterConfig.SCLL + timingRegisterConfig.SCLH) * internalClockPeriod;
+}
+
+I2C::ErrorCode
+I2C::setClockLowAndHighTimerPeriod(TimingRegisterConfig &timingRegisterConfig, uint32_t wantedOutputClockPeriod, uint32_t inputClockPeriod)
+{
+  const uint32_t maximumSCLL = getMaximumSCLL();
+  const uint32_t maximumSCLH = getMaximumSCLH();
+  const uint32_t internalClockPeriod = inputClockPeriod * (timingRegisterConfig.PRESC + 1u);
+
+  timingRegisterConfig.SCLL  = static_cast<uint8_t>(getMinimumSCLL(internalClockPeriod));
+  timingRegisterConfig.SCLH  = static_cast<uint8_t>(getMinimumSCLH(internalClockPeriod));
+
+  if (getOutputClockPeriod(timingRegisterConfig, inputClockPeriod) > wantedOutputClockPeriod)
+  {
+    return ErrorCode::WANTED_OUTPUT_CLOCK_PERIOD_TOO_SHORT;
+  }
+
+  bool isMaximumSCLLReached = false;
+  bool isMaximumSCLHReached = false;
+  bool increaseSCLL = true;
+
+  while (getOutputClockPeriod(timingRegisterConfig, inputClockPeriod) < wantedOutputClockPeriod)
+  {
+    if (increaseSCLL == true)
+    {
+      if (maximumSCLL > timingRegisterConfig.SCLL)
+      {
+        ++timingRegisterConfig.SCLL;
+      }
+      else
+      {
+        isMaximumSCLLReached = true;
+      }
+    }
+    else
+    {
+      if (maximumSCLH > timingRegisterConfig.SCLH)
+      {
+        ++timingRegisterConfig.SCLH;
+      }
+      else
+      {
+        isMaximumSCLHReached = true;
+      }
+    }
+
+    if (isMaximumSCLLReached && isMaximumSCLHReached)
+    {
+      return ErrorCode::WANTED_OUTPUT_CLOCK_PERIOD_NOT_ACHIEVABLE;
+    }
+
+    increaseSCLL = not increaseSCLL;
+  }
+
+  return ErrorCode::OK;
+}
+
+I2C::ErrorCode
+I2C::setDataSetupAndHoldTimePeriod(TimingRegisterConfig &timingRegisterConfig, uint32_t inputClockPeriod)
+{
+  const uint32_t internalClockPeriod = inputClockPeriod * (timingRegisterConfig.PRESC + 1u);
+
+  const uint32_t minimumSDADEL = getMinimumSDADEL(inputClockPeriod, internalClockPeriod);
+  const uint32_t minimumSCLDEL = getMinimumSCLDEL(internalClockPeriod);
+  const uint32_t maximumSDADEL = getMaximumSDADEL(inputClockPeriod, internalClockPeriod);
+  const uint32_t maximumSCLDEL = getMaximumSCLDEL();
+
+  if ((minimumSDADEL > maximumSDADEL) || (minimumSCLDEL > maximumSCLDEL))
+  {
+    return ErrorCode::WANTED_OUTPUT_CLOCK_PERIOD_NOT_ACHIEVABLE;
+  }
+
+  timingRegisterConfig.SDADEL = (7u * minimumSDADEL + 3u * maximumSDADEL) / 10u;
+  timingRegisterConfig.SCLDEL = (7u * minimumSCLDEL + 3u * maximumSCLDEL) / 10u;
+
+  return ErrorCode::OK;
+}
+
+I2C::ErrorCode I2C::getInputClockFrequency(uint32_t &inputClockFrequency)
+{
+  ErrorCode errorCode = ErrorCode::OK;
 
   const auto clockControlErrorCode =  m_clockControlPtr->getClockFrequency(
     static_cast<Peripheral>(reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr)),
     inputClockFrequency);
+
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
-    return ErrorCode::SCL_CLOCK_TIMING_SETUP_PROBLEM;
+    errorCode = ErrorCode::SCL_CLOCK_TIMING_SETUP_PROBLEM;
   }
 
-  if((16000000u == inputClockFrequency) && (100000u == clockFrequencySCL))
+  return errorCode;
+}
+
+I2C::ErrorCode I2C::findTimingRegisterConfig(
+  TimingRegisterConfig &timingRegisterConfig,
+  uint32_t inputClockPeriod,
+  uint32_t wantedOutputClockPeriod)
+{
+  ErrorCode errorCode = ErrorCode::WANTED_OUTPUT_CLOCK_PERIOD_NOT_ACHIEVABLE;
+
+  for (uint32_t PRESC = 3u; (3u >= PRESC) && (ErrorCode::OK != errorCode); --PRESC)
   {
-    TimingRegisterConfig timingRegisterConfig =
-    {
-      .SCLL   = 0x13,
-      .SCLH   = 0xF,
-      .SDADEL = 0x2,
-      .SCLDEL = 0x4,
-      .PRESC  = 0x3
-    };
+    timingRegisterConfig.PRESC = PRESC;
 
-    setTimingRegister(timingRegisterConfig);
+    errorCode = setClockLowAndHighTimerPeriod(timingRegisterConfig, wantedOutputClockPeriod, inputClockPeriod);
+
+    if (ErrorCode::OK == errorCode)
+    {
+      errorCode = setDataSetupAndHoldTimePeriod(timingRegisterConfig, inputClockPeriod);
+    }
   }
 
-  return ErrorCode::OK;
+  return errorCode;
+}
+
+I2C::ErrorCode I2C::setupSCLClockTiming(uint32_t clockFrequencySCL)
+{
+  uint32_t inputClockFrequency = 0u;
+  ErrorCode errorCode = getInputClockFrequency(inputClockFrequency);
+
+  if (ErrorCode::OK == errorCode)
+  {
+    const uint32_t inputClockPeriod = NANOSECONDS_IN_SECOND / inputClockFrequency;
+    const uint32_t wantedOutputClockPeriod = NANOSECONDS_IN_SECOND / clockFrequencySCL;
+
+    TimingRegisterConfig timingRegisterConfig;
+
+    errorCode = findTimingRegisterConfig(timingRegisterConfig, inputClockPeriod, wantedOutputClockPeriod);
+
+    if (ErrorCode::OK == errorCode)
+    {
+      setTimingRegister(timingRegisterConfig);
+    }
+  }
+
+  return errorCode;
 }
 
 void I2C::setTimingRegister(const TimingRegisterConfig &timingRegisterConfig)

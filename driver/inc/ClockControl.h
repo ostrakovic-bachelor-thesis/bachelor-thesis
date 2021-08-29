@@ -29,7 +29,7 @@ public:
   {
     OK                             = 0u,
     INVALID_CLOCK_SOURCE           = 1u,
-    NOT_IMPLEMENTED_FOR_PERIPHERAL = 2u,
+    NOT_IMPLEMENTED_FOR_PERIPHERAL = 2u
   };
 
   // TODO
