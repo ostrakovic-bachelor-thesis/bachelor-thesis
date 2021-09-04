@@ -39,10 +39,9 @@ public:
 
   ErrorCode write(uint16_t slaveAddress, const void *messagePtr, uint32_t messageLen);
 
-  inline bool isWriteTransactionOngoing(void) const
-  {
-    return not m_isTxTransactionCompleted;
-  }
+  ErrorCode read(uint16_t slaveAddress, void *messagePtr, uint32_t messageLen);
+
+  bool isTransactionOngoing(void) const;
 
   void IRQHandler(void);
 
@@ -52,7 +51,20 @@ private:
   {
     TRANSMIT = 0u,
     RECEIVE,
+    STOP_DETECTION,
     TRANSFER_COMPLETE,
+
+    COUNT
+  };
+
+  //! Interrupt and status flags
+  enum class Flag : uint8_t
+  {
+    IS_TXDR_REGISTER_EMPTY = 0u,
+    DATA_TO_TXDR_MUST_BE_WRITTEN,
+    RXDR_NOT_EMPTY,
+    IS_STOP_DETECTED,
+    IS_TRANSFER_COMPLETED,
 
     COUNT
   };
@@ -93,10 +105,19 @@ private:
   void enableI2C(void);
   void disableI2C(void);
 
-  bool startTxTransaction(void);
-  void endTxTransaction(void);
+  bool startTransaction(void);
+  void endTransaction(void);
+
+  void flushTXDR(void);
 
   void enableInterrupt(Interrupt interrupt);
+  void disableInterrupt(Interrupt interrupt);
+  bool isInterruptEnabled(Interrupt interrupt) const;
+  void clearFlag(Flag flag);
+  bool isFlagSet(Flag flag) const;
+
+  void writeData(uint8_t data);
+  void readData(uint8_t &storeLocation);
 
   ErrorCode getInputClockFrequency(uint32_t &inputClockFrequency);
 
@@ -113,6 +134,7 @@ private:
   static void setSlaveAddress10Bits(uint32_t &registerValueCR2, uint16_t slaveAddress);
   static bool isAddressingMode10Bits(uint32_t &registerValueCR2);
   static void setTransferDirectionToWrite(uint32_t &registerValueCR2);
+  static void setTransferDirectionToRead(uint32_t &registerValueCR2);
   static void setStartTransactionFlag(uint32_t &registerValueCR2);
   static void clearStopFlag(uint32_t &registerValueCR2);
 
@@ -146,23 +168,26 @@ private:
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
 
+  //! TODO
+  static const CSRegisterMapping s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)];
+
   //! Pointer to I2C peripheral
   I2C_TypeDef *m_I2CPeripheralPtr;
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
 
-  //! Pointer to message to transmit
-  const void *m_txMessagePtr;
+  //! Pointer to message to transmit/receive
+  void *m_messagePtr;
 
-  //! Size of message to transmit
-  uint32_t m_txMessageLen;
+  //! Size of message to transmit/receive
+  uint32_t m_messageLen;
 
-  //! Position of next data chunk to transmit
-  uint32_t m_txMessagePos;
+  //! Position of next data chunk to transmit / to where next received data chunk should be stored
+  uint32_t m_messagePos;
 
-  //! Is transmit transaction completed
-  bool m_isTxTransactionCompleted;
+  //! Is transmit/receive transaction completed
+  bool m_isTransactionCompleted;
 
 };
 

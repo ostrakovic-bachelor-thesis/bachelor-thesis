@@ -27,6 +27,9 @@ public:
   static constexpr uint16_t I2C_RXDR_RESET_VALUE     = 0x00000000;
   static constexpr uint32_t I2C_TXDR_RESET_VALUE     = 0x00000000;
 
+  static constexpr uint32_t RX_BUFFER_LEN = 128u;
+  static uint8_t rxBufferPtr[RX_BUFFER_LEN];
+
   static const uint8_t  RANDOM_MSG[];
   static const uint32_t RANDOM_MSG_LEN;
   static const uint16_t RANDOM_SLAVE_ADDRESS;
@@ -36,8 +39,13 @@ public:
   I2C virtualI2C = I2C(&virtualI2CPeripheral, &clockControlMock);
   I2C::I2CConfig i2cConfig;
 
+  uint32_t m_messageIdx;
+  bool m_isTransactionWrite;
+
   void setI2CInputClockFrequency(uint32_t clockFrequency);
-  void setupISRRegisterReadings(void);
+  void setupISRRegisterReadings(uint32_t messageLen);
+  void setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLen);
+  void expectDataToBeWrittenInTXDR(const void *messagePtr, uint32_t messageLen);
 
   void SetUp() override;
   void TearDown() override;
@@ -47,9 +55,14 @@ const uint8_t  AnI2C::RANDOM_MSG[]   = "Random message.";
 const uint32_t AnI2C::RANDOM_MSG_LEN = sizeof(AnI2C::RANDOM_MSG);
 const uint16_t AnI2C::RANDOM_SLAVE_ADDRESS = 0x7F;
 
+uint8_t AnI2C::rxBufferPtr[RX_BUFFER_LEN];
+
 void AnI2C::SetUp()
 {
   DriverTest::SetUp();
+
+  m_messageIdx = 0u;
+  m_isTransactionWrite = true;
 
   // set values of virtual I2C peripheral to reset values
   virtualI2CPeripheral.CR1      = I2C_CR1_RESET_VALUE;
@@ -79,16 +92,56 @@ void AnI2C::setI2CInputClockFrequency(uint32_t clockFrequency)
   clockControlMock.setReturnClockFrequency(clockFrequency);
 }
 
-void AnI2C::setupISRRegisterReadings(void)
+void AnI2C::setupISRRegisterReadings(uint32_t messageLen)
 {
   ON_CALL(memoryAccessHook, getRegisterValue(&(virtualI2CPeripheral.ISR)))
-    .WillByDefault([&](volatile const uint32_t *registerPtr)
+    .WillByDefault([&, messageLen](volatile const uint32_t *registerPtr)
     {
-      //constexpr uint32_t USART_ISR_TXFNF_POSITION = 7u;
-      //virtualUSARTPeripheral.ISR =
-      //  expectedRegVal(USART_ISR_RESET_VALUE, USART_ISR_TXFNF_POSITION, 1u, (((m_txCounter++) % 4u) != 0u));
+      constexpr uint32_t USART_ISR_TXIS_POSITION = 1u;
+      constexpr uint32_t USART_ISR_RXNE_POSITION = 2u;
 
-      return 0u; //virtualUSARTPeripheral.ISR;
+      const uint32_t bitPosition = m_isTransactionWrite ? USART_ISR_TXIS_POSITION : USART_ISR_RXNE_POSITION;
+
+      virtualI2CPeripheral.ISR =
+        expectedRegVal(I2C_ISR_RESET_VALUE, bitPosition, 1u, (m_messageIdx < messageLen));
+
+      return virtualI2CPeripheral.ISR;
+    });
+}
+
+void AnI2C::expectDataToBeWrittenInTXDR(const void *messagePtr, uint32_t messageLen)
+{
+  m_isTransactionWrite = true;
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualI2CPeripheral.TXDR), _))
+    .Times(messageLen)
+    .WillRepeatedly([&, messagePtr, messageLen](volatile void *registerPtr, uint32_t registerValue)
+    {
+      ASSERT_THAT(registerValue, reinterpret_cast<const uint8_t*>(messagePtr)[m_messageIdx++]);
+      if (m_messageIdx < messageLen)
+      {
+        virtualI2C.IRQHandler();
+      }
+    });
+}
+
+void AnI2C::setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLen)
+{
+  m_isTransactionWrite = false;
+
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualI2CPeripheral.RXDR)))
+    .WillByDefault([&, messagePtr, messageLen](volatile const uint32_t *registerPtr)
+    {
+      ++m_messageIdx;
+
+      if (m_messageIdx < messageLen)
+      {
+        virtualI2C.IRQHandler();
+      }
+
+      virtualI2CPeripheral.RXDR = reinterpret_cast<const uint8_t*>(messagePtr)[--m_messageIdx];
+
+      return 0u;
     });
 }
 
@@ -303,12 +356,12 @@ TEST_F(AnI2C, WriteEnablesTransmitInterrupt)
   ASSERT_THAT(virtualI2CPeripheral.CR1, bitValueMatcher);
 }
 
-TEST_F(AnI2C, WriteEnablesTransferCompleteInterrupt)
+TEST_F(AnI2C, WriteEnablesStopDetectionInterrupt)
 {
-  constexpr uint32_t I2C_CR1_TCIE_POSITION = 6u;
-  constexpr uint32_t EXPECTED_I2C_CR1_TCIE_VALUE = 0x1;
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t EXPECTED_I2C_CR1_STOPIE_VALUE = 0x1;
   auto bitValueMatcher =
-    BitHasValue(I2C_CR1_TCIE_POSITION, EXPECTED_I2C_CR1_TCIE_VALUE);
+    BitHasValue(I2C_CR1_STOPIE_POSITION, EXPECTED_I2C_CR1_STOPIE_VALUE);
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.CR1), bitValueMatcher);
 
   const I2C::ErrorCode errorCode = virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
@@ -408,29 +461,338 @@ TEST_F(AnI2C, WriteClearsSTOPFlagInCR2Register)
   ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
 }
 
-TEST_F(AnI2C, WriteFailsIfAnotherWriteTransactionIsOngoing)
+TEST_F(AnI2C, WriteFailsIfBUSYBitIsSetInISRRegister)
+{
+  constexpr uint32_t I2C_ISR_BUSY_POSITION = 15u;
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_BUSY_POSITION, 1u, 1u);
+
+  ASSERT_THAT(virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::BUSY));
+}
+
+TEST_F(AnI2C, WriteFailsIfAnotherTransactionIsOngoing)
 {
   ASSERT_THAT(virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::OK));
   ASSERT_THAT(virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::BUSY));
 }
 
-TEST_F(AnI2C, IsWriteTransactionOngoingReturnsTrueIfThereIsAnOngoingWrite)
+TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingWrite)
 {
   virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
 
-  ASSERT_THAT(virtualI2C.isWriteTransactionOngoing(), true);
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
 }
 
-TEST_F(AnI2C, IsWriteTransactionOngoingReturnsFalseIfAnotherTransactionIsNotStarted)
+TEST_F(AnI2C, IsTransactionOngoingReturnsFalseIfAnotherTransactionIsNotStarted)
 {
-  ASSERT_THAT(virtualI2C.isWriteTransactionOngoing(), false);
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), false);
 }
 
 TEST_F(AnI2C, IRQHandlerWritesToTXDROnlyIfTransmitInterruptStatusFlagIsSet)
 {
-  setupISRRegisterReadings();
+  setupISRRegisterReadings(1u);
   virtualI2C.write(RANDOM_SLAVE_ADDRESS, "a", 1u);
   expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.TXDR), Matcher<uint32_t>('a'));
 
   virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerDoesNotWriteToTXDRRegisterIfTransmitInterruptIsNotEnabled)
+{
+  constexpr uint32_t I2C_CR1_TXIE_POSITION = 1u;
+  constexpr uint32_t PRESET_I2C_CR1_TXIE_VALUE = 0x0;
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(I2C_CR1_RESET_VALUE, I2C_CR1_TXIE_POSITION, 1u, PRESET_I2C_CR1_TXIE_VALUE);
+  setupISRRegisterReadings(1u);
+  expectRegisterNotToChange(&(virtualI2CPeripheral.TXDR));
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerWritesDataToTransmitInTXDR)
+{
+  setupISRRegisterReadings(RANDOM_MSG_LEN);
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  expectDataToBeWrittenInTXDR(RANDOM_MSG, RANDOM_MSG_LEN);
+
+  // trigger calling of IRQ handler and writting to TXDR register
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerReadsDataReceivedDataFromRXDR)
+{
+  setupISRRegisterReadings(RANDOM_MSG_LEN);
+  setupRXDRRegisterReadings(RANDOM_MSG, RANDOM_MSG_LEN);
+  virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  // trigger calling of IRQ handler and reading from RXDR register
+  virtualI2C.IRQHandler();
+
+  ASSERT_STREQ(reinterpret_cast<const char*>(RANDOM_MSG), reinterpret_cast<char*>(&rxBufferPtr[0]));
+}
+
+TEST_F(AnI2C, IRQHandlerStopsTransmissionAndCompletesTransferOnStopDetectionInterrupt)
+{
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t I2C_ISR_STOPF_POSITION = 5u;
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if stop detection interrupt happened
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+
+  virtualI2C.IRQHandler();
+
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), false);
+}
+
+TEST_F(AnI2C, IRQHandlerDisablesStopDetectionInterruptWhenTransferIsCompleted)
+{
+  constexpr uint32_t I2C_ISR_STOPF_POSITION = 5u;
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t EXPECTED_I2C_CR1_STOPIE_VALUE = 0x0;
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if stop detection interrupt happened
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR1_STOPIE_POSITION, EXPECTED_I2C_CR1_STOPIE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.CR1), bitValueMatcher);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerDisablesTransmitInterruptWhenTransferIsCompleted)
+{
+  constexpr uint32_t I2C_ISR_STOPF_POSITION = 5u;
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t I2C_CR1_TXIS_POSITION = 1u;
+  constexpr uint32_t EXPECTED_I2C_CR1_TXIS_VALUE = 0x0;
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if stop detection interrupt happened (aka. transfer is completed)
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_TXIS_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR1_TXIS_POSITION, EXPECTED_I2C_CR1_TXIS_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.CR1), bitValueMatcher);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerClearsStopDetectionFlagWhenTransferIsCompleted)
+{
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t I2C_ISR_STOPF_POSITION  = 5u;
+  constexpr uint32_t I2C_ICR_STOPCF_POSITION = 5u;
+  constexpr uint32_t EXPECTED_I2C_ICR_STOPCF_VALUE = 0x1;
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if stop detection interrupt happened (aka. transfer is completed)
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(I2C_ICR_STOPCF_POSITION, EXPECTED_I2C_ICR_STOPCF_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.ICR), bitValueMatcher);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerWritesDummyDataToTXDRIfTXISFlagIsSetInOrderToCleanItWhenTransferIsCompleted)
+{
+  constexpr uint32_t I2C_TXDR_DUMMY_VALUE = 0x0;
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t I2C_ISR_STOPF_POSITION  = 5u;
+  constexpr uint32_t I2C_ISR_TXIS_POSITION   = 1u;
+  constexpr uint32_t EXPECTED_I2C_TXDR_VALUE = I2C_TXDR_DUMMY_VALUE;
+  // force values as if stop detection interrupt happened (aka. transfer is completed)
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+  // force value of TXIS flag to be set
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TXIS_POSITION, 1u, 1u);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualI2CPeripheral.TXDR), EXPECTED_I2C_TXDR_VALUE);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerFlushesTXDRRegisterIfThereIsStillDataInItWhenTransferIsCompleted)
+{
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t I2C_ISR_STOPF_POSITION  = 5u;
+  constexpr uint32_t I2C_ISR_TXE_POSITION = 0u;
+  constexpr uint32_t EXPECTED_I2C_ISR_TXE_VALUE = 0x1;
+  virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  // force values as if stop detection interrupt happened (aka. transfer is completed)
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_STOPIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_STOPF_POSITION, 1u, 1u);
+  // force value as if TXDR register is not empty
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TXE_POSITION, 1u, 0u);
+  auto bitValueMatcher =
+    BitHasValue(I2C_ISR_TXE_POSITION, EXPECTED_I2C_ISR_TXE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.ISR), bitValueMatcher);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, ReadEnablesReceiveInterrupt)
+{
+  constexpr uint32_t I2C_CR1_RXIE_POSITION = 2u;
+  constexpr uint32_t EXPECTED_I2C_CR1_RXIE_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR1_RXIE_POSITION, EXPECTED_I2C_CR1_RXIE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.CR1), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR1, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadEnablesStopDetectionInterrupt)
+{
+  constexpr uint32_t I2C_CR1_STOPIE_POSITION = 5u;
+  constexpr uint32_t EXPECTED_I2C_CR1_STOPIE_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR1_STOPIE_POSITION, EXPECTED_I2C_CR1_STOPIE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualI2CPeripheral.CR1), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR1, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadSetsInNBYTESBitsInCR2RegisterNumberOfBytesToRead)
+{
+  constexpr uint32_t I2C_CR2_NBYTES_POSITION = 16u;
+  constexpr uint32_t I2C_CR2_NBYTES_SIZE = 8u;
+  constexpr uint32_t EXPECTED_I2C_CR2_NBYTES_VALUE = RANDOM_MSG_LEN;
+  auto bitValueMatcher =
+    BitsHaveValue(I2C_CR2_NBYTES_POSITION, I2C_CR2_NBYTES_SIZE, EXPECTED_I2C_CR2_NBYTES_VALUE);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadSetsSlaveAddressInSADDBits1To7InCR2RegisterIfChoosenAddressingModeIs7Bits)
+{
+  constexpr uint32_t I2C_CR2_SADD_POSITION = 1u;
+  constexpr uint32_t I2C_CR2_SADD_SIZE = 7u;
+  constexpr uint32_t EXPECTED_I2C_CR2_SADD_VALUE = RANDOM_SLAVE_ADDRESS;
+  auto bitValueMatcher =
+    BitsHaveValue(I2C_CR2_SADD_POSITION, I2C_CR2_SADD_SIZE, EXPECTED_I2C_CR2_SADD_VALUE);
+  i2cConfig.addressingMode = I2C::AddressingMode::ADDRESS_7_BITS;
+  virtualI2C.init(i2cConfig);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadSetsSlaveAddressInSADDBits0To9InCR2RegisterIfChoosenAddressingModeIs10Bits)
+{
+  constexpr uint32_t I2C_CR2_SADD_POSITION = 0u;
+  constexpr uint32_t I2C_CR2_SADD_SIZE = 10u;
+  constexpr uint32_t EXPECTED_I2C_CR2_SADD_VALUE = RANDOM_SLAVE_ADDRESS;
+  auto bitValueMatcher =
+    BitsHaveValue(I2C_CR2_SADD_POSITION, I2C_CR2_SADD_SIZE, EXPECTED_I2C_CR2_SADD_VALUE);
+  i2cConfig.addressingMode = I2C::AddressingMode::ADDRESS_10_BITS;
+  virtualI2C.init(i2cConfig);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadSetsTransferDirectionToReadBySettingRD_WRNBitInCR2RegisterToOne)
+{
+  constexpr uint32_t I2C_CR2_RD_WRN_POSITION = 10u;
+  constexpr uint32_t EXPECTED_I2C_CR2_RD_WRN_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR2_RD_WRN_POSITION, EXPECTED_I2C_CR2_RD_WRN_VALUE);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadStartsTransferBySettingSTARTBitInCR2Register)
+{
+  constexpr uint32_t I2C_CR2_START_POSITION = 13u;
+  constexpr uint32_t EXPECTED_I2C_CR2_START_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR2_START_POSITION, EXPECTED_I2C_CR2_START_VALUE);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadClearsSTOPFlagInCR2Register)
+{
+  constexpr uint32_t I2C_CR2_STOP_POSITION = 14u;
+  constexpr uint32_t EXPECTED_I2C_CR2_STOP_VALUE = 0x0;
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR2_STOP_POSITION, EXPECTED_I2C_CR2_STOP_VALUE);
+  expectRegisterSetOnlyOnce(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  const I2C::ErrorCode errorCode = virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(AnI2C, ReadFailsIfBUSYBitIsSetInISRRegister)
+{
+  constexpr uint32_t I2C_ISR_BUSY_POSITION = 15u;
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_BUSY_POSITION, 1u, 1u);
+
+  ASSERT_THAT(virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::BUSY));
+}
+
+TEST_F(AnI2C, ReadFailsIfAnotherTransactionIsOngoing)
+{
+  ASSERT_THAT(virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::BUSY));
+}
+
+TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingRead)
+{
+  virtualI2C.read(RANDOM_SLAVE_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
+}
+
+TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfBUSYBitIsSetInISRRegister)
+{
+  constexpr uint32_t I2C_ISR_BUSY_POSITION = 15u;
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_BUSY_POSITION, 1u, 1u);
+
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
 }

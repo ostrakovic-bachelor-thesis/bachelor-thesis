@@ -18,6 +18,12 @@ const I2C::CSRegisterMapping I2C::s_interruptCSRegisterMapping[static_cast<uint8
     .bitPosition = 2u,
   },
 
+  [static_cast<uint8_t>(I2C::Interrupt::STOP_DETECTION)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .bitPosition = 5u,
+  },
+
   [static_cast<uint8_t>(I2C::Interrupt::TRANSFER_COMPLETE)] =
   {
     .registerOffset = offsetof(USART_TypeDef, CR1),
@@ -26,11 +32,44 @@ const I2C::CSRegisterMapping I2C::s_interruptCSRegisterMapping[static_cast<uint8
 
 };
 
+const I2C::CSRegisterMapping I2C::s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)] =
+{
+  [static_cast<uint8_t>(I2C::Flag::IS_TXDR_REGISTER_EMPTY)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .bitPosition = 0u,
+  },
+
+  [static_cast<uint8_t>(I2C::Flag::DATA_TO_TXDR_MUST_BE_WRITTEN)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .bitPosition = 1u,
+  },
+
+  [static_cast<uint8_t>(I2C::Flag::RXDR_NOT_EMPTY)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .bitPosition = 2u,
+  },
+
+  [static_cast<uint8_t>(I2C::Flag::IS_STOP_DETECTED)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .bitPosition = 5u,
+  },
+
+  [static_cast<uint8_t>(I2C::Flag::IS_TRANSFER_COMPLETED)] =
+  {
+    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .bitPosition = 6u,
+  },
+
+};
 
 I2C::I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr):
   m_I2CPeripheralPtr(I2CPeripheralPtr),
   m_clockControlPtr(clockControlPtr),
-  m_isTxTransactionCompleted(true)
+  m_isTransactionCompleted(true)
 {}
 
 I2C::ErrorCode I2C::init(const I2CConfig &i2cConfig)
@@ -62,11 +101,11 @@ I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_
 {
   ErrorCode errorCode = ErrorCode::OK;
 
-  if (startTxTransaction())
+  if (startTransaction())
   {
-    m_txMessagePtr = messagePtr;
-    m_txMessageLen = messageLen;
-    m_txMessagePos = 0u;
+    m_messagePtr = const_cast<void*>(messagePtr);
+    m_messageLen = messageLen;
+    m_messagePos = 0u;
 
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
@@ -78,8 +117,8 @@ I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_
 
     MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
+    enableInterrupt(Interrupt::STOP_DETECTION);
     enableInterrupt(Interrupt::TRANSMIT);
-    enableInterrupt(Interrupt::TRANSFER_COMPLETE);
   }
   else
   {
@@ -89,30 +128,72 @@ I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_
   return errorCode;
 }
 
+I2C::ErrorCode I2C::read(uint16_t slaveAddress, void *messagePtr, uint32_t messageLen)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  if (startTransaction())
+  {
+    m_messagePtr = messagePtr;
+    m_messageLen = messageLen;
+    m_messagePos = 0u;
+
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+    setNumberOfBytesToTransfer(registerValueCR2, messageLen);
+    setSlaveAddress(registerValueCR2, slaveAddress);
+    setTransferDirectionToRead(registerValueCR2);
+    setStartTransactionFlag(registerValueCR2);
+    clearStopFlag(registerValueCR2);
+
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+
+    enableInterrupt(Interrupt::STOP_DETECTION);
+    enableInterrupt(Interrupt::RECEIVE);
+  }
+  else
+  {
+    errorCode = ErrorCode::BUSY;
+  }
+
+  return errorCode;
+}
+
+bool I2C::isTransactionOngoing(void) const
+{
+  constexpr uint32_t I2C_ISR_BUSY_POSITION = 15u;
+  const bool isBusyFlagSet =
+    RegisterUtility<uint32_t>::isBitSetInRegister(&(m_I2CPeripheralPtr->ISR), I2C_ISR_BUSY_POSITION);
+
+  return isBusyFlagSet || (not m_isTransactionCompleted);
+}
+
 void I2C::IRQHandler(void)
 {
-  //if (isInterruptEnabled(Interrupt::TRANSMISSION_COMPLETE) && isFlagSet(Flag::IS_TRANMISSION_COMPLETED))
-  //{
-  //  disableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
-  //  disableTransmitter();
-  //  endTxTransaction();
-  //}
+  if (isInterruptEnabled(Interrupt::STOP_DETECTION) && isFlagSet(Flag::IS_STOP_DETECTED))
+  {
+    disableInterrupt(Interrupt::TRANSMIT);
+    disableInterrupt(Interrupt::STOP_DETECTION);
+    clearFlag(Flag::IS_STOP_DETECTED);
+    flushTXDR();
+    endTransaction();
+  }
 
-  //if (isWriteTransactionOngoing())
-  //{
-  //  while (isInterruptEnabled(Interrupt::FIFO_THRESHOLD) && isFlagSet(Flag::TX_FIFO_NOT_FULL))
-  //  {
-  //    if (m_txMessagePos != m_txMessageLen)
-  //    {
-  //      writeData(reinterpret_cast<const uint8_t*>(m_txMessagePtr)[m_txMessagePos++]);
-  //    }
-  //    else
-  //    {
-  //      disableInterrupt(Interrupt::FIFO_THRESHOLD);
-  //      enableInterrupt(Interrupt::TRANSMISSION_COMPLETE);
-  //    }
-  //  }
-  //}
+  if (isInterruptEnabled(Interrupt::TRANSMIT) && isFlagSet(Flag::DATA_TO_TXDR_MUST_BE_WRITTEN))
+  {
+    if (m_messagePos < m_messageLen)
+    {
+      writeData(reinterpret_cast<const uint8_t*>(m_messagePtr)[m_messagePos++]);
+    }
+  }
+
+  if (isInterruptEnabled(Interrupt::RECEIVE) && isFlagSet(Flag::RXDR_NOT_EMPTY))
+  {
+    if (m_messagePos < m_messageLen)
+    {
+      readData(reinterpret_cast<uint8_t*>(m_messagePtr)[m_messagePos++]);
+    }
+  }
 }
 
 void I2C::enableInterrupt(Interrupt interrupt)
@@ -125,22 +206,57 @@ void I2C::enableInterrupt(Interrupt interrupt)
   RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitPosition);
 }
 
-bool I2C::startTxTransaction(void)
+void I2C::disableInterrupt(Interrupt interrupt)
+{
+  const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
+  const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
+  uint32_t *registerPtr =
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr) + registerOffset));
+
+  RegisterUtility<uint32_t>::resetBitInRegister(registerPtr, bitPosition);
+}
+
+bool I2C::isInterruptEnabled(Interrupt interrupt) const
+{
+  const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
+  const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
+  const uint32_t *registerPtr =
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr) + registerOffset));
+
+  const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
+  return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
+}
+
+bool I2C::isFlagSet(Flag flag) const
+{
+  const auto bitPosition = s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(flag)].bitPosition;
+
+  const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->ISR));
+  return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
+}
+
+inline void I2C::clearFlag(Flag flag)
+{
+  const auto bitPosition = s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(flag)].bitPosition;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_I2CPeripheralPtr->ICR), bitPosition);
+}
+
+bool I2C::startTransaction(void)
 {
   bool isTxTransacationStarted = false;
 
-  if (true == m_isTxTransactionCompleted)
+  if (not isTransactionOngoing())
   {
-    m_isTxTransactionCompleted = false;
-    isTxTransacationStarted    = true;
+    m_isTransactionCompleted = false;
+    isTxTransacationStarted  = true;
   }
 
   return isTxTransacationStarted;
 }
 
-inline void I2C::endTxTransaction(void)
+inline void I2C::endTransaction(void)
 {
-  m_isTxTransactionCompleted = true;
+  m_isTransactionCompleted = true;
 }
 
 inline void I2C::disableI2C(void)
@@ -240,6 +356,16 @@ inline void I2C::setSlaveAddress10Bits(uint32_t &registerValueCR2, uint16_t slav
     slaveAddress);
 }
 
+inline void I2C::writeData(uint8_t data)
+{
+  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->TXDR), data);
+}
+
+inline void I2C::readData(uint8_t &storeLocation)
+{
+  storeLocation = static_cast<uint8_t>(MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->RXDR)));
+}
+
 inline bool I2C::isAddressingMode10Bits(uint32_t &registerValueCR2)
 {
   constexpr uint32_t I2C_CR2_ADDR10_POSITION = 11u;
@@ -264,6 +390,12 @@ void I2C::setTransferDirectionToWrite(uint32_t &registerValueCR2)
   registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_RD_WRN_POSITION);
 }
 
+void I2C::setTransferDirectionToRead(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_RD_WRN_POSITION = 10u;
+  registerValueCR2 = MemoryUtility<uint32_t>::setBit(registerValueCR2, I2C_CR2_RD_WRN_POSITION);
+}
+
 void I2C::setStartTransactionFlag(uint32_t &registerValueCR2)
 {
   constexpr uint32_t I2C_CR2_START_POSITION = 13u;
@@ -274,6 +406,22 @@ void I2C::clearStopFlag(uint32_t &registerValueCR2)
 {
   constexpr uint32_t I2C_CR2_STOP_POSITION = 14u;
   registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_STOP_POSITION);
+}
+
+void I2C::flushTXDR(void)
+{
+  constexpr uint8_t DUMMY_VALUE = 0x0;
+  constexpr uint32_t I2C_ISR_TXE_POSITION = 0u;
+
+  if (isFlagSet(Flag::DATA_TO_TXDR_MUST_BE_WRITTEN))
+  {
+    writeData(DUMMY_VALUE);
+  }
+
+  if (not isFlagSet(Flag::IS_TXDR_REGISTER_EMPTY))
+  {
+    RegisterUtility<uint32_t>::setBitInRegister(&(m_I2CPeripheralPtr->ISR), I2C_ISR_TXE_POSITION);
+  }
 }
 
 uint32_t I2C::getMinimumSDADEL(uint32_t inputClockPeriod, uint32_t internalClockPeriod)

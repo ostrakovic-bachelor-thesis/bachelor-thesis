@@ -54,7 +54,7 @@ void AnUSART::SetUp()
 {
   DriverTest::SetUp();
 
-  m_txCounter = 1u;
+  m_txCounter  = 1u;
   m_messageIdx = 0u;
 
   // set values of virtual RCC peripheral to reset values
@@ -402,7 +402,7 @@ TEST_F(AnUSART, IRQHandlerEnablesTransmissionCompleteInterruptWhenThereIsNoMoreD
   virtualUSART.IRQHandler();
 }
 
-TEST_F(AnUSART, IRQHandlerStopsTransmissionOnTranmissionCompleteInterrupt)
+TEST_F(AnUSART, IRQHandlerStopsTransmissionOnTransmissionCompleteInterrupt)
 {
   constexpr uint32_t USART_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t USART_ISR_TC_POSITION = 6u;
