@@ -204,7 +204,7 @@ public:
    */
   ErrorCode getPinMode(Pin pin, PinMode &pinMode) const;
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   /**
    * @brief Method gets raw pointer to underlaying GPIO peripheral instance.
    *
@@ -214,7 +214,7 @@ public:
   {
     return reinterpret_cast<void*>(m_GPIOPortPtr);
   }
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 
 private:
 

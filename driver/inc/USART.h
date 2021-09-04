@@ -81,7 +81,7 @@ public:
 
   void IRQHandler(void);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   /**
    * @brief Method gets raw pointer to underlaying USART peripheral instance.
    *
@@ -91,7 +91,7 @@ public:
   {
     return reinterpret_cast<void*>(m_USARTPeripheralPtr);
   }
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 
 private:
 

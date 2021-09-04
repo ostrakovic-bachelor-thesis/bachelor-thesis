@@ -6,7 +6,7 @@ set(GOOGLETEST_HOME ../googletest/)
 include_directories(${GOOGLETEST_HOME}/googletest/include ${GOOGLETEST_HOME}/googlemock/include)
 include_directories(inc)
 link_directories(${GOOGLETEST_HOME}/build/lib)
-add_compile_options(-std=c++14 -Wall -DUNIT_TEST_DRIVER)
+add_compile_options(-std=c++14 -Wall -DUNIT_TEST)
 
 set(BachelorThesis_utility_component_cpp_sources
     src/MemoryAccess.cpp)

@@ -24,9 +24,9 @@ enum class CoreHardware : uintptr_t
   NVIC    = NVIC_BASE,
   SCB     = SCB_BASE,
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   INVALID_CORE_HARDWARE = 0u,
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 };
 
 #endif // #ifndef CORE_HARDWARE_H

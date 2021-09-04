@@ -19,9 +19,9 @@ public:
    */
   ClockControl(RCC_TypeDef *RCCPeripheralPtr);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ~ClockControl() = default;
 
   //! This enum class represents errors which can happen during method calls
@@ -50,20 +50,20 @@ public:
   /**
    * TODO
    */
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const;
 
   /**
    * TODO
    */
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency) const;
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   /**
    * @brief Method gets raw pointer to underlaying RCC peripheral instance.
    *
@@ -73,7 +73,7 @@ public:
   {
     return reinterpret_cast<void*>(m_RCCPeripheralPtr);
   }
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 
 private:
 

@@ -9,7 +9,7 @@ include_directories(test)
 include_directories(sdk)
 include_directories(../utility/inc)
 link_directories(${GOOGLETEST_HOME}/build/lib)
-add_compile_options(-std=c++14 -Wall -DUNIT_TEST_DRIVER)
+add_compile_options(-std=c++14 -Wall -DUNIT_TEST)
 
 set(BachelorThesis_utility_component_cpp_sources
     ../utility/src/MemoryAccess.cpp)

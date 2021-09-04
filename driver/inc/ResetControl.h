@@ -19,9 +19,9 @@ public:
    */
   ResetControl(RCC_TypeDef *RCCPeripheralPtr);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ~ResetControl() = default;
 
   //! This enum class represents errors which can happen during method calls
@@ -39,9 +39,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode enablePeripheralClock(Peripheral peripheral);
 
   /**
@@ -51,9 +51,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode disablePeripheralClock(Peripheral peripheral);
 
   /**
@@ -64,12 +64,12 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode isPeripheralClockEnabled(Peripheral peripheral, bool &isClockEnabled) const;
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   /**
    * @brief Method gets raw pointer to underlaying RCC peripheral instance.
    *
@@ -79,7 +79,7 @@ public:
   {
     return reinterpret_cast<void*>(m_RCCPeripheralPtr);
   }
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 
 private:
 

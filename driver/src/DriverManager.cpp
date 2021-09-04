@@ -44,3 +44,13 @@ USART DriverManager::s_usartDriverInstance[] =
   [static_cast<uint8_t>(USARTInstance::LPUART1)] =
     USART(reinterpret_cast<USART_TypeDef*>(Peripheral::LPUART1), &s_clockControlDriverInstance)
 };
+
+I2C DriverManager::s_i2cDriverInstance[] =
+{
+  [static_cast<uint8_t>(I2CInstance::I2C1)] =
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C1), &s_clockControlDriverInstance),
+  [static_cast<uint8_t>(I2CInstance::I2C2)] =
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C2), &s_clockControlDriverInstance),
+  [static_cast<uint8_t>(I2CInstance::I2C3)] =
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C3), &s_clockControlDriverInstance)
+};

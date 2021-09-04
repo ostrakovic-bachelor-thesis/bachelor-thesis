@@ -13,6 +13,11 @@ public:
 
   I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ~I2C() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -35,15 +40,42 @@ public:
     uint32_t clockFrequencySCL;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode init(const I2CConfig &i2cConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode write(uint16_t slaveAddress, const void *messagePtr, uint32_t messageLen);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode read(uint16_t slaveAddress, void *messagePtr, uint32_t messageLen);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   bool isTransactionOngoing(void) const;
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   void IRQHandler(void);
+
+#ifdef UNIT_TEST
+  /**
+   * @brief Method gets raw pointer to underlaying USART peripheral instance.
+   *
+   * @return Pointer to underlaying USART peripheral instance.
+   */
+  inline void* getRawPointer(void) const
+  {
+    return reinterpret_cast<void*>(m_I2CPeripheralPtr);
+  }
+#endif // #ifdef UNIT_TEST
 
 private:
 

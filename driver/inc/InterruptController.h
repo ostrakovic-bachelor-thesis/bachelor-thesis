@@ -12,9 +12,9 @@ public:
 
   InterruptController(NVIC_Type *NVICPtr, SCB_Type *SCBPtr);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ~InterruptController() = default;
 
   //! This enum class represents errors which can happen during method calls
@@ -25,17 +25,17 @@ public:
     INTERRUPT_PRIORITY_OUT_OF_RANGE = 2u
   };
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode setInterruptPriority(int32_t irqNumber, uint32_t interruptPriority);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   virtual
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
   ErrorCode enableInterrupt(int32_t irqNumber);
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   /**
   * @brief Method gets raw pointer to underlaying NVIC core hardware instance.
    *
@@ -55,7 +55,7 @@ public:
   {
     return reinterpret_cast<void*>(m_SCBPtr);
   }
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 
 private:
 

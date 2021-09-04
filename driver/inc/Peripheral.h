@@ -77,6 +77,18 @@
 #undef LTDC
 #endif // #ifdef LTDC
 
+#ifdef I2C1
+#undef I2C1
+#endif // #ifdef I2C1
+
+#ifdef I2C2
+#undef I2C2
+#endif // #ifdef I2C2
+
+#ifdef I2C3
+#undef I2C3
+#endif // #ifdef I2C3
+
 
 enum class Peripheral : uintptr_t
 {
@@ -97,10 +109,13 @@ enum class Peripheral : uintptr_t
   UART5   = UART5_BASE,
   LPUART1 = LPUART1_BASE,
   DMA2D   = DMA2D_BASE,
+  I2C1    = I2C1_BASE,
+  I2C2    = I2C2_BASE,
+  I2C3    = I2C3_BASE,
 
-#ifdef UNIT_TEST_DRIVER
+#ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,
-#endif // #ifdef UNIT_TEST_DRIVER
+#endif // #ifdef UNIT_TEST
 };
 
 #endif // #ifndef PERIPHERAL_H

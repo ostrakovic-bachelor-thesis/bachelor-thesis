@@ -5,6 +5,7 @@
 #include "DMA2D.h"
 #include "GPIO.h"
 #include "USART.h"
+#include "I2C.h"
 #include "ClockControl.h"
 #include "ResetControl.h"
 #include "SysTick.h"
@@ -37,6 +38,13 @@ public:
     UART4   = 3u,
     UART5   = 4u,
     LPUART1 = 5u
+  };
+
+  enum class I2CInstance : uint8_t
+  {
+    I2C1 = 0u,
+    I2C2 = 1u,
+    I2C3 = 2u
   };
 
   enum class ClockControlInstance : uint8_t
@@ -72,6 +80,11 @@ public:
   inline static USART& getInstance(USARTInstance usartInstance)
   {
     return s_usartDriverInstance[static_cast<uint8_t>(usartInstance)];
+  }
+
+  inline static I2C& getInstance(I2CInstance i2cInstance)
+  {
+    return s_i2cDriverInstance[static_cast<uint8_t>(i2cInstance)];
   }
 
   inline static ClockControl& getInstance(ClockControlInstance clockControlInstance)
@@ -121,6 +134,9 @@ private:
 
   //! TODO
   static USART s_usartDriverInstance[];
+
+  //! TODO
+  static I2C s_i2cDriverInstance[];
 
 };
 
