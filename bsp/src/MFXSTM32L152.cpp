@@ -1,0 +1,6 @@
+#include "MFXSTM32L152.h"
+
+
+MFXSTM32L152::MFXSTM32L152(I2C *I2CPtr):
+  m_I2CPtr(I2CPtr)
+{}

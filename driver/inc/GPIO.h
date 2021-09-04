@@ -252,7 +252,6 @@ private:
 
   static bool isPinStateInValidRangeOfValues(PinState pinState);
 
-
   //! Pointer to GPIO port
   GPIO_TypeDef *m_GPIOPortPtr;
 };
