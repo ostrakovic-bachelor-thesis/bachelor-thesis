@@ -148,7 +148,7 @@ public:
 
   /**
    * This structure contains information needed for pin configuration. Depending on the mode,
-   * all or only some configuration paramters from the structure will be used:
+   * all or only some configuration parameters from the structure will be used:
    *
    *  a) INPUT  - PinMode, PullConfig
    *  b) OUTPUT - PinMode, PullConfig, OutputType, OutputSpeed

@@ -58,6 +58,16 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
+  ErrorCode readMemory(uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode writeMemory(uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   bool isTransactionOngoing(void) const;
 
 #ifdef UNIT_TEST
@@ -101,6 +111,15 @@ private:
     COUNT
   };
 
+  //! Transaction tag, used to identify type of ongoing transaction
+  enum class TransactionTag : uint8_t
+  {
+    READ = 0u,
+    WRITE,
+    READ_MEMORY,
+    WRITE_MEMORY
+  };
+
   //! Constrol/status operation to register mapping
   struct CSRegisterMapping
   {
@@ -142,8 +161,19 @@ private:
 
   void flushTXDR(void);
 
-  void enableInterrupt(Interrupt interrupt);
-  void disableInterrupt(Interrupt interrupt);
+
+  template<typename... Args>
+  static void enableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt, Args... args);
+  static void enableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt);
+  template<typename... Args>
+  void enableInterrupts(Args... args);
+
+  template<typename... Args>
+  void disableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt, Args... args);
+  void disableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt);
+  template<typename... Args>
+  void disableInterrupts(Args... args);
+
   bool isInterruptEnabled(Interrupt interrupt) const;
   void clearFlag(Flag flag);
   bool isFlagSet(Flag flag) const;
@@ -159,6 +189,8 @@ private:
 
   static void setAddressingMode(uint32_t &registerValueCR2, AddressingMode addressingMode);
   static void enableAutoEndMode(uint32_t &registerValueCR2);
+  static void disableAutoEndMode(uint32_t &registerValueCR2);
+  static void enableReloadMode(uint32_t &registerValueCR2);
   static void disableReloadMode(uint32_t &registerValueCR2);
   static void setNumberOfBytesToTransfer(uint32_t &registerValueCR2, uint32_t numberOfBytes);
   static void setSlaveAddress(uint32_t &registerValueCR2, uint16_t slaveAddress);
@@ -221,6 +253,8 @@ private:
   //! Is transmit/receive transaction completed
   bool m_isTransactionCompleted;
 
+  //! Tag used to identify type of ongoing transaction
+  TransactionTag m_transactionTag;
 };
 
 #endif // #ifndef I2C_H

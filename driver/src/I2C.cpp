@@ -103,12 +103,15 @@ I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_
 
   if (startTransaction())
   {
+    m_transactionTag = TransactionTag::WRITE;
+
     m_messagePtr = const_cast<void*>(messagePtr);
     m_messageLen = messageLen;
     m_messagePos = 0u;
 
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
+    enableAutoEndMode(registerValueCR2);
     setNumberOfBytesToTransfer(registerValueCR2, messageLen);
     setSlaveAddress(registerValueCR2, slaveAddress);
     setTransferDirectionToWrite(registerValueCR2);
@@ -117,8 +120,7 @@ I2C::ErrorCode I2C::write(uint16_t slaveAddress, const void *messagePtr, uint32_
 
     MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
-    enableInterrupt(Interrupt::STOP_DETECTION);
-    enableInterrupt(Interrupt::TRANSMIT);
+    enableInterrupts(Interrupt::TRANSMIT, Interrupt::STOP_DETECTION);
   }
   else
   {
@@ -134,12 +136,15 @@ I2C::ErrorCode I2C::read(uint16_t slaveAddress, void *messagePtr, uint32_t messa
 
   if (startTransaction())
   {
+    m_transactionTag = TransactionTag::READ;
+
     m_messagePtr = messagePtr;
     m_messageLen = messageLen;
     m_messagePos = 0u;
 
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
+    enableAutoEndMode(registerValueCR2);
     setNumberOfBytesToTransfer(registerValueCR2, messageLen);
     setSlaveAddress(registerValueCR2, slaveAddress);
     setTransferDirectionToRead(registerValueCR2);
@@ -148,8 +153,7 @@ I2C::ErrorCode I2C::read(uint16_t slaveAddress, void *messagePtr, uint32_t messa
 
     MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
-    enableInterrupt(Interrupt::STOP_DETECTION);
-    enableInterrupt(Interrupt::RECEIVE);
+    enableInterrupts(Interrupt::RECEIVE, Interrupt::STOP_DETECTION);
   }
   else
   {
@@ -157,6 +161,63 @@ I2C::ErrorCode I2C::read(uint16_t slaveAddress, void *messagePtr, uint32_t messa
   }
 
   return errorCode;
+}
+
+I2C::ErrorCode
+I2C::readMemory(uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  if (startTransaction())
+  {
+    m_transactionTag = TransactionTag::READ_MEMORY;
+
+    m_messagePtr = messagePtr;
+    m_messageLen = messageLen;
+    m_messagePos = 0u;
+
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+    disableAutoEndMode(registerValueCR2);
+    disableReloadMode(registerValueCR2);
+    setNumberOfBytesToTransfer(registerValueCR2, sizeof(uint8_t));
+    setSlaveAddress(registerValueCR2, slaveAddress);
+    setTransferDirectionToWrite(registerValueCR2);
+    setStartTransactionFlag(registerValueCR2);
+    clearStopFlag(registerValueCR2);
+
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+
+    enableInterrupts(Interrupt::STOP_DETECTION, Interrupt::TRANSFER_COMPLETE, Interrupt::TRANSMIT, Interrupt::RECEIVE);
+  }
+  else
+  {
+    errorCode = ErrorCode::BUSY;
+  }
+
+  return errorCode;
+}
+
+I2C::ErrorCode
+I2C::writeMemory(uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen)
+{
+  m_transactionTag = TransactionTag::WRITE_MEMORY;
+
+  uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+  disableAutoEndMode(registerValueCR2);
+  enableReloadMode(registerValueCR2);
+  setNumberOfBytesToTransfer(registerValueCR2, sizeof(uint8_t));
+  setSlaveAddress(registerValueCR2, slaveAddress);
+  setTransferDirectionToWrite(registerValueCR2);
+  setStartTransactionFlag(registerValueCR2);
+  clearStopFlag(registerValueCR2);
+
+  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+
+  enableInterrupts(Interrupt::STOP_DETECTION, Interrupt::TRANSFER_COMPLETE, Interrupt::TRANSMIT);
+
+  return ErrorCode::OK;
 }
 
 bool I2C::isTransactionOngoing(void) const
@@ -172,11 +233,31 @@ void I2C::IRQHandler(void)
 {
   if (isInterruptEnabled(Interrupt::STOP_DETECTION) && isFlagSet(Flag::IS_STOP_DETECTED))
   {
-    disableInterrupt(Interrupt::TRANSMIT);
-    disableInterrupt(Interrupt::STOP_DETECTION);
+    disableInterrupts(Interrupt::TRANSFER_COMPLETE, Interrupt::STOP_DETECTION, Interrupt::TRANSMIT, Interrupt::RECEIVE);
     clearFlag(Flag::IS_STOP_DETECTED);
     flushTXDR();
     endTransaction();
+  }
+
+  if (isInterruptEnabled(Interrupt::TRANSFER_COMPLETE) && isFlagSet(Flag::IS_TRANSFER_COMPLETED))
+  {
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+
+    if (TransactionTag::READ_MEMORY == m_transactionTag)
+    {
+      enableAutoEndMode(registerValueCR2);
+      setNumberOfBytesToTransfer(registerValueCR2, m_messageLen);
+      setTransferDirectionToRead(registerValueCR2);
+    }
+
+    if (TransactionTag::WRITE_MEMORY == m_transactionTag)
+    {
+      enableAutoEndMode(registerValueCR2);
+      disableReloadMode(registerValueCR2);
+      setNumberOfBytesToTransfer(registerValueCR2, m_messageLen);
+    }
+
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
   }
 
   if (isInterruptEnabled(Interrupt::TRANSMIT) && isFlagSet(Flag::DATA_TO_TXDR_MUST_BE_WRITTEN))
@@ -196,24 +277,46 @@ void I2C::IRQHandler(void)
   }
 }
 
-void I2C::enableInterrupt(Interrupt interrupt)
+inline void I2C::enableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt)
 {
-  const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
-  uint32_t *registerPtr =
-    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr) + registerOffset));
-
-  RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitPosition);
+  registerValueCR1 = MemoryUtility<uint32_t>::setBit(registerValueCR1, bitPosition);
 }
 
-void I2C::disableInterrupt(Interrupt interrupt)
+template<typename... Args>
+inline void I2C::enableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt, Args... args)
 {
-  const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
-  const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
-  uint32_t *registerPtr =
-    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_I2CPeripheralPtr) + registerOffset));
+  enableInterrupts(registerValueCR1, interrupt);
+  enableInterrupts(registerValueCR1, args...);
+}
 
-  RegisterUtility<uint32_t>::resetBitInRegister(registerPtr, bitPosition);
+template<typename... Args>
+void I2C::enableInterrupts(Args... args)
+{
+  uint32_t registerValueCR1 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR1));
+  enableInterrupts(registerValueCR1, args...);
+  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR1), registerValueCR1);
+}
+
+inline void I2C::disableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt)
+{
+  const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
+  registerValueCR1 = MemoryUtility<uint32_t>::resetBit(registerValueCR1, bitPosition);
+}
+
+template<typename... Args>
+inline void I2C::disableInterrupts(uint32_t &registerValueCR1, Interrupt interrupt, Args... args)
+{
+  disableInterrupts(registerValueCR1, interrupt);
+  disableInterrupts(registerValueCR1, args...);
+}
+
+template<typename... Args>
+void I2C::disableInterrupts(Args... args)
+{
+  uint32_t registerValueCR1 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR1));
+  disableInterrupts(registerValueCR1, args...);
+  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR1), registerValueCR1);
 }
 
 bool I2C::isInterruptEnabled(Interrupt interrupt) const
@@ -312,6 +415,18 @@ inline void I2C::enableAutoEndMode(uint32_t &registerValueCR2)
 {
   constexpr uint32_t I2C_CR2_AUTOEND_POSITION = 25u;
   registerValueCR2 = MemoryUtility<uint32_t>::setBit(registerValueCR2, I2C_CR2_AUTOEND_POSITION);
+}
+
+inline void I2C::disableAutoEndMode(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_AUTOEND_POSITION = 25u;
+  registerValueCR2 = MemoryUtility<uint32_t>::resetBit(registerValueCR2, I2C_CR2_AUTOEND_POSITION);
+}
+
+inline void I2C::enableReloadMode(uint32_t &registerValueCR2)
+{
+  constexpr uint32_t I2C_CR2_RELOAD_POSITION = 24u;
+  registerValueCR2 = MemoryUtility<uint32_t>::setBit(registerValueCR2, I2C_CR2_RELOAD_POSITION);
 }
 
 inline void I2C::disableReloadMode(uint32_t &registerValueCR2)
