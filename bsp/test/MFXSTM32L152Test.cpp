@@ -1,8 +1,9 @@
 #include "MFXSTM32L152.h"
 #include "I2C.h"
-#include <cstdint>
+#include "MemoryUtility.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include <cstdint>
 
 
 using namespace ::testing;
@@ -52,10 +53,23 @@ public:
   MFXSTM32L152::MFXSTM32L152Config mfxstm32l152Config;
   MFXSTM32L152::GPIOPinConfiguration gpioPinConfig;
 
+  uint32_t m_isTransactionOngoingCallCounter;
+
+  void expectOthersMemoryWrite(void);
+  void expectOthersMemoryRead(void);
+  void expectOthersMemoryReadAndMemoryWrite(void);
+
   template<typename GMockMatcher>
   void expectMemoryWriteOnlyOnce(uint8_t registerAddress, GMockMatcher matcher);
 
+  template<typename GMockMatcher>
+  void expectMemoryWrite(uint8_t registerAddress, GMockMatcher matcher);
+
   void expectMemoryReadOnlyOnce(uint8_t registerAddress, uint8_t registerValue);
+
+  void expectMemoryRead(uint8_t registerAddress, uint8_t registerValue);
+
+  void returnOnMemoryRead(uint8_t registerAddress, uint8_t registerValue);
 
   void SetUp() override;
   void TearDown() override;
@@ -63,6 +77,15 @@ public:
 
 void AMFXSTM32L152::SetUp()
 {
+  m_isTransactionOngoingCallCounter = 0u;
+
+  // is transaction ongoing will return false once in N calls
+  EXPECT_CALL(i2cMock, isTransactionOngoing)
+    .WillRepeatedly([&]() -> bool {
+      constexpr uint32_t EACH_N_CHECK_IF_FALSE = 10u;
+      return ((++m_isTransactionOngoingCallCounter) % EACH_N_CHECK_IF_FALSE) != 0u;
+    });
+
   mfxstm32l152Config.peripheralAddress = MFXSTM32L152_PERIPHERAL_ADDRESS;
   virtualMFXSTM32L152.init(mfxstm32l152Config);
 
@@ -74,11 +97,30 @@ void AMFXSTM32L152::TearDown()
 
 }
 
+void AMFXSTM32L152::expectOthersMemoryRead(void)
+{
+  EXPECT_CALL(i2cMock, readMemory(_, Matcher<uint8_t>(_), Matcher<void*>(_), 1u))
+    .Times(AnyNumber());
+}
+
+void AMFXSTM32L152::expectOthersMemoryWrite(void)
+{
+  EXPECT_CALL(i2cMock, writeMemory(_, Matcher<uint8_t>(_), Matcher<const void*>(_), 1u))
+    .Times(AnyNumber());
+}
+
+void AMFXSTM32L152::expectOthersMemoryReadAndMemoryWrite(void)
+{
+  expectOthersMemoryRead();
+  expectOthersMemoryWrite();
+}
+
 template<typename GMockMatcher>
 void AMFXSTM32L152::expectMemoryWriteOnlyOnce(uint8_t registerAddress, GMockMatcher matcher)
 {
   EXPECT_CALL(i2cMock, writeMemory(_, registerAddress, Matcher<const void*>(_), 1u))
-    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode {
+    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode
+    {
       EXPECT_THAT(*reinterpret_cast<const uint8_t*>(messagePtr), matcher);
       return I2C::ErrorCode::OK;
     });
@@ -87,17 +129,48 @@ void AMFXSTM32L152::expectMemoryWriteOnlyOnce(uint8_t registerAddress, GMockMatc
     .Times(AnyNumber());
 }
 
+template<typename GMockMatcher>
+void AMFXSTM32L152::expectMemoryWrite(uint8_t registerAddress, GMockMatcher matcher)
+{
+  EXPECT_CALL(i2cMock, writeMemory(_, registerAddress, Matcher<const void*>(_), 1u))
+    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode
+    {
+      EXPECT_THAT(*reinterpret_cast<const uint8_t*>(messagePtr), matcher);
+      return I2C::ErrorCode::OK;
+    });
+}
+
 void AMFXSTM32L152::expectMemoryReadOnlyOnce(uint8_t registerAddress, uint8_t registerValue)
 {
   EXPECT_CALL(i2cMock, readMemory(_, registerAddress, Matcher<void*>(_), 1u))
     .Times(1u)
-    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode {
+    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode
+    {
       *reinterpret_cast<uint8_t*>(messagePtr) = registerValue;
       return I2C::ErrorCode::OK;
     });
+}
 
-  EXPECT_CALL(i2cMock, readMemory(_, Not(registerAddress), Matcher<void*>(_), 1u))
-    .Times(AnyNumber());
+void AMFXSTM32L152::expectMemoryRead(uint8_t registerAddress, uint8_t registerValue)
+{
+  EXPECT_CALL(i2cMock, readMemory(_, registerAddress, Matcher<void*>(_), 1u))
+    .Times(1u)
+    .WillOnce([=](uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode
+    {
+      *reinterpret_cast<uint8_t*>(messagePtr) = registerValue;
+      return I2C::ErrorCode::OK;
+    });
+}
+
+void AMFXSTM32L152::returnOnMemoryRead(uint8_t registerAddress, uint8_t registerValue)
+{
+  EXPECT_CALL(i2cMock, readMemory(_, registerAddress, Matcher<void*>(_), 1u))
+    .Times(AnyNumber())
+    .WillRepeatedly([=](uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, uint32_t messageLen) -> I2C::ErrorCode
+    {
+      *reinterpret_cast<uint8_t*>(messagePtr) = registerValue;
+      return I2C::ErrorCode::OK;
+    });
 }
 
 
@@ -119,6 +192,7 @@ TEST_F(AMFXSTM32L152, GetIDReadsIdFromMFXSTM32L152IdRegister)
 {
   static constexpr uint8_t MFXSTM32L152_ID_REG_ADDR = 0x00u;
   uint8_t id;
+  // TODO replace
   EXPECT_CALL(i2cMock, readMemory(_, MFXSTM32L152_ID_REG_ADDR, &id, 1u))
     .Times(1u);
 
@@ -138,6 +212,7 @@ TEST_F(AMFXSTM32L152, EnableGPIOEnablesBothGPIOandAGPIOInSystemControlRegister)
   auto bitValueMatcher =
     AllOf(BitHasValue(MFXSTM32L152_SYS_CTRL_GPIO_EN_POSITION, MFXSTM32L152_SYS_CTRL_GPIO_EN_VALUE),
           BitHasValue(MFXSTM32L152_SYS_CTRL_AGPIO_EN_POSITION, MFXSTM32L152_SYS_CTRL_AGPIO_EN_VALUE));
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_SYS_CTRL_REG_ADDR, MFXSTM32L152_SYS_CTRL_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_SYS_CTRL_REG_ADDR, bitValueMatcher);
 
@@ -155,6 +230,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsPinDirectionInGPIODirectionRegisterAccordi
   gpioPinConfig.mode = MFXSTM32L152::GPIOPinMode::OUTPUT;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), static_cast<uint32_t>(MFXSTM32L152::GPIOPinMode::OUTPUT));
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_DIR_REG_ADDR, MFXSTM32L152_GPIO_DIR_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_DIR_REG_ADDR, bitValueMatcher);
 
@@ -173,6 +249,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsPinTypeInGPIOTypeRegisterAccordingToOutput
   gpioPinConfig.outputType = MFXSTM32L152::GPIOOutputType::OPEN_DRAIN;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), static_cast<uint32_t>(MFXSTM32L152::GPIOOutputType::OPEN_DRAIN));
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_TYPE_REG_ADDR, MFXSTM32L152_GPIO_TYPE_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_TYPE_REG_ADDR, bitValueMatcher);
 
@@ -191,6 +268,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsChoosenPinPullConfigInGPIOPUPDRegister)
   gpioPinConfig.pullConfig = MFXSTM32L152::GPIOPullConfig::PULL_UP;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), static_cast<uint32_t>(MFXSTM32L152::GPIOPullConfig::PULL_UP));
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_PUPD_REG_ADDR, MFXSTM32L152_GPIO_PUPD_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_PUPD_REG_ADDR, bitValueMatcher);
 
@@ -209,6 +287,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsPinTypeInGPIOTypeToZeroIfPullConfigIsNoPul
   gpioPinConfig.pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), 0u);
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_TYPE_REG_ADDR, MFXSTM32L152_GPIO_TYPE_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_TYPE_REG_ADDR, bitValueMatcher);
 
@@ -226,6 +305,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinDisablesPinInterruptIfPinModeIsNotInterrupt)
   gpioPinConfig.mode = MFXSTM32L152::GPIOPinMode::INPUT;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), 0u);
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_IRQ_EN_REG_ADDR, MFXSTM32L152_GPIO_IRQ_EN_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_IRQ_EN_REG_ADDR, bitValueMatcher);
 
@@ -244,6 +324,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsInterruptEventTypeIfChosenPinModeIsInterru
   gpioPinConfig.interruptTrigger = MFXSTM32L152::GPIOInterruptTrigger::RISING_EDGE;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), 1u);
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_IRQ_EVT_REG_ADDR, MFXSTM32L152_GPIO_IRQ_EVT_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_IRQ_EVT_REG_ADDR, bitValueMatcher);
 
@@ -262,6 +343,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinSetsInterruptActivityTypeIfChosenPinModeIsInte
   gpioPinConfig.interruptTrigger = MFXSTM32L152::GPIOInterruptTrigger::HIGH_LEVEL;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), 1u);
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_IRQ_ATYPE_REG_ADDR, MFXSTM32L152_GPIO_IRQ_ATYPE_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_IRQ_ATYPE_REG_ADDR, bitValueMatcher);
 
@@ -279,6 +361,7 @@ TEST_F(AMFXSTM32L152, ConfigurePinEnablesPinInterruptIfPinModeIsInterrupt)
   gpioPinConfig.mode = MFXSTM32L152::GPIOPinMode::INTERRUPT;
   auto bitValueMatcher =
     BitHasValue((static_cast<uint32_t>(RANDOM_GPIO_PIN) % 8u), 1u);
+  expectOthersMemoryReadAndMemoryWrite();
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_IRQ_EN_REG_ADDR, MFXSTM32L152_GPIO_IRQ_EN_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_IRQ_EN_REG_ADDR, bitValueMatcher);
 
@@ -287,17 +370,16 @@ TEST_F(AMFXSTM32L152, ConfigurePinEnablesPinInterruptIfPinModeIsInterrupt)
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
 }
 
-TEST_F(AMFXSTM32L152, EnableGPIOInterruptEnablesGPIOAsMFXSTM32L152IRQSource)
+TEST_F(AMFXSTM32L152, EnableInterruptEnablesGivenInterruptAsMFXSTM32L152IRQSource)
 {
   static constexpr uint8_t MFXSTM32L152_IRQ_SRC_EN_REG_ADDR = 0x42u;
   static constexpr uint8_t MFXSTM32L152_IRQ_SRC_EN_INIT_VALUE = 0x0u;
-  static constexpr uint8_t MFXSTM32L152_IRQ_SRC_EN_GPIO_EN_POS = 0u;
   auto bitValueMatcher =
-    BitHasValue(MFXSTM32L152_IRQ_SRC_EN_GPIO_EN_POS, 1u);
+    BitHasValue(static_cast<uint8_t>(MFXSTM32L152::Interrupt::GPIO), 1u);
   expectMemoryReadOnlyOnce(MFXSTM32L152_IRQ_SRC_EN_REG_ADDR, MFXSTM32L152_IRQ_SRC_EN_INIT_VALUE);
   expectMemoryWriteOnlyOnce(MFXSTM32L152_IRQ_SRC_EN_REG_ADDR, bitValueMatcher);
 
-  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.enableGPIOInterrupt();
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.enableInterrupt(MFXSTM32L152::Interrupt::GPIO);
 
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
 }
@@ -346,9 +428,96 @@ TEST_F(AMFXSTM32L152, GetGPIOPinStateReadsPinStateValueFromGPIOStateRegister)
   expectMemoryReadOnlyOnce(MFXSTM32L152_GPIO_STATE_REG_ADDR, MFXSTM32L152_GPIO_STATE_INIT_VALUE);
 
   MFXSTM32L152::GPIOPinState state;
-  const MFXSTM32L152::ErrorCode errorCode =
-    virtualMFXSTM32L152.getGPIOPinState(RANDOM_GPIO_PIN, state);
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.getGPIOPinState(RANDOM_GPIO_PIN, state);
 
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
   ASSERT_THAT(state, Eq(MFXSTM32L152::GPIOPinState::HIGH));
+}
+
+TEST_F(AMFXSTM32L152, RuntimeTaskGetsAllGlobalPendingInterruptsByReadingIRQPengingRegister)
+{
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_REG_ADDR = 0x08u;
+  expectOthersMemoryRead();
+  expectMemoryReadOnlyOnce(MFXSTM32L152_IRQ_PENDING_REG_ADDR, 0xFF);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, RuntimeTaskClearsAllGlobalPendingInterruptsBySettingCorrespondingBitsInIRQAckRegister)
+{
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_REG_ADDR = 0x08u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_ACK_REG_ADDR = 0x44u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_VALUE = 0xA9;
+  expectOthersMemoryReadAndMemoryWrite();
+  expectMemoryReadOnlyOnce(MFXSTM32L152_IRQ_PENDING_REG_ADDR, MFXSTM32L152_IRQ_PENDING_VALUE);
+  expectMemoryWriteOnlyOnce(MFXSTM32L152_IRQ_ACK_REG_ADDR, MFXSTM32L152_IRQ_PENDING_VALUE);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, RuntimeTaskGetsPendingGPIOInterruptsByReadingGPIOIRQPendingRegistersIfGlobalGPIOInterruptIsPending)
+{
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR = 0x0Cu;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG2_ADDR = 0x0Du;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG3_ADDR = 0x0Eu;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_REG_ADDR = 0x08u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_VALUE =
+    MemoryUtility<uint8_t>::setBit(0u, static_cast<uint8_t>(MFXSTM32L152::Interrupt::GPIO));
+  expectOthersMemoryRead();
+  returnOnMemoryRead(MFXSTM32L152_IRQ_PENDING_REG_ADDR, MFXSTM32L152_IRQ_PENDING_VALUE);
+  expectMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR, 0x00u);
+  expectMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG2_ADDR, 0xFFu);
+  expectMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG3_ADDR, 0x00u);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, RuntimeTaskClearsAllPendingGPIOInterruptsInGPIOIRQAckRegistersIfGlobalGPIOInterruptIsPending)
+{
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR = 0x0Cu;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG2_ADDR = 0x0Du;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG3_ADDR = 0x0Eu;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_ACK_REG1_ADDR = 0x54u;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_ACK_REG2_ADDR = 0x55u;
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_ACK_REG3_ADDR = 0x56u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_REG_ADDR = 0x08u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_VALUE =
+    MemoryUtility<uint8_t>::setBit(0u, static_cast<uint8_t>(MFXSTM32L152::Interrupt::GPIO));
+  returnOnMemoryRead(MFXSTM32L152_IRQ_PENDING_REG_ADDR, MFXSTM32L152_IRQ_PENDING_VALUE);
+  returnOnMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR, 0xFAu);
+  returnOnMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG2_ADDR, 0xB0u);
+  returnOnMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG3_ADDR, 0xD5u);
+  expectOthersMemoryWrite();
+  expectMemoryWrite(MFXSTM32L152_GPIO_IRQ_ACK_REG1_ADDR, 0xFAu);
+  expectMemoryWrite(MFXSTM32L152_GPIO_IRQ_ACK_REG2_ADDR, 0xB0u);
+  expectMemoryWrite(MFXSTM32L152_GPIO_IRQ_ACK_REG3_ADDR, 0xD5u);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, RuntimeTaskCallsRegisteredGPIOInterruptCallbackIfGPIOInterruptOccurredForCorrespondingPin)
+{
+  static constexpr uint8_t MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR = 0x0Cu;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_REG_ADDR = 0x08u;
+  static constexpr uint8_t MFXSTM32L152_IRQ_PENDING_VALUE =
+    MemoryUtility<uint8_t>::setBit(0u, static_cast<uint8_t>(MFXSTM32L152::Interrupt::GPIO));
+  expectOthersMemoryRead();
+  returnOnMemoryRead(MFXSTM32L152_IRQ_PENDING_REG_ADDR, MFXSTM32L152_IRQ_PENDING_VALUE);
+  returnOnMemoryRead(MFXSTM32L152_GPIO_IRQ_PENDING_REG1_ADDR, 0xFAu);
+  bool isCallbackCalled = false;
+  auto callback = [](void *isCallbackCalledPtr) { *reinterpret_cast<bool*>(isCallbackCalledPtr) = true; };
+  virtualMFXSTM32L152.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN5, callback, &isCallbackCalled);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+  ASSERT_THAT(isCallbackCalled, Eq(true));
 }

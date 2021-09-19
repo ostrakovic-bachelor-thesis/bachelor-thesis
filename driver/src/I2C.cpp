@@ -201,23 +201,32 @@ I2C::readMemory(uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, 
 I2C::ErrorCode
 I2C::writeMemory(uint16_t slaveAddress, uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen)
 {
-  m_transactionTag = TransactionTag::WRITE_MEMORY;
+  ErrorCode errorCode = ErrorCode::OK;
 
-  uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
+  if (startTransaction())
+  {
+    m_transactionTag = TransactionTag::WRITE_MEMORY;
 
-  disableAutoEndMode(registerValueCR2);
-  enableReloadMode(registerValueCR2);
-  setNumberOfBytesToTransfer(registerValueCR2, sizeof(uint8_t));
-  setSlaveAddress(registerValueCR2, slaveAddress);
-  setTransferDirectionToWrite(registerValueCR2);
-  setStartTransactionFlag(registerValueCR2);
-  clearStopFlag(registerValueCR2);
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
-  MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+    disableAutoEndMode(registerValueCR2);
+    enableReloadMode(registerValueCR2);
+    setNumberOfBytesToTransfer(registerValueCR2, sizeof(uint8_t));
+    setSlaveAddress(registerValueCR2, slaveAddress);
+    setTransferDirectionToWrite(registerValueCR2);
+    setStartTransactionFlag(registerValueCR2);
+    clearStopFlag(registerValueCR2);
 
-  enableInterrupts(Interrupt::STOP_DETECTION, Interrupt::TRANSFER_COMPLETE, Interrupt::TRANSMIT);
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
-  return ErrorCode::OK;
+    enableInterrupts(Interrupt::STOP_DETECTION, Interrupt::TRANSFER_COMPLETE, Interrupt::TRANSMIT);
+  }
+  else
+  {
+    errorCode = ErrorCode::BUSY;
+  }
+
+  return errorCode;
 }
 
 bool I2C::isTransactionOngoing(void) const

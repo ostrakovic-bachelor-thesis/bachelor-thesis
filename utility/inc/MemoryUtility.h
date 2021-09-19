@@ -26,7 +26,7 @@ public:
    * @param[in] bit   - Bit to set in register.
    * @return Value with bit 'bit' set.
    */
-  static T setBit(T value, uint8_t bit);
+  static constexpr T setBit(T value, uint8_t bit);
 
   /**
    * @brief Static method resets bit 'bit' in 'value'.
@@ -35,7 +35,7 @@ public:
    * @param[in] bit   - Bit to reset in register.
    * @return Value with bit 'bit' reset.
    */
-  static T resetBit(T value, uint8_t bit);
+  static constexpr T resetBit(T value, uint8_t bit);
 
   /**
    * @brief Static method checks is bit 'bit' set in 'value'.
@@ -44,7 +44,7 @@ public:
    * @param[in] bit   - Bit to check in 'value'.
    * @return true if bit is set in 'value', false otherwise.
    */
-  static bool isBitSet(T value, uint8_t bit);
+  static constexpr bool isBitSet(T value, uint8_t bit);
 
   /**
    * @brief   Static method sets {startBits ... startBits + numberOfBits - 1} bits in 'value',
@@ -58,7 +58,7 @@ public:
    * @param[in] numberOfBits - Size of 'bitsValue' in bits.
    * @param[in] bitsValue    - Value to set/insert.
    */
-  static T setBits(T value, uint8_t startBit, uint8_t numberOfBits, T bitsValue);
+  static constexpr T setBits(T value, uint8_t startBit, uint8_t numberOfBits, T bitsValue);
 
   /**
    * @brief   Static method gets {startBits ... startBits + numberOfBits - 1} bits from value.
@@ -70,7 +70,7 @@ public:
    * @param[in] numberOfBits - Size of value in bits.
    * @return Value of bits on wanted position in 'value'.
    */
-  static T getBits(T value, uint8_t startBit, uint8_t numberOfBits);
+  static constexpr T getBits(T value, uint8_t startBit, uint8_t numberOfBits);
 
 private:
 
@@ -88,25 +88,25 @@ private:
 };
 
 template <typename T>
-T MemoryUtility<T>::setBit(T value, uint8_t bit)
+constexpr T MemoryUtility<T>::setBit(T value, uint8_t bit)
 {
   return (MAX_ALLOWED_BIT > bit) ? (value | (1u << bit)) : value;
 }
 
 template <typename T>
-T MemoryUtility<T>::resetBit(T value, uint8_t bit)
+constexpr T MemoryUtility<T>::resetBit(T value, uint8_t bit)
 {
   return (MAX_ALLOWED_BIT > bit) ? (value & ~(1u << bit)) : value;
 }
 
 template <typename T>
-bool MemoryUtility<T>::isBitSet(T value, uint8_t bit)
+constexpr bool MemoryUtility<T>::isBitSet(T value, uint8_t bit)
 {
   return (MAX_ALLOWED_BIT > bit) ? ((value & (1u << bit)) == (1u << bit)) : false;
 }
 
 template <typename T>
-T MemoryUtility<T>::setBits(T value, uint8_t startBit, uint8_t numberOfBits, T bitsValue)
+constexpr T MemoryUtility<T>::setBits(T value, uint8_t startBit, uint8_t numberOfBits, T bitsValue)
 {
   T retval = value;
 
@@ -119,7 +119,7 @@ T MemoryUtility<T>::setBits(T value, uint8_t startBit, uint8_t numberOfBits, T b
 }
 
 template <typename T>
-T MemoryUtility<T>::getBits(T value, uint8_t startBit, uint8_t numberOfBits)
+constexpr T MemoryUtility<T>::getBits(T value, uint8_t startBit, uint8_t numberOfBits)
 {
   T retval = 0u;
 

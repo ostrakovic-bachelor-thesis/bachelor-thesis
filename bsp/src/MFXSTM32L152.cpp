@@ -26,10 +26,9 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::enableGPIO(void)
     static_cast<uint8_t>(SystemControl::ALTERNATE_GPIO_ENABLE));
 }
 
-MFXSTM32L152::ErrorCode MFXSTM32L152::enableGPIOInterrupt(void)
+MFXSTM32L152::ErrorCode MFXSTM32L152::enableInterrupt(Interrupt interrupt)
 {
-  return setBitsInRegister(RegisterAddress::IRQ_SRC_EN,
-    static_cast<uint8_t>(Interrupt::GPIO));
+  return setBitsInRegister(RegisterAddress::IRQ_SRC_EN, static_cast<uint8_t>(interrupt));
 }
 
 MFXSTM32L152::ErrorCode MFXSTM32L152::configureGPIOPin(GPIOPin pin, const GPIOPinConfiguration &pinConfiguration)
@@ -87,6 +86,103 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::getGPIOPinState(GPIOPin pin, GPIOPinState 
   ErrorCode errorCode = readRegister(static_cast<uint8_t>(registerAddress), &registerValue, sizeof(uint8_t));
 
   state = MemoryUtility<uint8_t>::isBitSet(registerValue, pinOffset) ? GPIOPinState::HIGH : GPIOPinState::LOW;
+
+  return errorCode;
+}
+
+MFXSTM32L152::ErrorCode
+MFXSTM32L152::registerGPIOInterruptCallback(GPIOPin pin, CallbackFunc callback, void *callbackArgument)
+{
+  m_callback[static_cast<uint8_t>(pin)] = callback;
+  m_callbackArgument[static_cast<uint8_t>(pin)] = callbackArgument;
+
+  return ErrorCode::OK;
+}
+
+void MFXSTM32L152::IRQHandler(void)
+{
+
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::runtimeTask(void)
+{
+  Interrupts interrupts;
+
+  ErrorCode errorCode = getPendingInterrupts(interrupts);
+
+  if (interrupts.isInterruptPending(Interrupt::GPIO))
+  {
+    GPIOInterrupts gpioInterrupts;
+
+    errorCode = getPendingGPIOInterrupts(gpioInterrupts);
+
+    callAllPendgingGPIOInterruptsCallbacks(gpioInterrupts);
+
+    errorCode = clearPendingGPIOInterrupts(gpioInterrupts);
+  }
+
+  errorCode = clearPendingInterrupts(interrupts);
+
+  return errorCode;
+}
+
+void MFXSTM32L152::callAllPendgingGPIOInterruptsCallbacks(const GPIOInterrupts &gpioInterrupts)
+{
+  for (uint8_t pin = static_cast<uint8_t>(GPIOPin::PIN0); pin <= static_cast<uint8_t>(GPIOPin::PIN23); ++pin)
+  {
+    if (gpioInterrupts.isGPIOPinInterruptPending(static_cast<GPIOPin>(pin)) && (nullptr != m_callback[pin]))
+    {
+      m_callback[pin](m_callbackArgument[pin]);
+    }
+  }
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::getPendingInterrupts(Interrupts &interrupts)
+{
+  const ErrorCode errorCode =
+    readRegister(static_cast<uint8_t>(RegisterAddress::IRQ_PENDING),
+      &(interrupts.interruptPendingBitField),
+      sizeof(uint8_t));
+
+  return errorCode;
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::clearPendingInterrupts(const Interrupts &interrupts)
+{
+  const ErrorCode errorCode =
+    writeRegister(static_cast<uint8_t>(RegisterAddress::IRQ_ACK),
+      &(interrupts.interruptPendingBitField),
+      sizeof(uint8_t));
+
+  return errorCode;
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::getPendingGPIOInterrupts(GPIOInterrupts &gpioInterrupts)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  for (uint8_t i = 0u; i < GPIOInterrupts::NUMBER_OF_PENDING_INTERRUPT_BITFIELDS; ++i)
+  {
+    errorCode =
+      readRegister((static_cast<uint8_t>(RegisterAddress::GPIO_IRQ_PENDING) + i),
+        &(gpioInterrupts.interruptPendingBitField[i]),
+        sizeof(uint8_t));
+  }
+
+  return errorCode;
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::clearPendingGPIOInterrupts(const GPIOInterrupts &gpioInterrupts)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  for (uint8_t i = 0u; i < GPIOInterrupts::NUMBER_OF_PENDING_INTERRUPT_BITFIELDS; ++i)
+  {
+    errorCode =
+      writeRegister((static_cast<uint8_t>(RegisterAddress::GPIO_IRQ_ACK) + i),
+        &(gpioInterrupts.interruptPendingBitField[i]),
+        sizeof(uint8_t));
+  }
 
   return errorCode;
 }
@@ -357,7 +453,7 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::setBitsInRegister(RegisterAddress register
 
   if (ErrorCode::OK == errorCode)
   {
-    writeRegister(static_cast<uint8_t>(registerAddress), &registerValue, sizeof(uint8_t));
+    errorCode = writeRegister(static_cast<uint8_t>(registerAddress), &registerValue, sizeof(uint8_t));
   }
 
   return errorCode;
@@ -389,7 +485,7 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::resetBitsInRegister(RegisterAddress regist
 
   if (ErrorCode::OK == errorCode)
   {
-    writeRegister(static_cast<uint8_t>(registerAddress), &registerValue, sizeof(uint8_t));
+    errorCode = writeRegister(static_cast<uint8_t>(registerAddress), &registerValue, sizeof(uint8_t));
   }
 
   return errorCode;
@@ -400,6 +496,11 @@ MFXSTM32L152::readRegister(uint8_t registerAddress, void *messagePtr, uint32_t m
 {
   I2C::ErrorCode errorCode = m_I2CPtr->readMemory(m_peripheralAddress, registerAddress, messagePtr, messageLen);
 
+  if (I2C::ErrorCode::OK == errorCode)
+  {
+    while (m_I2CPtr->isTransactionOngoing());
+  }
+
   return mapToErrorCode(errorCode);
 }
 
@@ -407,6 +508,11 @@ MFXSTM32L152::ErrorCode
 MFXSTM32L152::writeRegister(uint8_t registerAddress, const void *messagePtr, uint32_t messageLen)
 {
   I2C::ErrorCode errorCode = m_I2CPtr->writeMemory(m_peripheralAddress, registerAddress, messagePtr, messageLen);
+
+  if (I2C::ErrorCode::OK == errorCode)
+  {
+    while (m_I2CPtr->isTransactionOngoing());
+  }
 
   return mapToErrorCode(errorCode);
 }

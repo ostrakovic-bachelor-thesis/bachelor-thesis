@@ -8,6 +8,8 @@ class MFXSTM32L152
 {
 public:
 
+  typedef void (*CallbackFunc)(void*);
+
   MFXSTM32L152(I2C *I2CPtr);
 
   //! This enum class represents errors which can happen during method calls
@@ -21,6 +23,18 @@ public:
   struct MFXSTM32L152Config
   {
     uint16_t peripheralAddress;
+  };
+
+  enum class Interrupt : uint8_t
+  {
+    GPIO              = 0u, //!< GPIO interrupt
+    IDD               = 1u, //!< IDD interrupt
+    ERROR             = 2u, //!< Error interrupt
+    TS_TOUCH_DETECTED = 3u, //!< TS touch detected interrupt
+    TS_FIFO_NOT_EMPTY = 4u, //!< TS FIFO not empty interrupt
+    TS_FIFO_THRESHOLD = 5u, //!< TS FIFO threshold reached interrupt
+    TS_FIFO_FULL      = 6u, //!< TS FIFO full interrupt
+    TS_FIFO_OVERFLOW  = 7u  //!< TS FIFO overflow interrupt
   };
 
   //! This enum class represents MFXSTM32L152 GPIO pin.
@@ -151,9 +165,15 @@ public:
 
   ErrorCode enableGPIO(void);
 
-  ErrorCode enableGPIOInterrupt(void);
+  ErrorCode enableInterrupt(Interrupt interrupt);
 
   ErrorCode getID(uint8_t &id);
+
+  ErrorCode registerGPIOInterruptCallback(GPIOPin pin, CallbackFunc callback, void *callbackArgument);
+
+  void IRQHandler(void);
+
+  ErrorCode runtimeTask(void);
 
 private:
 
@@ -163,29 +183,21 @@ private:
   {
     ID               = 0x00u, //!< ID register (READ)
     FIRMWARE_VERSION = 0x01u, //!< Firmware version register (READ)
+    IRQ_PENDING      = 0x08u, //!< IRQ pending register (READ)
+    GPIO_IRQ_PENDING = 0x0Cu, //!< GPIO IRQ pending register (READ)
     GPIO_STATE       = 0x10u, //!< GPIO state register (READ)
     SYSTEM_CONTROL   = 0x40u, //!< System control register (READ/WRITE)
-    IRQ_SRC_EN       = 0x42u, //!< IRQ source enable (READ/WRITE)
+    IRQ_SRC_EN       = 0x42u, //!< IRQ source enable register (READ/WRITE)
+    IRQ_ACK          = 0x44u, //!< IRQ interrupt acknowledge register (WRITE)
     GPIO_IRQ_EN      = 0x48u, //!< GPIO interrupt enable register (READ/WRITE)
-    GPIO_IRQ_EVT     = 0x4Cu, //!< GPIO interrupt event type (READ/WRITE)
-    GPIO_IRQ_ATYPE   = 0x50u, //!< GPIO interrupt activity type (READ/WRITE)
+    GPIO_IRQ_EVT     = 0x4Cu, //!< GPIO interrupt event type register (READ/WRITE)
+    GPIO_IRQ_ATYPE   = 0x50u, //!< GPIO interrupt activity type register (READ/WRITE)
+    GPIO_IRQ_ACK     = 0x54u, //!< GPIO interrupt acknowledge register (WRITE)
     GPIO_DIRECTION   = 0x60u, //!< GPIO direction register (READ/WRITE)
     GPIO_TYPE        = 0x64u, //!< GPIO type register (READ/WRITE)
     GPIO_PUPD        = 0x68u, //!< GPIO PUPD register (READ/WRITE)
     GPIO_SET_HIGH    = 0x6Cu, //!< GPIO set pin state to HIGH register (WRITE)
     GPIO_SET_LOW     = 0x70u, //!< GPIO set pin state to LOW register (WRITE)
-  };
-
-  enum class Interrupt : uint8_t
-  {
-    GPIO              = 0u, //!< GPIO interrupt
-    IDD               = 1u, //!< IDD interrupt
-    ERROR             = 2u, //!< Error interrupt
-    TS_TOUCH_DETECTED = 3u, //!< TS touch detected interrupt
-    TS_FIFO_NOT_EMPTY = 4u, //!< TS FIFO not empty interrupt
-    TS_FIFO_THRESHOLD = 5u, //!< TS FIFO threshold reached interrupt
-    TS_FIFO_FULL      = 6u, //!< TS FIFO full interrupt
-    TS_FIFO_OVERFLOW  = 7u  //!< TS FIFO overflow interrupt
   };
 
   //! All possible valid values of ID
@@ -204,6 +216,30 @@ private:
     ALTERNATE_GPIO_ENABLE = 3u, //!< Alternate GPIO enable
     STANDY                = 6u, //!< Put in Standy mode
     SWRST                 = 7u, //!< Soft reset
+  };
+
+  struct Interrupts
+  {
+    inline bool isInterruptPending(Interrupt interrupt) const
+    {
+      return MemoryUtility<uint8_t>::isBitSet(interruptPendingBitField, static_cast<uint8_t>(interrupt));
+    }
+
+    uint8_t interruptPendingBitField;
+  };
+
+  struct GPIOInterrupts
+  {
+    static constexpr uint8_t NUMBER_OF_PENDING_INTERRUPT_BITFIELDS = 3u;
+
+    inline bool isGPIOPinInterruptPending(GPIOPin pin) const
+    {
+      return MemoryUtility<uint8_t>::isBitSet(
+        interruptPendingBitField[static_cast<uint8_t>(pin) / SIZE_OF_MFXSTM32L152_REGISTER_IN_BITS],
+        (static_cast<uint8_t>(pin) % SIZE_OF_MFXSTM32L152_REGISTER_IN_BITS));
+    }
+
+    uint8_t interruptPendingBitField[NUMBER_OF_PENDING_INTERRUPT_BITFIELDS];
   };
 
   RegisterAddress mapToRegisterAddress(RegisterAddress baseRegisterAddress, GPIOPin pin);
@@ -239,6 +275,14 @@ private:
   ErrorCode setGPIOPinStateToHigh(GPIOPin pin);
   ErrorCode setGPIOPinStateToLow(GPIOPin pin);
 
+  ErrorCode getPendingInterrupts(Interrupts &interrupts);
+  ErrorCode clearPendingInterrupts(const Interrupts &interrupts);
+
+  ErrorCode getPendingGPIOInterrupts(GPIOInterrupts &gpioInterrupts);
+  ErrorCode clearPendingGPIOInterrupts(const GPIOInterrupts &gpioInterrupts);
+
+  void callAllPendgingGPIOInterruptsCallbacks(const GPIOInterrupts &gpioInterrupts);
+
   static ErrorCode mapToErrorCode(I2C::ErrorCode i2cErrorCode);
 
   void setBitsInRegister(uint8_t &registerValue, uint8_t bitPosition);
@@ -255,6 +299,10 @@ private:
 
   ErrorCode readRegister(uint8_t registerAddress, void *messagePtr, uint32_t messageLen);
   ErrorCode writeRegister(uint8_t registerAddress, const void *messagePtr, uint32_t messageLen);
+
+  //! TODO add doxy comment
+  CallbackFunc m_callback[24]  = { nullptr };
+  void *m_callbackArgument[24] = { nullptr };
 
   //! MFXSTM32L152C (peripheral) I2C address
   uint16_t m_peripheralAddress;

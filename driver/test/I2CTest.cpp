@@ -1368,3 +1368,16 @@ TEST_F(AnI2C, WriteMemoryClearsSTOPFlagInCR2Register)
   ASSERT_THAT(virtualI2CPeripheral.CR2, bitValueMatcher);
 }
 
+TEST_F(AnI2C, WriteMemoryFailsIfAnotherTransactionIsOngoing)
+{
+  ASSERT_THAT(virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN), Eq(I2C::ErrorCode::OK));
+  ASSERT_THAT(virtualI2C.writeMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN),
+    Eq(I2C::ErrorCode::BUSY));
+}
+
+TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingWriteMemoryTransaction)
+{
+  virtualI2C.writeMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+
+  ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
+}
