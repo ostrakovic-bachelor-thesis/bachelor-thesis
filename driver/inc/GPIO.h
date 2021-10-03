@@ -16,6 +16,11 @@ public:
    */
   GPIO(GPIO_TypeDef *GPIOPortPtr);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ~GPIO() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -172,6 +177,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode configurePin(Pin pin, const PinConfiguration &pinConfiguration);
 
   /**
@@ -182,6 +190,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode setPinState(Pin pin, PinState state);
 
   /**
@@ -192,6 +203,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getPinState(Pin pin, PinState &state) const;
 
   /**
@@ -202,6 +216,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getPinMode(Pin pin, PinMode &pinMode) const;
 
 #ifdef UNIT_TEST

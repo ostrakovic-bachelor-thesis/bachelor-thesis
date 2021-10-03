@@ -9,7 +9,7 @@
       "cwd": "${workspaceRoot}",
       "armToolchainPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\",
       "gdbPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gdb.exe",
-      "executable": "./app/build/app",
+      "executable": "./build/app",
       "request": "launch",
       "type": "cortex-debug",
       "servertype": "openocd",

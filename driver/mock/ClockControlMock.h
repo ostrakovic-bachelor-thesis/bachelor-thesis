@@ -44,7 +44,7 @@ public:
     m_errorCode = errorCode;
   }
 
-  // Mock methods
+  // mock methods
   MOCK_METHOD(ErrorCode, getClockFrequency, (ClockSource, uint32_t &), (const, override));
   MOCK_METHOD(ErrorCode, getClockFrequency, (Peripheral, uint32_t &), (const, override));
 

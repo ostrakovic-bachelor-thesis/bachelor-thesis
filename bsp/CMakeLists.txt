@@ -9,6 +9,7 @@ include_directories(test)
 include_directories(../utility/inc)
 include_directories(../driver/sdk)
 include_directories(../driver/inc)
+include_directories(../driver/mock)
 link_directories(${GOOGLETEST_HOME}/build/lib)
 add_compile_options(-std=c++14 -Wall -DUNIT_TEST)
 

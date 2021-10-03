@@ -5,6 +5,8 @@
 #include "USART.h"
 #include "DMA2D.h"
 #include "DriverManager.h"
+#include "GPIOManager.h"
+#include "GPIOConfiguration.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -81,7 +83,6 @@ void panic(void)
 void startup(void)
 {
   ResetControl &resetControl = DriverManager::getInstance(DriverManager::ResetControlInstance::GENERIC);
-  GPIO &gpioA = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOA);
   GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
@@ -169,45 +170,13 @@ void startup(void)
     }
   }
 
+  GPIOManager::ErrorCode errorCode = GPIOManager::configureGPIOPins(gpioPinsConfiguration);
+  if (GPIOManager::ErrorCode::OK != errorCode)
   {
-    GPIO::PinConfiguration pinConfig =
-    {
-      .mode        = GPIO::PinMode::OUTPUT,
-      .pullConfig  = GPIO::PullConfig::PULL_DOWN,
-      .outputSpeed = GPIO::OutputSpeed::HIGH,
-      .outputType  = GPIO::OutputType::PUSH_PULL
-    };
-
-    GPIO::ErrorCode error = gpioH.configurePin(GPIO::Pin::PIN4, pinConfig);
-    if (GPIO::ErrorCode::OK != error)
-    {
-      panic();
-    }
+    panic();
   }
 
-  {
-    GPIO::PinConfiguration pinConfig =
-    {
-      .mode              = GPIO::PinMode::AF,
-      .pullConfig        = GPIO::PullConfig::NO_PULL,
-      .outputSpeed       = GPIO::OutputSpeed::HIGH,
-      .outputType        = GPIO::OutputType::PUSH_PULL,
-      .alternateFunction = GPIO::AlternateFunction::AF7
-    };
-
-    GPIO::ErrorCode error = gpioA.configurePin(GPIO::Pin::PIN2, pinConfig);
-    if (GPIO::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = gpioA.configurePin(GPIO::Pin::PIN3, pinConfig);
-    if (GPIO::ErrorCode::OK != error)
-    {
-      panic();
-    }
-  }
-
+/*
   DMA2D::BlendBitmapConfig blendBitmapConfig =
   {
     .blendRectangleDimension =
@@ -273,12 +242,15 @@ void startup(void)
       .bufferPtr = g_frameBuffer
     }
   };
+*/
 
+/*
   DMA2D::ErrorCode errorCode = dma2D.blendBitmap(blendBitmapConfig);
   if (DMA2D::ErrorCode::OK != errorCode)
   {
     panic();
   }
+*/
 
   uint8_t message[2000];
   uint32_t messageLen;
@@ -289,6 +261,7 @@ void startup(void)
 
     if (not usart2.isWriteTransactionOngoing())
     {
+      /*
       if (dma2D.isTransferOngoing())
       {
         messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
@@ -299,6 +272,10 @@ void startup(void)
         messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
           "DMA2D completed, systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
       }
+      */
+
+      messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+        "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
 
       usart2.write(message, messageLen);
     }

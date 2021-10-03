@@ -13,6 +13,7 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/SysTick.cpp
     ../driver/src/InterruptController.cpp
     ../driver/src/DMA2D.cpp
+    ../driver/src/I2C.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
@@ -29,6 +30,7 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
 
 target_include_directories(app PRIVATE
                            inc
+                           ../module/inc
                            ../driver/inc
                            ../driver/sdk
                            ../bsp/inc

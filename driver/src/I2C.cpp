@@ -2,31 +2,32 @@
 #include "MemoryAccess.h"
 #include "MemoryUtility.h"
 #include "RegisterUtility.h"
+#include <cstddef>
 
 
 const I2C::CSRegisterMapping I2C::s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)] =
 {
   [static_cast<uint8_t>(I2C::Interrupt::TRANSMIT)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .registerOffset = offsetof(I2C_TypeDef, CR1),
     .bitPosition = 1u,
   },
 
   [static_cast<uint8_t>(I2C::Interrupt::RECEIVE)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .registerOffset = offsetof(I2C_TypeDef, CR1),
     .bitPosition = 2u,
   },
 
   [static_cast<uint8_t>(I2C::Interrupt::STOP_DETECTION)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .registerOffset = offsetof(I2C_TypeDef, CR1),
     .bitPosition = 5u,
   },
 
   [static_cast<uint8_t>(I2C::Interrupt::TRANSFER_COMPLETE)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, CR1),
+    .registerOffset = offsetof(I2C_TypeDef, CR1),
     .bitPosition = 6u,
   },
 
@@ -36,35 +37,36 @@ const I2C::CSRegisterMapping I2C::s_interruptStatusFlagsRegisterMapping[static_c
 {
   [static_cast<uint8_t>(I2C::Flag::IS_TXDR_REGISTER_EMPTY)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
     .bitPosition = 0u,
   },
 
   [static_cast<uint8_t>(I2C::Flag::DATA_TO_TXDR_MUST_BE_WRITTEN)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
     .bitPosition = 1u,
   },
 
   [static_cast<uint8_t>(I2C::Flag::RXDR_NOT_EMPTY)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
     .bitPosition = 2u,
   },
 
   [static_cast<uint8_t>(I2C::Flag::IS_STOP_DETECTED)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
     .bitPosition = 5u,
   },
 
   [static_cast<uint8_t>(I2C::Flag::IS_TRANSFER_COMPLETED)] =
   {
-    .registerOffset = offsetof(USART_TypeDef, ISR),
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
     .bitPosition = 6u,
   },
 
 };
+
 
 I2C::I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr):
   m_I2CPeripheralPtr(I2CPeripheralPtr),

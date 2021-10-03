@@ -222,7 +222,7 @@ TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfOTYPERRegisterInInputMode)
   ASSERT_THAT(virtualGPIOPort.OTYPER, Eq(GPIO_PORT_OTYPER_RESET_VALUE));
 }
 
-TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfARRegistersInInputMode)
+TEST_F(AGPIO, ConfiguresPinDoesNotChangeValueOfAFRegistersInInputMode)
 {
   constexpr GPIO::Pin LOW_GPIO_PIN = GPIO::Pin::PIN6;
   pinConfig.mode              = GPIO::PinMode::INPUT;
