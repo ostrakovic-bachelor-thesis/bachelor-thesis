@@ -88,6 +88,7 @@ void startup(void)
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
   InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
   DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
+  I2C &i2c1 = DriverManager::getInstance(DriverManager::I2CInstance::I2C1);
 
   //initSYSCLOCK();
 
@@ -107,19 +108,7 @@ void startup(void)
   }
 
   {
-    ResetControl::ErrorCode error = resetControl.enablePeripheralClock(Peripheral::GPIOH);
-    if (ResetControl::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = resetControl.enablePeripheralClock(Peripheral::GPIOA);
-    if (ResetControl::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = resetControl.enablePeripheralClock(Peripheral::USART2);
+    ResetControl::ErrorCode error = resetControl.enablePeripheralClock(Peripheral::USART2);
     if (ResetControl::ErrorCode::OK != error)
     {
       panic();
@@ -143,6 +132,20 @@ void startup(void)
 
     USART::ErrorCode error = usart2.init(usartConfig);
     if (USART::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    I2C::I2CConfig i2cConfig =
+    {
+      .addressingMode    = I2C::AddressingMode::ADDRESS_7_BITS,
+      .clockFrequencySCL = 100000u // 100 kHzs
+    };
+
+    I2C::ErrorCode error = i2c1.init(i2cConfig);
+    if (I2C::ErrorCode::OK != error)
     {
       panic();
     }

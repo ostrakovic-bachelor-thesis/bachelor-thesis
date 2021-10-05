@@ -3,6 +3,7 @@
 
 #include "stm32l4r9xx.h"
 #include "ClockControl.h"
+#include "ResetControl.h"
 #include "Peripheral.h"
 #include <cstdint>
 
@@ -11,7 +12,7 @@ class I2C
 {
 public:
 
-  I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr);
+  I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr, ResetControl *resetControlPtr);
 
 #ifdef UNIT_TEST
   virtual
@@ -25,7 +26,8 @@ public:
     SCL_CLOCK_TIMING_SETUP_PROBLEM            = 1u,
     WANTED_OUTPUT_CLOCK_PERIOD_TOO_SHORT      = 2u,
     WANTED_OUTPUT_CLOCK_PERIOD_NOT_ACHIEVABLE = 3u,
-    BUSY                                      = 4u
+    BUSY                                      = 4u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK          = 5u
   };
 
   enum class AddressingMode : uint8_t
@@ -86,6 +88,18 @@ public:
     return reinterpret_cast<void*>(m_I2CPeripheralPtr);
   }
 #endif // #ifdef UNIT_TEST
+
+  /**
+   * @brief   Method gets peripheral tag of the I2C instance.
+   * @details I2C peripheral tag is pointer to underlaying I2C peripheral
+   *          instance casted to Peripheral type.
+   *
+   * @return  Peripheral tag of the I2C instance.
+   */
+  inline Peripheral getPeripheralTag(void) const
+  {
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<I2C_TypeDef*>(m_I2CPeripheralPtr)));
+  }
 
 private:
 
@@ -229,6 +243,8 @@ private:
   ErrorCode setupSCLClockTiming(uint32_t clockFrequencySCL);
   void setTimingRegister(const TimingRegisterConfig &timingRegisterConfig);
 
+  ErrorCode enablePeripheralClock(void);
+
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
 
@@ -240,6 +256,9 @@ private:
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
+
+  //! Pointer to Reset Control module
+  ResetControl *m_resetControlPtr;
 
   //! Pointer to message to transmit/receive
   void *m_messagePtr;

@@ -68,14 +68,21 @@ const I2C::CSRegisterMapping I2C::s_interruptStatusFlagsRegisterMapping[static_c
 };
 
 
-I2C::I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr):
+I2C::I2C(I2C_TypeDef *I2CPeripheralPtr, ClockControl *clockControlPtr, ResetControl *resetControlPtr):
   m_I2CPeripheralPtr(I2CPeripheralPtr),
   m_clockControlPtr(clockControlPtr),
+  m_resetControlPtr(resetControlPtr),
   m_isTransactionCompleted(true)
 {}
 
 I2C::ErrorCode I2C::init(const I2CConfig &i2cConfig)
 {
+  ErrorCode errorCode = enablePeripheralClock();
+  if (ErrorCode::OK != errorCode)
+  {
+    return errorCode;
+  }
+
   disableI2C();
 
   uint32_t registerValueCR1 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR1));
@@ -92,7 +99,7 @@ I2C::ErrorCode I2C::init(const I2CConfig &i2cConfig)
   MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR1), registerValueCR1);
   MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
 
-  ErrorCode errorCode = setupSCLClockTiming(i2cConfig.clockFrequencySCL);
+  errorCode = setupSCLClockTiming(i2cConfig.clockFrequencySCL);
 
   enableI2C();
 
@@ -809,4 +816,11 @@ void I2C::setTimingRegister(const TimingRegisterConfig &timingRegisterConfig)
     static_cast<uint32_t>(timingRegisterConfig.PRESC));
 
   MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->TIMINGR), registerValueTIMINGR);
+}
+
+  I2C::ErrorCode I2C::enablePeripheralClock(void)
+{
+  ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
+
+  return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
 }

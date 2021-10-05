@@ -32,6 +32,7 @@ public:
   void setAPB2Prescaler(uint32_t prescaler);
   void setUSART1ClockSource(uint32_t clockSource);
   void setUSART2ClockSource(uint32_t clockSource);
+  void setI2C1ClockSource(uint32_t clockSource);
 
   void SetUp() override;
   void TearDown() override;
@@ -104,6 +105,10 @@ void AClockControl::setUSART2ClockSource(uint32_t clockSource)
   virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_USART2SEL_Pos) & RCC_CCIPR_USART2SEL_Msk;
 }
 
+void AClockControl::setI2C1ClockSource(uint32_t clockSource)
+{
+  virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_I2C1SEL_Pos) & RCC_CCIPR_I2C1SEL_Msk;
+}
 
 TEST_F(AClockControl, GetsHSIClockFrequency)
 {
@@ -270,7 +275,7 @@ TEST_F(AClockControl, GetsUSART2ClockFrequency)
   constexpr uint32_t EXPECTED_USART2_CLOCK_FREQUENCY = 8000000u; // 8 MHz
   setSysClockSource(RCC_CFGR_SWS_HSI);
   setAHBPrescaler(RCC_CFGR_HPRE_DIV1);
-  setAPB2Prescaler(RCC_CFGR_PPRE2_DIV2);
+  setAPB1Prescaler(RCC_CFGR_PPRE1_DIV2);
   setUSART2ClockSource(USART2_CLOCK_SOURCE_PCLK);
   expectNoRegisterToChange();
 
@@ -279,4 +284,21 @@ TEST_F(AClockControl, GetsUSART2ClockFrequency)
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_USART2_CLOCK_FREQUENCY));
+}
+
+TEST_F(AClockControl, GetsI2C1ClockFrequency)
+{
+  constexpr uint32_t I2C1_CLOCK_SOURCE_PCLK = 0b00;
+  constexpr uint32_t EXPECTED_I2C1_CLOCK_FREQUENCY = 8000000u; // 8 MHz
+  setSysClockSource(RCC_CFGR_SWS_HSI);
+  setAHBPrescaler(RCC_CFGR_HPRE_DIV1);
+  setAPB1Prescaler(RCC_CFGR_PPRE1_DIV2);
+  setI2C1ClockSource(I2C1_CLOCK_SOURCE_PCLK);
+  expectNoRegisterToChange();
+
+  uint32_t clockFrequency;
+  const ClockControl::ErrorCode errorCode = virtualClockControl.getClockFrequency(Peripheral::I2C1, clockFrequency);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(clockFrequency, Eq(EXPECTED_I2C1_CLOCK_FREQUENCY));
 }

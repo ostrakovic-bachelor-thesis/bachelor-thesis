@@ -3,6 +3,7 @@
 #include "MemoryAccess.h"
 #include "DriverTest.h"
 #include "ClockControlMock.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -37,7 +38,8 @@ public:
 
   I2C_TypeDef virtualI2CPeripheral;
   NiceMock<ClockControlMock> clockControlMock;
-  I2C virtualI2C = I2C(&virtualI2CPeripheral, &clockControlMock);
+  NiceMock<ResetControlMock> resetControlMock;
+  I2C virtualI2C = I2C(&virtualI2CPeripheral, &clockControlMock, &resetControlMock);
   I2C::I2CConfig i2cConfig;
 
   uint32_t m_messageIdx;
@@ -145,6 +147,28 @@ void AnI2C::setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLe
 
       return 0u;
     });
+}
+
+TEST_F(AnI2C, InitTurnsOnI2CPeripheralClock)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualI2C.getPeripheralTag()))
+    .Times(1u);
+
+  const I2C::ErrorCode errorCode = virtualI2C.init(i2cConfig);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::OK));
+}
+
+TEST_F(AnI2C, InitFailsIfTurningOnOfI2CPeripheralClockFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualI2C.getPeripheralTag()))
+    .Times(1u);
+
+  const I2C::ErrorCode errorCode = virtualI2C.init(i2cConfig);
+
+  ASSERT_THAT(errorCode, Eq(I2C::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
 }
 
 TEST_F(AnI2C, InitDisablesI2COnTheBeginningOfInitFunctionCall)
@@ -1380,4 +1404,10 @@ TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingWriteMemoryTransa
   virtualI2C.writeMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
 
   ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
+}
+
+TEST_F(AnI2C, GetPeripheralTagReturnsPointerToUnderlayingI2CPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualI2C.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualI2CPeripheral))));
 }

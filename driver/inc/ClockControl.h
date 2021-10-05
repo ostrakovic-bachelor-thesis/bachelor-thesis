@@ -98,6 +98,7 @@ private:
 
   uint32_t getUSART1ClockFrequency(void) const;
   uint32_t getUSART2ClockFrequency(void) const;
+  uint32_t getI2C1ClockFrequency(void) const;
 
   static const uint32_t s_msiClockFreq[];
 
@@ -105,7 +106,11 @@ private:
 
   static const uint32_t s_APBxPrescaler[];
 
+  static const GetClockFrequencyFunction_t s_i2cClockFrequency[];
+
   static const GetClockFrequencyFunction_t s_usart1ClockFrequency[];
+
+  static const GetClockFrequencyFunction_t s_usartClockFrequency[];
 
   static const GetClockFrequencyFunction_t s_PLLInputClockFrequency[];
 

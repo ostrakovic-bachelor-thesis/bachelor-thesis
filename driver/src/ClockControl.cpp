@@ -51,9 +51,24 @@ const uint32_t ClockControl::s_APBxPrescaler[] =
   [0b111] = 16u
 };
 
+const ClockControl::GetClockFrequencyFunction_t ClockControl::s_i2cClockFrequency[] =
+{
+  [0b00] = &ClockControl::getAPB1ClockFrequency,
+  [0b01] = &ClockControl::getSystemClockFrequency,
+  [0b10] = &ClockControl::getHSIClockFrequency,
+};
+
 const ClockControl::GetClockFrequencyFunction_t ClockControl::s_usart1ClockFrequency[] =
 {
   [0b00] = &ClockControl::getAPB2ClockFrequency,
+  [0b01] = &ClockControl::getSystemClockFrequency,
+  [0b10] = &ClockControl::getHSIClockFrequency,
+  [0b11] = &ClockControl::getLSEClockFrequency
+};
+
+const ClockControl::GetClockFrequencyFunction_t ClockControl::s_usartClockFrequency[] =
+{
+  [0b00] = &ClockControl::getAPB1ClockFrequency,
   [0b01] = &ClockControl::getSystemClockFrequency,
   [0b10] = &ClockControl::getHSIClockFrequency,
   [0b11] = &ClockControl::getLSEClockFrequency
@@ -117,6 +132,12 @@ ClockControl::getClockFrequency(Peripheral peripheral, uint32_t &clockFrequency)
     case Peripheral::USART2:
     {
       clockFrequency = getUSART2ClockFrequency();
+    }
+    break;
+
+    case Peripheral::I2C1:
+    {
+      clockFrequency = getI2C1ClockFrequency();
     }
     break;
 
@@ -293,23 +314,36 @@ uint32_t ClockControl::getUSART1ClockFrequency(void) const
   constexpr uint8_t USART1SEL_POSITION = 0u;
   constexpr uint8_t USART1SEL_NUM_OF_BITS = 2u;
 
-  const uint32_t USART1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
+  const uint32_t usart1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
     &(m_RCCPeripheralPtr->CCIPR),
     USART1SEL_POSITION,
     USART1SEL_NUM_OF_BITS);
 
-  return (this->*(s_usart1ClockFrequency[USART1ClockSourceIndex]))();
+  return (this->*(s_usart1ClockFrequency[usart1ClockSourceIndex]))();
 }
 
 uint32_t ClockControl::getUSART2ClockFrequency(void) const
 {
-  constexpr uint8_t USART1SEL_POSITION = 2u;
-  constexpr uint8_t USART1SEL_NUM_OF_BITS = 2u;
+  constexpr uint8_t USART2SEL_POSITION = 2u;
+  constexpr uint8_t USART2SEL_NUM_OF_BITS = 2u;
 
-  const uint32_t USART1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
+  const uint32_t usart2ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
     &(m_RCCPeripheralPtr->CCIPR),
-    USART1SEL_POSITION,
-    USART1SEL_NUM_OF_BITS);
+    USART2SEL_POSITION,
+    USART2SEL_NUM_OF_BITS);
 
-  return (this->*(s_usart1ClockFrequency[USART1ClockSourceIndex]))();
+  return (this->*(s_usartClockFrequency[usart2ClockSourceIndex]))();
+}
+
+uint32_t ClockControl::getI2C1ClockFrequency(void) const
+{
+  constexpr uint8_t I2C1SEL_POSITION = 12u;
+  constexpr uint8_t I2C1SEL_NUM_OF_BITS = 2u;
+
+  const uint32_t i2c1ClockSourceIndex = RegisterUtility<uint32_t>::getBitsInRegister(
+    &(m_RCCPeripheralPtr->CCIPR),
+    I2C1SEL_POSITION,
+    I2C1SEL_NUM_OF_BITS);
+
+  return (this->*(s_i2cClockFrequency[i2c1ClockSourceIndex]))();
 }

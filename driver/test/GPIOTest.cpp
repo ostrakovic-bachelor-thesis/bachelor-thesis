@@ -2,6 +2,7 @@
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -29,7 +30,8 @@ public:
   static constexpr GPIO::Pin RANDOM_GPIO_PIN = GPIO::Pin::PIN10;
 
   GPIO_TypeDef virtualGPIOPort;
-  GPIO virtualGPIO = GPIO(&virtualGPIOPort);
+  NiceMock<ResetControlMock> resetControlMock;
+  GPIO virtualGPIO = GPIO(&virtualGPIOPort, &resetControlMock);
   GPIO::PinConfiguration pinConfig;
 
   uint32_t expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value);
@@ -73,6 +75,43 @@ void AGPIO::TearDown()
   DriverTest::TearDown();
 }
 
+
+TEST_F(AGPIO, GetPeripheralTagReturnsPointerToUnderlayingGPIOPortCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualGPIO.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualGPIOPort))));
+}
+
+TEST_F(AGPIO, ConfigurePinTurnsOnGPIOPeripheralClockIfItIsNotAlreadyEnabled)
+{
+  resetControlMock.setReturnValueOfIsPeripheralClockEnabled(false);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualGPIO.getPeripheralTag()))
+    .Times(1u);
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+}
+
+TEST_F(AGPIO, ConfigurePinDoesNotTryToEnablePeripheralClockIfItIsAlreadyEnabled)
+{
+  resetControlMock.setReturnValueOfIsPeripheralClockEnabled(true);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualGPIO.getPeripheralTag()))
+    .Times(0u);
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
+}
+
+TEST_F(AGPIO, ConfigurePinFailsIfAnyOfCalledResetControlModuleMethodsFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+
+  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+
+  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
+}
 
 TEST_F(AGPIO, ConfigurePinSetsMODERRegisterAccordingToChoosenMode)
 {
@@ -467,4 +506,19 @@ TEST_F(AGPIO, GetsPinStateFailsIfPinIsOutOfAllowedRange)
   const GPIO::ErrorCode errorCode = virtualGPIO.getPinState(invalidPin, state);
 
   ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::INVALID_PIN_VALUE));
+}
+
+TEST_F(AGPIO, IsPinInUsageReturnsTrueIfPinIsConfiguredToWorkInAnyOfModesAkaIsInUsage)
+{
+  virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
+  expectNoRegisterToChange();
+
+  ASSERT_THAT(virtualGPIO.isPinInUsage(RANDOM_GPIO_PIN), Eq(true));
+}
+
+TEST_F(AGPIO, IsPinInUsageReturnsFalseIfPinIsNotConfiguredToWorkInAnyOfModesAkaIsNotInUsage)
+{
+  expectNoRegisterToChange();
+
+  ASSERT_THAT(virtualGPIO.isPinInUsage(RANDOM_GPIO_PIN), Eq(false));
 }

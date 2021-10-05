@@ -56,6 +56,12 @@ static void expectConfigurePinCall(GPIOMock &gpio, GPIOManager::GPIOPinConfigura
     });
 }
 
+static void expectConfigurePinCalls(GPIOMock &gpio)
+{
+  EXPECT_CALL(gpio, configurePin(_, _))
+    .Times(AnyNumber());
+}
+
 static bool operator==(const GPIO::PinConfiguration &gpioPinConfigLhs,
   const GPIO::PinConfiguration &gpioPinConfigRhs)
 {
@@ -123,4 +129,15 @@ TEST_F(TheGPIOManager, ConfiguresGPIOPinsSuccessfully)
   GPIOManager::ErrorCode errorCode = GPIOManager::configureGPIOPins(gpioPinsConfiguration);
 
   ASSERT_THAT(errorCode, Eq(GPIOManager::ErrorCode::OK));
+}
+
+TEST_F(TheGPIOManager, ConfiguresGPIOPinsFailsIfAnyOfUnderlayingFunctionCallForConfiguringGPIOPinFail)
+{
+  expectConfigurePinCalls(mockGPIOA);
+  expectConfigurePinCalls(mockGPIOB);
+  mockGPIOB.setReturnErrorCode(GPIO::ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE);
+
+  GPIOManager::ErrorCode errorCode = GPIOManager::configureGPIOPins(gpioPinsConfiguration);
+
+  ASSERT_THAT(errorCode, Eq(GPIOManager::ErrorCode::PIN_CONFIGURATION_FAILED));
 }

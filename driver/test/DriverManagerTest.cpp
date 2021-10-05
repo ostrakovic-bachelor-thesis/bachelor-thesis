@@ -19,7 +19,7 @@ TEST(TheDriverManager, GetsGPIOInstance)
 {
   const GPIO &gpioD = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOD);
 
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(gpioD.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::GPIOD)));
+  ASSERT_THAT(gpioD.getPeripheralTag(), Eq(Peripheral::GPIOD));
 }
 
 TEST(TheDriverManager, GetsUSARTInstance)

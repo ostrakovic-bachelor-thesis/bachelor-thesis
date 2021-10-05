@@ -18,15 +18,24 @@ DMA2D DriverManager::s_dma2dInstance =
 
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
-  [static_cast<uint8_t>(GPIOInstance::GPIOA)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOA)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOB)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOB)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOC)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOC)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOD)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOD)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOE)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOE)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOF)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOF)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOG)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOG)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOH)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOH)),
-  [static_cast<uint8_t>(GPIOInstance::GPIOI)] = GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOI))
+  [static_cast<uint8_t>(GPIOInstance::GPIOA)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOA), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOB)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOB), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOC)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOC), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOD)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOD), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOE)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOE), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOF)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOF), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOG)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOG), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOH)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOH), &s_resetControlDriverInstance),
+  [static_cast<uint8_t>(GPIOInstance::GPIOI)] =
+    GPIO(reinterpret_cast<GPIO_TypeDef*>(Peripheral::GPIOI), &s_resetControlDriverInstance)
 };
 
 USART DriverManager::s_usartDriverInstance[] =
@@ -48,9 +57,9 @@ USART DriverManager::s_usartDriverInstance[] =
 I2C DriverManager::s_i2cDriverInstance[] =
 {
   [static_cast<uint8_t>(I2CInstance::I2C1)] =
-    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C1), &s_clockControlDriverInstance),
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C1), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(I2CInstance::I2C2)] =
-    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C2), &s_clockControlDriverInstance),
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C2), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(I2CInstance::I2C3)] =
-    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C3), &s_clockControlDriverInstance)
+    I2C(reinterpret_cast<I2C_TypeDef*>(Peripheral::I2C3), &s_clockControlDriverInstance, &s_resetControlDriverInstance)
 };

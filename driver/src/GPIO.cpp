@@ -3,9 +3,16 @@
 #include "RegisterUtility.h"
 
 
-GPIO::GPIO(GPIO_TypeDef *GPIOPortPtr):
-  m_GPIOPortPtr(GPIOPortPtr)
+GPIO::GPIO(GPIO_TypeDef *gpioPortPtr, ResetControl *resetControlPtr):
+  m_gpioPortPtr(gpioPortPtr),
+  m_resetControlPtr(resetControlPtr),
+  m_isPinInUsageBitField(0u)
 {}
+
+bool GPIO::isPinInUsage(Pin pin) const
+{
+  return MemoryUtility<uint16_t>::isBitSet(m_isPinInUsageBitField, static_cast<uint8_t>(pin));
+}
 
 GPIO::ErrorCode GPIO::configurePin(Pin pin, const PinConfiguration &pinConfiguration)
 {
@@ -17,6 +24,12 @@ GPIO::ErrorCode GPIO::configurePin(Pin pin, const PinConfiguration &pinConfigura
   if (not isPinConfigurationValid(pinConfiguration))
   {
     return ErrorCode::PIN_CONFIG_PARAM_INVALID_VALUE;
+  }
+
+  ErrorCode errorCode = enablePeripheralClock();
+  if (ErrorCode::OK != errorCode)
+  {
+    return errorCode;
   }
 
   setPinMode(pin, pinConfiguration.mode);
@@ -32,6 +45,8 @@ GPIO::ErrorCode GPIO::configurePin(Pin pin, const PinConfiguration &pinConfigura
   {
     setAlternateFunction(pin, pinConfiguration.alternateFunction);
   }
+
+  putPinInUsage(pin);
 
   return ErrorCode::OK;
 }
@@ -103,7 +118,7 @@ inline void GPIO::setPinMode(Pin pin, PinMode mode)
 {
   constexpr uint8_t PIN_MODE_NUM_OF_BITS = 2u;
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->MODER),
+    &(m_gpioPortPtr->MODER),
     PIN_MODE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PIN_MODE_NUM_OF_BITS,
     static_cast<uint32_t>(mode));
@@ -113,7 +128,7 @@ inline GPIO::PinMode GPIO::readPinMode(Pin pin) const
 {
   constexpr uint8_t PIN_MODE_NUM_OF_BITS = 2u;
   const uint32_t pinMode = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_GPIOPortPtr->MODER),
+    &(m_gpioPortPtr->MODER),
     PIN_MODE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PIN_MODE_NUM_OF_BITS);
 
@@ -124,7 +139,7 @@ inline void GPIO::setPullConfig(Pin pin, PullConfig pullConfig)
 {
   constexpr uint8_t PULL_CONFIG_NUM_OF_BITS = 2u;
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->PUPDR),
+    &(m_gpioPortPtr->PUPDR),
     PULL_CONFIG_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PULL_CONFIG_NUM_OF_BITS,
     static_cast<uint32_t>(pullConfig));
@@ -134,7 +149,7 @@ inline void GPIO::setOutputSpeed(Pin pin, OutputSpeed outputSpeed)
 {
   constexpr uint8_t OUTPUT_SPEED_NUM_OF_BITS = 2u;
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->OSPEEDR),
+    &(m_gpioPortPtr->OSPEEDR),
     OUTPUT_SPEED_NUM_OF_BITS * static_cast<uint8_t>(pin),
     OUTPUT_SPEED_NUM_OF_BITS,
     static_cast<uint32_t>(outputSpeed));
@@ -144,7 +159,7 @@ inline void GPIO::setOutputType(Pin pin, OutputType outputType)
 {
   constexpr uint8_t OUTPUT_TYPE_NUM_OF_BITS = 1u;
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->OTYPER),
+    &(m_gpioPortPtr->OTYPER),
     OUTPUT_TYPE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     OUTPUT_TYPE_NUM_OF_BITS,
     static_cast<uint32_t>(outputType));
@@ -157,7 +172,7 @@ inline void GPIO::setAlternateFunction(Pin pin, AlternateFunction alternateFunct
   const uint8_t position = static_cast<uint8_t>(pin) % 8u;
 
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->AFR[registerIndex]),
+    &(m_gpioPortPtr->AFR[registerIndex]),
     ALTERNATE_FUNCTION_NUM_OF_BITS * position,
     ALTERNATE_FUNCTION_NUM_OF_BITS,
     static_cast<uint32_t>(alternateFunction));
@@ -167,7 +182,7 @@ inline void GPIO::setOutputPinState(Pin pin, PinState state)
 {
   constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_GPIOPortPtr->ODR),
+    &(m_gpioPortPtr->ODR),
     PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PIN_STATE_NUM_OF_BITS,
     static_cast<uint32_t>(state));
@@ -177,7 +192,7 @@ inline GPIO::PinState GPIO::readOutputPinState(Pin pin) const
 {
   constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
   const uint32_t pinState = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_GPIOPortPtr->ODR),
+    &(m_gpioPortPtr->ODR),
     PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PIN_STATE_NUM_OF_BITS);
 
@@ -188,7 +203,7 @@ inline GPIO::PinState GPIO::readInputPinState(Pin pin) const
 {
   constexpr uint8_t PIN_STATE_NUM_OF_BITS = 1u;
   const uint32_t pinState = RegisterUtility<uint32_t>::getBitsInRegister(
-    &(m_GPIOPortPtr->IDR),
+    &(m_gpioPortPtr->IDR),
     PIN_STATE_NUM_OF_BITS * static_cast<uint8_t>(pin),
     PIN_STATE_NUM_OF_BITS);
 
@@ -249,4 +264,23 @@ inline bool GPIO::isAlternateFunctionInValidRangeOfValues(AlternateFunction alte
 inline bool GPIO::isPinStateInValidRangeOfValues(PinState pinState)
 {
   return static_cast<uint32_t>(PinState::HIGH) >= static_cast<uint32_t>(pinState);
+}
+
+inline void GPIO::putPinInUsage(Pin pin)
+{
+  m_isPinInUsageBitField = MemoryUtility<uint16_t>::setBit(m_isPinInUsageBitField, static_cast<uint8_t>(pin));
+}
+
+GPIO::ErrorCode GPIO::enablePeripheralClock(void)
+{
+  bool isPeripheralClockEnabled;
+  ResetControl::ErrorCode errorCode =
+    m_resetControlPtr->isPeripheralClockEnabled(getPeripheralTag(), isPeripheralClockEnabled);
+
+  if ((ResetControl::ErrorCode::OK == errorCode) && (not isPeripheralClockEnabled))
+  {
+    errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
+  }
+
+  return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
 }

@@ -12,7 +12,8 @@ public:
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK = 0u,
+    OK                       = 0u,
+    PIN_CONFIGURATION_FAILED = 1u
   };
 
   struct GPIOPinConfiguration
@@ -29,12 +30,20 @@ public:
 template<uint32_t size>
 GPIOManager::ErrorCode GPIOManager::configureGPIOPins(GPIOPinConfiguration (&gpioPinsConfig)[size])
 {
+  ErrorCode errorCode = ErrorCode::OK;
+
   for (uint32_t i = 0u; i < size; ++i)
   {
-    gpioPinsConfig[i].gpio.configurePin(gpioPinsConfig[i].pin, gpioPinsConfig[i].pinConfiguration);
+    GPIO::ErrorCode gpioErrorCode =
+      gpioPinsConfig[i].gpio.configurePin(gpioPinsConfig[i].pin, gpioPinsConfig[i].pinConfiguration);
+    if (GPIO::ErrorCode::OK != gpioErrorCode)
+    {
+      errorCode = ErrorCode::PIN_CONFIGURATION_FAILED;
+      break;
+    }
   }
 
-  return ErrorCode::OK;
+  return errorCode;
 }
 
 #endif // #ifndef GPIO_MANAGER_H

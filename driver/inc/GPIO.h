@@ -2,6 +2,8 @@
 #define GPIO_H
 
 #include "stm32l4r9xx.h"
+#include "Peripheral.h"
+#include "ResetControl.h"
 #include <cstdint>
 
 
@@ -12,9 +14,10 @@ public:
   /**
    * @brief Constructor of GPIO class instance.
    *
-   * @param[in] - Pointer to a GPIO port.
+   * @param[in] gpioPortPtr     - Pointer to a GPIO port.
+   * @param[in] resetControlPtr - Pointer to Reset Control module.
    */
-  GPIO(GPIO_TypeDef *GPIOPortPtr);
+  GPIO(GPIO_TypeDef *gpioPortPtr, ResetControl *resetControlPtr);
 
 #ifdef UNIT_TEST
   virtual
@@ -24,11 +27,12 @@ public:
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK                             = 0u,
-    INVALID_PIN_VALUE              = 1u,
-    PIN_CONFIG_PARAM_INVALID_VALUE = 2u,
-    PIN_MODE_IS_NOT_APPROPRIATE    = 3u,
-    INVALID_PIN_STATE_VALUE        = 4u,
+    OK                               = 0u,
+    INVALID_PIN_VALUE                = 1u,
+    PIN_CONFIG_PARAM_INVALID_VALUE   = 2u,
+    PIN_MODE_IS_NOT_APPROPRIATE      = 3u,
+    INVALID_PIN_STATE_VALUE          = 4u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 5u
   };
 
   //! This enum class represents GPIO pin.
@@ -169,6 +173,11 @@ public:
     AlternateFunction alternateFunction;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  bool isPinInUsage(Pin pin) const;
+
   /**
    * @brief Method performs pin configuration.
    *
@@ -221,17 +230,17 @@ public:
 #endif // #ifdef UNIT_TEST
   ErrorCode getPinMode(Pin pin, PinMode &pinMode) const;
 
-#ifdef UNIT_TEST
   /**
-   * @brief Method gets raw pointer to underlaying GPIO peripheral instance.
+   * @brief   Method gets peripheral tag of the GPIO instance.
+   * @details GPIO peripheral tag is pointer to underlaying GPIO peripheral
+   *          instance casted to Peripheral type.
    *
-   * @return Pointer to underlaying GPIO peripheral instance.
+   * @return  Peripheral tag of the GPIO instance.
    */
-  inline void* getRawPointer(void) const
+  inline Peripheral getPeripheralTag(void) const
   {
-    return reinterpret_cast<void*>(m_GPIOPortPtr);
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<GPIO_TypeDef*>(m_gpioPortPtr)));
   }
-#endif // #ifdef UNIT_TEST
 
 private:
 
@@ -269,8 +278,18 @@ private:
 
   static bool isPinStateInValidRangeOfValues(PinState pinState);
 
+  void putPinInUsage(Pin pin);
+
+  ErrorCode enablePeripheralClock(void);
+
   //! Pointer to GPIO port
-  GPIO_TypeDef *m_GPIOPortPtr;
+  GPIO_TypeDef *m_gpioPortPtr;
+
+  //! Pointer to Reset Control module
+  ResetControl *m_resetControlPtr;
+
+  //! Bit field used to keep track is given pin in usage or not
+  uint16_t m_isPinInUsageBitField;
 };
 
 #endif // #ifndef GPIO_H
