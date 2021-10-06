@@ -2,6 +2,7 @@
 #define DMA2D_H
 
 #include "stm32l4r9xx.h"
+#include "ResetControl.h"
 #include "Peripheral.h"
 #include <cstdint>
 
@@ -10,14 +11,15 @@ class DMA2D
 {
 public:
 
-  DMA2D(DMA2D_TypeDef *DMA2DPtr);
+  DMA2D(DMA2D_TypeDef *DMA2DPeripheralPtr, ResetControl *resetControlPtr);
 
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK                       = 0u,
-    BUSY                     = 1u,
-    COLOR_VALUE_OUT_OF_RANGE = 2u
+    OK                               = 0u,
+    BUSY                             = 1u,
+    COLOR_VALUE_OUT_OF_RANGE         = 2u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 3u
   };
 
   enum class OutputColorFormat : uint8_t
@@ -128,17 +130,10 @@ public:
 
   void IRQHandler(void);
 
-#ifdef UNIT_TEST
-  /**
-   * @brief Method gets raw pointer to underlaying DMA2D peripheral instance.
-   *
-   * @return Pointer to underlaying DMA2D peripheral instance.
-   */
-  inline void* getRawPointer(void) const
+  inline Peripheral getPeripheralTag(void) const
   {
-    return reinterpret_cast<void*>(m_DMA2DPtr);
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<DMA2D_TypeDef*>(m_DMA2DPeripheralPtr)));
   }
-#endif // #ifdef UNIT_TEST
 
 private:
 
@@ -252,6 +247,8 @@ private:
   bool isFlagSet(Flag flag) const;
   void clearFlag(Flag flag);
 
+  ErrorCode enablePeripheralClock(void);
+
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
 
@@ -259,7 +256,10 @@ private:
   static const CSRegisterMapping s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(Flag::COUNT)];
 
   //! TODO
-  DMA2D_TypeDef *m_DMA2DPtr;
+  DMA2D_TypeDef *m_DMA2DPeripheralPtr;
+
+  //! Pointer to Reset Control module
+  ResetControl *m_resetControlPtr;
 
   //! Is DMA2D transfer completed
   bool m_isTransferCompleted;

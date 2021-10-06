@@ -3,6 +3,7 @@
 #include "MemoryAccess.h"
 #include "DriverTest.h"
 #include "ClockControlMock.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -33,7 +34,8 @@ public:
 
   USART_TypeDef virtualUSARTPeripheral;
   NiceMock<ClockControlMock> clockControlMock;
-  USART virtualUSART = USART(&virtualUSARTPeripheral, &clockControlMock);
+  NiceMock<ResetControlMock> resetControlMock;
+  USART virtualUSART = USART(&virtualUSARTPeripheral, &clockControlMock, &resetControlMock);
   USART::USARTConfig usartConfig;
 
   uint32_t m_txCounter;
@@ -113,6 +115,35 @@ void AnUSART::expectDataToBeWrittenInTDR(const void *messagePtr, uint32_t messag
         virtualUSART.IRQHandler();
       }
     });
+}
+
+
+TEST_F(AnUSART, GetPeripheralTagReturnsPointerToUnderlayingUSARTPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualUSART.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualUSARTPeripheral))));
+}
+
+TEST_F(AnUSART, InitTurnsOnUSARTPeripheralClock)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualUSART.getPeripheralTag()))
+    .Times(1u);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::OK));
+}
+
+TEST_F(AnUSART, InitFailsIfTurningOnOfI2CPeripheralClockFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualUSART.getPeripheralTag()))
+    .Times(1u);
+
+  const USART::ErrorCode errorCode = virtualUSART.init(usartConfig);
+
+  ASSERT_THAT(errorCode, Eq(USART::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
 }
 
 TEST_F(AnUSART, InitEnablesFIFOMode)

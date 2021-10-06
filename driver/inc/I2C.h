@@ -77,18 +77,6 @@ public:
 #endif // #ifdef UNIT_TEST
   void IRQHandler(void);
 
-#ifdef UNIT_TEST
-  /**
-   * @brief Method gets raw pointer to underlaying USART peripheral instance.
-   *
-   * @return Pointer to underlaying USART peripheral instance.
-   */
-  inline void* getRawPointer(void) const
-  {
-    return reinterpret_cast<void*>(m_I2CPeripheralPtr);
-  }
-#endif // #ifdef UNIT_TEST
-
   /**
    * @brief   Method gets peripheral tag of the I2C instance.
    * @details I2C peripheral tag is pointer to underlaying I2C peripheral

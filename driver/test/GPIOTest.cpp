@@ -82,9 +82,8 @@ TEST_F(AGPIO, GetPeripheralTagReturnsPointerToUnderlayingGPIOPortCastedToPeriphe
     Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualGPIOPort))));
 }
 
-TEST_F(AGPIO, ConfigurePinTurnsOnGPIOPeripheralClockIfItIsNotAlreadyEnabled)
+TEST_F(AGPIO, ConfigurePinTurnsOnGPIOPortPeripheralClock)
 {
-  resetControlMock.setReturnValueOfIsPeripheralClockEnabled(false);
   EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualGPIO.getPeripheralTag()))
     .Times(1u);
 
@@ -93,18 +92,7 @@ TEST_F(AGPIO, ConfigurePinTurnsOnGPIOPeripheralClockIfItIsNotAlreadyEnabled)
   ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
 }
 
-TEST_F(AGPIO, ConfigurePinDoesNotTryToEnablePeripheralClockIfItIsAlreadyEnabled)
-{
-  resetControlMock.setReturnValueOfIsPeripheralClockEnabled(true);
-  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualGPIO.getPeripheralTag()))
-    .Times(0u);
-
-  const GPIO::ErrorCode errorCode = virtualGPIO.configurePin(RANDOM_GPIO_PIN, pinConfig);
-
-  ASSERT_THAT(errorCode, Eq(GPIO::ErrorCode::OK));
-}
-
-TEST_F(AGPIO, ConfigurePinFailsIfAnyOfCalledResetControlModuleMethodsFail)
+TEST_F(AGPIO, ConfigurePinFailsIfTurningOnOfGPIOPortPeripheralClockFail)
 {
   resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
 

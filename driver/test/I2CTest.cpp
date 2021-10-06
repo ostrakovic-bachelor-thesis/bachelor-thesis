@@ -149,6 +149,13 @@ void AnI2C::setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLe
     });
 }
 
+
+TEST_F(AnI2C, GetPeripheralTagReturnsPointerToUnderlayingI2CPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualI2C.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualI2CPeripheral))));
+}
+
 TEST_F(AnI2C, InitTurnsOnI2CPeripheralClock)
 {
   resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
@@ -1404,10 +1411,4 @@ TEST_F(AnI2C, IsTransactionOngoingReturnsTrueIfThereIsAnOngoingWriteMemoryTransa
   virtualI2C.writeMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
 
   ASSERT_THAT(virtualI2C.isTransactionOngoing(), true);
-}
-
-TEST_F(AnI2C, GetPeripheralTagReturnsPointerToUnderlayingI2CPeripheralCastedToPeripheralType)
-{
-  ASSERT_THAT(virtualI2C.getPeripheralTag(),
-    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualI2CPeripheral))));
 }

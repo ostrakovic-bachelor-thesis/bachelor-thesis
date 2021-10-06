@@ -3,6 +3,7 @@
 
 #include "stm32l4r9xx.h"
 #include "ClockControl.h"
+#include "ResetControl.h"
 #include "Peripheral.h"
 #include <cstdint>
 
@@ -11,7 +12,7 @@ class USART
 {
 public:
 
-  USART(USART_TypeDef *USARTPeripheralPtr, ClockControl *clockControlPtr);
+  USART(USART_TypeDef *USARTPeripheralPtr, ClockControl *clockControlPtr, ResetControl *resetControlPtr);
 
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
@@ -19,7 +20,8 @@ public:
     OK                               = 0u,
     USART_CONFIG_PARAM_INVALID_VALUE = 1u,
     BAUDRATE_SETUP_PROBLEM           = 2u,
-    BUSY                             = 3u
+    BUSY                             = 3u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 4u
   };
 
   enum class FrameFormat : uint8_t
@@ -81,17 +83,10 @@ public:
 
   void IRQHandler(void);
 
-#ifdef UNIT_TEST
-  /**
-   * @brief Method gets raw pointer to underlaying USART peripheral instance.
-   *
-   * @return Pointer to underlaying USART peripheral instance.
-   */
-  inline void* getRawPointer(void) const
+  inline Peripheral getPeripheralTag(void) const
   {
-    return reinterpret_cast<void*>(m_USARTPeripheralPtr);
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<USART_TypeDef*>(m_USARTPeripheralPtr)));
   }
-#endif // #ifdef UNIT_TEST
 
 private:
 
@@ -172,6 +167,8 @@ private:
 
   bool isFlagSet(Flag flag) const;
 
+  ErrorCode enablePeripheralClock(void);
+
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
 
@@ -185,6 +182,9 @@ private:
 
   //! Pointer to Clock Control module
   ClockControl *m_clockControlPtr;
+
+  //! Pointer to Reset Control module
+  ResetControl *m_resetControlPtr;
 
   //! Pointer to message to transmit
   const void *m_txMessagePtr;

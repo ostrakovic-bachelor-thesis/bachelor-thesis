@@ -271,16 +271,9 @@ inline void GPIO::putPinInUsage(Pin pin)
   m_isPinInUsageBitField = MemoryUtility<uint16_t>::setBit(m_isPinInUsageBitField, static_cast<uint8_t>(pin));
 }
 
-GPIO::ErrorCode GPIO::enablePeripheralClock(void)
+inline GPIO::ErrorCode GPIO::enablePeripheralClock(void)
 {
-  bool isPeripheralClockEnabled;
-  ResetControl::ErrorCode errorCode =
-    m_resetControlPtr->isPeripheralClockEnabled(getPeripheralTag(), isPeripheralClockEnabled);
-
-  if ((ResetControl::ErrorCode::OK == errorCode) && (not isPeripheralClockEnabled))
-  {
-    errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
-  }
+  ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
 
   return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
 }

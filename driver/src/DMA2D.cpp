@@ -23,21 +23,28 @@ const DMA2D::CSRegisterMapping DMA2D::s_interruptStatusFlagsRegisterMapping[stat
 };
 
 
-DMA2D::DMA2D(DMA2D_TypeDef *DMA2DPtr):
-  m_DMA2DPtr(DMA2DPtr),
+DMA2D::DMA2D(DMA2D_TypeDef *DMA2DPeripheralPtr, ResetControl *resetControlPtr):
+  m_DMA2DPeripheralPtr(DMA2DPeripheralPtr),
+  m_resetControlPtr(resetControlPtr),
   m_isTransferCompleted(true)
 {}
 
 DMA2D::ErrorCode DMA2D::init(void)
 {
+  ErrorCode errorCode = enablePeripheralClock();
+  if (ErrorCode::OK != errorCode)
+  {
+    return errorCode;
+  }
+
   if (isTransferOngoing())
   {
     return ErrorCode::BUSY;
   }
 
-  uint32_t registerValueCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->CR));
+  uint32_t registerValueCR = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->CR));
   setLineOffsetModeToBytes(registerValueCR);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->CR), registerValueCR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->CR), registerValueCR);
 
   return ErrorCode::OK;
 }
@@ -157,10 +164,10 @@ inline void DMA2D::configureOutputStage(
   Dimension bufferDimension,
   void *bufferPtr)
 {
-  uint32_t registerValueOPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->OPFCCR));
+  uint32_t registerValueOPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->OPFCCR));
   setColorFormat<OutputColorFormat, 3u>(registerValueOPFCCR, colorFormat);
   setColorRedBlueSwap<OutputColorFormat, 3u>(registerValueOPFCCR, colorFormat);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OPFCCR), registerValueOPFCCR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->OPFCCR), registerValueOPFCCR);
 
   setMemoryAddress(&DMA2D_TypeDef::OMAR, bufferPtr, bufferDimension, position, colorFormat);
   setLineOffset(&DMA2D_TypeDef::OOR, bufferDimension, transactionRectangleDimension, colorFormat);
@@ -173,10 +180,10 @@ inline void DMA2D::configureForegroundInputStage(
   Dimension bufferDimension,
   const void *bufferPtr)
 {
-  uint32_t registerValueFGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->FGPFCCR));
+  uint32_t registerValueFGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->FGPFCCR));
   setColorFormat<InputColorFormat, 4u>(registerValueFGPFCCR, colorFormat);
   setColorRedBlueSwap<InputColorFormat, 4u>(registerValueFGPFCCR, colorFormat);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->FGPFCCR), registerValueFGPFCCR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->FGPFCCR), registerValueFGPFCCR);
 
   setMemoryAddress(&DMA2D_TypeDef::FGMAR, const_cast<void*>(bufferPtr), bufferDimension, position, colorFormat);
   setLineOffset(&DMA2D_TypeDef::FGOR, bufferDimension, transactionRectangleDimension, colorFormat);
@@ -189,10 +196,10 @@ inline void DMA2D::configureBackgroundInputStage(
   Dimension bufferDimension,
   const void *bufferPtr)
 {
-  uint32_t registerValueBGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->BGPFCCR));
+  uint32_t registerValueBGPFCCR = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->BGPFCCR));
   setColorFormat<InputColorFormat, 4u>(registerValueBGPFCCR, colorFormat);
   setColorRedBlueSwap<InputColorFormat, 4u>(registerValueBGPFCCR, colorFormat);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->BGPFCCR), registerValueBGPFCCR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->BGPFCCR), registerValueBGPFCCR);
 
   setMemoryAddress(&DMA2D_TypeDef::BGMAR, const_cast<void*>(bufferPtr), bufferDimension, position, colorFormat);
   setLineOffset(&DMA2D_TypeDef::BGOR, bufferDimension, transactionRectangleDimension, colorFormat);
@@ -225,7 +232,7 @@ inline void DMA2D::setLineOffsetModeToBytes(uint32_t &registerValueCR)
 inline bool DMA2D::isTransferOngoing(void) const
 {
   constexpr uint8_t DMA2D_CR_START_POSITION = 0u;
-  const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->CR));
+  const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->CR));
   const bool isStartBitSet = MemoryUtility<uint32_t>::isBitSet(registerValue, DMA2D_CR_START_POSITION);
 
   return isStartBitSet || (not m_isTransferCompleted);
@@ -237,7 +244,7 @@ inline void DMA2D::setMode(Mode mode)
   constexpr uint8_t DMA2D_CR_MODE_NUM_OF_BITS = 3u;
 
   RegisterUtility<uint32_t>::setBitsInRegister(
-    &(m_DMA2DPtr->CR),
+    &(m_DMA2DPeripheralPtr->CR),
     DMA2D_CR_MODE_POSITION,
     DMA2D_CR_MODE_NUM_OF_BITS,
     static_cast<uint32_t>(mode));
@@ -279,7 +286,7 @@ inline void DMA2D::setMemoryAddress(
 {
   uint32_t registerValueMAR = reinterpret_cast<uintptr_t>(bufferPtr) +
     getPixelSize(colorFormat) * (position.x + position.y * bufferDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->*memoryAddressRegister), registerValueMAR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->*memoryAddressRegister), registerValueMAR);
 }
 
 template<typename ColorFormat, typename MemberReference>
@@ -291,7 +298,7 @@ inline void DMA2D::setLineOffset(
 {
   uint32_t registerValueOR =
     getPixelSize(colorFormat) * (bufferDimension.width - rectangleDimension.width);
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->*lineOffsetRegister), registerValueOR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->*lineOffsetRegister), registerValueOR);
 }
 
 void DMA2D::setTransactionRectangleDimension(Dimension transactionRectangleDimension)
@@ -315,20 +322,20 @@ void DMA2D::setTransactionRectangleDimension(Dimension transactionRectangleDimen
     DMA2D_NLR_PL_NUM_OF_BITS,
     static_cast<uint32_t>(transactionRectangleDimension.width));
 
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->NLR), registerValueNLR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->NLR), registerValueNLR);
 }
 
 void DMA2D::startDMA2D(void)
 {
   constexpr uint8_t DMA2D_CR_START_POSITION = 0u;
-  RegisterUtility<uint32_t>::setBitInRegister(&(m_DMA2DPtr->CR), DMA2D_CR_START_POSITION);
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DMA2DPeripheralPtr->CR), DMA2D_CR_START_POSITION);
 }
 
 bool DMA2D::isFlagSet(Flag flag) const
 {
   const auto bitPosition = s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(flag)].bitPosition;
 
-  const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPtr->ISR));
+  const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->ISR));
   return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
 }
 
@@ -336,7 +343,7 @@ void DMA2D::clearFlag(Flag flag)
 {
   const auto bitPosition = s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(flag)].bitPosition;
 
-  RegisterUtility<uint32_t>::resetBitInRegister(&(m_DMA2DPtr->ISR), bitPosition);
+  RegisterUtility<uint32_t>::resetBitInRegister(&(m_DMA2DPeripheralPtr->ISR), bitPosition);
 }
 
 void DMA2D::enableInterrupt(Interrupt interrupt)
@@ -344,7 +351,7 @@ void DMA2D::enableInterrupt(Interrupt interrupt)
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
   uint32_t *registerPtr =
-    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPtr) + registerOffset));
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPeripheralPtr) + registerOffset));
 
   RegisterUtility<uint32_t>::setBitInRegister(registerPtr, bitPosition);
 }
@@ -354,7 +361,7 @@ void DMA2D::disableInterrupt(Interrupt interrupt)
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
   uint32_t *registerPtr =
-    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPtr) + registerOffset));
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPeripheralPtr) + registerOffset));
 
   RegisterUtility<uint32_t>::resetBitInRegister(registerPtr, bitPosition);
 }
@@ -364,7 +371,7 @@ bool DMA2D::isInterruptEnabled(Interrupt interrupt) const
   const auto registerOffset = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].registerOffset;
   const auto bitPosition = s_interruptCSRegisterMapping[static_cast<uint8_t>(interrupt)].bitPosition;
   const uint32_t *registerPtr =
-    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPtr) + registerOffset));
+    reinterpret_cast<uint32_t*>((reinterpret_cast<uintptr_t>(m_DMA2DPeripheralPtr) + registerOffset));
 
   const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
   return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
@@ -635,5 +642,12 @@ void DMA2D::setOutputColor(Color color)
     t_alphaSize,
     static_cast<uint32_t>(color.alpha));
 
-  MemoryAccess::setRegisterValue(&(m_DMA2DPtr->OCOLR), registerValueOCOLR);
+  MemoryAccess::setRegisterValue(&(m_DMA2DPeripheralPtr->OCOLR), registerValueOCOLR);
+}
+
+inline DMA2D::ErrorCode DMA2D::enablePeripheralClock(void)
+{
+  ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
+
+  return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
 }

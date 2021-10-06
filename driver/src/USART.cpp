@@ -56,9 +56,10 @@ const USART::CSRegisterMapping USART::s_interruptStatusFlagsRegisterMapping[stat
 };
 
 
-USART::USART(USART_TypeDef *USARTPeripheralPtr, ClockControl *clockControlPtr):
+USART::USART(USART_TypeDef *USARTPeripheralPtr, ClockControl *clockControlPtr, ResetControl *resetControlPtr):
   m_USARTPeripheralPtr(USARTPeripheralPtr),
   m_clockControlPtr(clockControlPtr),
+  m_resetControlPtr(resetControlPtr),
   m_isTxTransactionCompleted(true)
 {}
 
@@ -67,6 +68,12 @@ USART::ErrorCode USART::init(const USARTConfig &usartConfig)
   if (not isUSARTConfigurationValid(usartConfig))
   {
     return ErrorCode::USART_CONFIG_PARAM_INVALID_VALUE;
+  }
+
+  ErrorCode errorCode = enablePeripheralClock();
+  if (ErrorCode::OK != errorCode)
+  {
+    return errorCode;
   }
 
   disableUSART();
@@ -84,7 +91,7 @@ USART::ErrorCode USART::init(const USARTConfig &usartConfig)
   MemoryAccess::setRegisterValue(&(m_USARTPeripheralPtr->CR1), registerValueCR1);
   MemoryAccess::setRegisterValue(&(m_USARTPeripheralPtr->CR2), registerValueCR2);
 
-  ErrorCode errorCode = setBaudrate(usartConfig.baudrate, usartConfig.oversampling);
+  errorCode = setBaudrate(usartConfig.baudrate, usartConfig.oversampling);
 
   enableUSART();
 
@@ -487,4 +494,11 @@ bool USART::isBaudrateInValidRangeOfValues(Baudrate baudrate)
   }
 
   return isBaudrateValid;
+}
+
+inline USART::ErrorCode USART::enablePeripheralClock(void)
+{
+  ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
+
+  return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
 }

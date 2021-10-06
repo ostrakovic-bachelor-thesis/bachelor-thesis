@@ -26,7 +26,7 @@ TEST(TheDriverManager, GetsUSARTInstance)
 {
   const USART &usart3 = DriverManager::getInstance(DriverManager::USARTInstance::USART3);
 
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(usart3.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::USART3)));
+  ASSERT_THAT(usart3.getPeripheralTag(), Eq(Peripheral::USART3));
 }
 
 TEST(TheDriverManager, GetsClockControlInstance)
@@ -54,14 +54,14 @@ TEST(TheDriverManager, GetsDMA2DInstance)
 {
   const DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
 
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(dma2D.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::DMA2D)));
+  ASSERT_THAT(dma2D.getPeripheralTag(), Eq(Peripheral::DMA2D));
 }
 
 TEST(TheDriverManager, GetsI2CInstance)
 {
   const I2C &i2c2 = DriverManager::getInstance(DriverManager::I2CInstance::I2C2);
 
-  ASSERT_THAT(reinterpret_cast<uintptr_t>(i2c2.getRawPointer()), Eq(static_cast<uintptr_t>(Peripheral::I2C2)));
+  ASSERT_THAT(i2c2.getPeripheralTag(), Eq(Peripheral::I2C2));
 }
 
 TEST(TheDriverManager, GetsInterruptControllerInstance)

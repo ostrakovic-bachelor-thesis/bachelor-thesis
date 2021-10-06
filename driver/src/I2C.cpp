@@ -732,7 +732,7 @@ I2C::ErrorCode I2C::findTimingRegisterConfig(
 {
   ErrorCode errorCode = ErrorCode::WANTED_OUTPUT_CLOCK_PERIOD_NOT_ACHIEVABLE;
 
-  for (uint32_t PRESC = 3u; (3u >= PRESC) && (ErrorCode::OK != errorCode); --PRESC)
+  for (uint32_t PRESC = 3u; (16u > PRESC) && (ErrorCode::OK != errorCode); ++PRESC)
   {
     timingRegisterConfig.PRESC = PRESC;
 
@@ -818,7 +818,7 @@ void I2C::setTimingRegister(const TimingRegisterConfig &timingRegisterConfig)
   MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->TIMINGR), registerValueTIMINGR);
 }
 
-  I2C::ErrorCode I2C::enablePeripheralClock(void)
+inline I2C::ErrorCode I2C::enablePeripheralClock(void)
 {
   ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
 

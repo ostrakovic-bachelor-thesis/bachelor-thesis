@@ -71,7 +71,7 @@ const uint32_t g_bgBitmap[9][9] =
 
 uint16_t g_frameBuffer[100][100] = { 0u };
 
-//extern "C" void initSYSCLOCK(void);
+extern "C" void initSYSCLOCK(void);
 
 void panic(void)
 {
@@ -82,7 +82,6 @@ void panic(void)
 
 void startup(void)
 {
-  ResetControl &resetControl = DriverManager::getInstance(DriverManager::ResetControlInstance::GENERIC);
   GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
@@ -90,7 +89,7 @@ void startup(void)
   DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
   I2C &i2c1 = DriverManager::getInstance(DriverManager::I2CInstance::I2C1);
 
-  //initSYSCLOCK();
+  initSYSCLOCK();
 
   {
     SysTick::SysTickConfig sysTickConfig =
@@ -102,20 +101,6 @@ void startup(void)
 
     SysTick::ErrorCode error = sysTick.init(sysTickConfig);
     if (SysTick::ErrorCode::OK != error)
-    {
-      panic();
-    }
-  }
-
-  {
-    ResetControl::ErrorCode error = resetControl.enablePeripheralClock(Peripheral::USART2);
-    if (ResetControl::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = resetControl.enablePeripheralClock(Peripheral::DMA2D);
-    if (ResetControl::ErrorCode::OK != error)
     {
       panic();
     }

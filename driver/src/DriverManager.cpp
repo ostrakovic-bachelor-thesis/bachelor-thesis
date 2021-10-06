@@ -14,7 +14,7 @@ SysTick DriverManager::s_sysTickDriverInstance =
   SysTick(reinterpret_cast<SysTick_Type*>(CoreHardware::SYSTICK), &s_clockControlDriverInstance, &s_interruptControllerDriverInstance);
 
 DMA2D DriverManager::s_dma2dInstance =
-  DMA2D(reinterpret_cast<DMA2D_TypeDef*>(Peripheral::DMA2D));
+  DMA2D(reinterpret_cast<DMA2D_TypeDef*>(Peripheral::DMA2D), &s_resetControlDriverInstance);
 
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
@@ -41,17 +41,17 @@ GPIO DriverManager::s_gpioDriverInstance[] =
 USART DriverManager::s_usartDriverInstance[] =
 {
   [static_cast<uint8_t>(USARTInstance::USART1)]  =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART1), &s_clockControlDriverInstance),
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART1), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(USARTInstance::USART2)]  =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART2), &s_clockControlDriverInstance),
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART2), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(USARTInstance::USART3)]  =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART3), &s_clockControlDriverInstance),
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::USART3), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(USARTInstance::UART4)]   =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::UART4), &s_clockControlDriverInstance),
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::UART4), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(USARTInstance::UART5)]   =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::UART4), &s_clockControlDriverInstance),
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::UART5), &s_clockControlDriverInstance, &s_resetControlDriverInstance),
   [static_cast<uint8_t>(USARTInstance::LPUART1)] =
-    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::LPUART1), &s_clockControlDriverInstance)
+    USART(reinterpret_cast<USART_TypeDef*>(Peripheral::LPUART1), &s_clockControlDriverInstance, &s_resetControlDriverInstance)
 };
 
 I2C DriverManager::s_i2cDriverInstance[] =

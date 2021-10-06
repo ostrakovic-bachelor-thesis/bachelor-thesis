@@ -24,6 +24,7 @@ set(BachelorThesis_driver_component_cpp_sources
     src/DMA2D.cpp
     src/LTDC.cpp
     src/I2C.cpp
+    src/PowerControl.cpp
     src/InterruptController.cpp
     src/DriverManager.cpp)
 
@@ -38,6 +39,7 @@ set(BachelorThesis_driver_test_cpp_sources
     test/DMA2DTest.cpp
     test/LTDCTest.cpp
     test/I2CTest.cpp
+    test/PowerControlTest.cpp
     test/DriverManagerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

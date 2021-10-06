@@ -2,6 +2,7 @@
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -72,7 +73,8 @@ public:
   DMA2D::BlendBitmapConfig blendBitmapConfig;
 
   DMA2D_TypeDef virtualDMA2DPeripheral;
-  DMA2D virtualDMA2D = DMA2D(&virtualDMA2DPeripheral);
+  NiceMock<ResetControlMock> resetControlMock;
+  DMA2D virtualDMA2D = DMA2D(&virtualDMA2DPeripheral, &resetControlMock);
 
   void SetUp() override;
   void TearDown() override;
@@ -222,6 +224,34 @@ void ADMA2D::TearDown()
   DriverTest::TearDown();
 }
 
+
+TEST_F(ADMA2D, GetPeripheralTagReturnsPointerToUnderlayingDMA2DPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualDMA2D.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualDMA2DPeripheral))));
+}
+
+TEST_F(ADMA2D, InitTurnsOnDMA2DPeripheralClock)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualDMA2D.getPeripheralTag()))
+    .Times(1u);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.init();
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::OK));
+}
+
+TEST_F(ADMA2D, InitFailsIfTurningOnOfDMA2DPeripheralClockFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualDMA2D.getPeripheralTag()))
+    .Times(1u);
+
+  const DMA2D::ErrorCode errorCode = virtualDMA2D.init();
+
+  ASSERT_THAT(errorCode, Eq(DMA2D::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
+}
 
 TEST_F(ADMA2D, InitSetsThatLineOffsetIsExpressedInBytes)
 {
