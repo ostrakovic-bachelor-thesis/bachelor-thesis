@@ -16,6 +16,9 @@ SysTick DriverManager::s_sysTickDriverInstance =
 DMA2D DriverManager::s_dma2dInstance =
   DMA2D(reinterpret_cast<DMA2D_TypeDef*>(Peripheral::DMA2D), &s_resetControlDriverInstance);
 
+PowerControl DriverManager::s_powerControlInstance =
+  PowerControl(reinterpret_cast<PWR_TypeDef*>(Peripheral::PWR), &s_resetControlDriverInstance);
+
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
   [static_cast<uint8_t>(GPIOInstance::GPIOA)] =

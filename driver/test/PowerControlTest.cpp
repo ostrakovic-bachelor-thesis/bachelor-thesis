@@ -46,6 +46,10 @@ public:
   NiceMock<ResetControlMock> resetControlMock;
   PowerControl virtualPowerControl = PowerControl(&virtualPWRPeripheral, &resetControlMock);
 
+  uint32_t m_pvmo2Counter;
+
+  void setupSR2RegisterReadings(void);
+
   void SetUp() override;
   void TearDown() override;
 };
@@ -53,6 +57,8 @@ public:
 void APowerControl::SetUp()
 {
   DriverTest::SetUp();
+
+  m_pvmo2Counter = 1u;
 
   // set values of virtual PWR peripheral to reset values
   virtualPWRPeripheral.CR1   = PWR_CR1_RESET_VALUE;
@@ -88,6 +94,19 @@ void APowerControl::TearDown()
   DriverTest::TearDown();
 }
 
+void APowerControl::setupSR2RegisterReadings(void)
+{
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualPWRPeripheral.SR2)))
+    .WillByDefault([&](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t PWR_SR2_PVMO2_POSITION = 13u;
+      virtualPWRPeripheral.SR2 =
+        expectedRegVal(PWR_SR2_RESET_VALUE, PWR_SR2_PVMO2_POSITION, 1u, (((m_pvmo2Counter++) % 100u) != 0u));
+
+      return virtualPWRPeripheral.SR2;
+    });
+}
+
 
 TEST_F(APowerControl, GetPeripheralTagReturnsPointerToUnderlayingPWRPeripheralCastedToPeripheralType)
 {
@@ -115,4 +134,33 @@ TEST_F(APowerControl, InitFailsIfTurningOnOfPWRPeripheralClockFail)
   const PowerControl::ErrorCode errorCode = virtualPowerControl.init();
 
   ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
+}
+
+TEST_F(APowerControl, EnablePowerSupplyVDDIO2EnablesVDDIO2MonitoringBySettingPVME2BitInCR2Register)
+{
+  setupSR2RegisterReadings();
+  constexpr uint32_t PWR_CR2_PVME2_POSITION = 5u;
+  constexpr uint32_t EXPECTED_PWR_CR2_PVME2_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(PWR_CR2_PVME2_POSITION, EXPECTED_PWR_CR2_PVME2_VALUE);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualPWRPeripheral.CR2), bitValueMatcher);
+
+  virtualPowerControl.enablePowerSupplyVDDIO2();
+
+  ASSERT_THAT(virtualPWRPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(APowerControl, EnablePowerSupplyVDDIO2SetsIOSVBitInCR2RegisterWhenPVMO2BitInSR2RegisterBecomesSet)
+{
+  setupSR2RegisterReadings();
+  constexpr uint32_t PWR_CR2_IOSV_POSITION = 9u;
+  constexpr uint32_t EXPECTED_PWR_CR2_IOSV_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(PWR_CR2_IOSV_POSITION, EXPECTED_PWR_CR2_IOSV_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualPWRPeripheral.CR2), bitValueMatcher);
+
+  const PowerControl::ErrorCode errorCode = virtualPowerControl.enablePowerSupplyVDDIO2();
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  ASSERT_THAT(virtualPWRPeripheral.CR2, bitValueMatcher);
 }

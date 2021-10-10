@@ -8,6 +8,7 @@
 #include "I2C.h"
 #include "ClockControl.h"
 #include "ResetControl.h"
+#include "PowerControl.h"
 #include "SysTick.h"
 #include "InterruptController.h"
 #include <cstdint>
@@ -72,6 +73,11 @@ public:
     GENERIC = 0u
   };
 
+  enum class PowerControlInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -112,6 +118,11 @@ public:
     return s_dma2dInstance;
   }
 
+  inline static PowerControl& getInstance(PowerControlInstance powerControlInstance)
+  {
+    return s_powerControlInstance;
+  }
+
 private:
 
   //! TODO
@@ -137,6 +148,9 @@ private:
 
   //! TODO
   static I2C s_i2cDriverInstance[];
+
+  //! TODO
+  static PowerControl s_powerControlInstance;
 
 };
 

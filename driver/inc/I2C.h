@@ -109,6 +109,7 @@ private:
     RXDR_NOT_EMPTY,
     IS_STOP_DETECTED,
     IS_TRANSFER_COMPLETED,
+    IS_RELOAD_NEEDED,
 
     COUNT
   };
@@ -119,7 +120,8 @@ private:
     READ = 0u,
     WRITE,
     READ_MEMORY,
-    WRITE_MEMORY
+    WRITE_MEMORY_PART1,
+    WRITE_MEMORY_PART2
   };
 
   //! Constrol/status operation to register mapping
@@ -247,6 +249,9 @@ private:
 
   //! Pointer to Reset Control module
   ResetControl *m_resetControlPtr;
+
+  //! Memory address to be read/write
+  uint8_t m_memoryAddress;
 
   //! Pointer to message to transmit/receive
   void *m_messagePtr;

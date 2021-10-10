@@ -7,7 +7,8 @@ SysTick::SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr, Interr
   m_sysTickPtr(sysTickPtr),
   m_clockControlPtr(clockControlPtr),
   m_interruptControllerPtr(InterruptControllerPtr),
-  m_ticks(0ull)
+  m_ticks(0ull),
+  m_ticksPerSecond(0u)
 {}
 
 SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
@@ -17,6 +18,8 @@ SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
   ErrorCode errorCode = ticksPerSecondToReloadValue(sysTickConfig.ticksPerSecond, reloadValue);
   if (ErrorCode::OK == errorCode)
   {
+    m_ticksPerSecond = sysTickConfig.ticksPerSecond;
+
     setReloadValue(reloadValue);
     setCurrentValue(0u);
 
@@ -30,6 +33,13 @@ SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
   }
 
   return errorCode;
+}
+
+uint64_t SysTick::getElapsedTimeInMs(uint64_t timestamp) const
+{
+  constexpr uint32_t MILLISECONDS_IN_SECOND = 1000u;
+
+  return ((getTicks() - timestamp) * MILLISECONDS_IN_SECOND) / getTicksPerSecond();
 }
 
 void SysTick::IRQHandler(void)

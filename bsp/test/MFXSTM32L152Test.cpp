@@ -2,6 +2,8 @@
 #include "I2C.h"
 #include "I2CMock.h"
 #include "MemoryUtility.h"
+#include "GPIOMock.h"
+#include "SysTickMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -30,11 +32,23 @@ public:
   static constexpr MFXSTM32L152::GPIOPin RANDOM_GPIO_PIN = MFXSTM32L152::GPIOPin::PIN10;
 
   NiceMock<I2CMock> i2cMock;
-  MFXSTM32L152 virtualMFXSTM32L152 = MFXSTM32L152(&i2cMock);
-  MFXSTM32L152::MFXSTM32L152Config mfxstm32l152Config;
+  NiceMock<GPIOMock> mockGPIO;
+  NiceMock<SysTickMock> sysTickMock;
+  MFXSTM32L152 virtualMFXSTM32L152 = MFXSTM32L152(&i2cMock, &sysTickMock);
   MFXSTM32L152::GPIOPinConfiguration gpioPinConfig;
 
+  MFXSTM32L152::MFXSTM32L152Config mfxstm32l152Config =
+  {
+    .peripheralAddress    = MFXSTM32L152_PERIPHERAL_ADDRESS,
+    .wakeUpPinGPIOPortPtr = &mockGPIO,
+    .wakeUpPin            = GPIO::Pin::PIN2
+  };
+
   uint32_t m_isTransactionOngoingCallCounter;
+  uint64_t m_sysTickElapsedMs;
+
+  void expectWakeUpPinSetState(GPIO::PinState pinState, uint64_t timestamp, uint64_t afterTimestampInMs);
+  void setupSysTickReadings(void);
 
   void expectOthersMemoryWrite(void);
   void expectOthersMemoryRead(void);
@@ -59,6 +73,7 @@ public:
 void AMFXSTM32L152::SetUp()
 {
   m_isTransactionOngoingCallCounter = 0u;
+  m_sysTickElapsedMs = 0u;
 
   // is transaction ongoing will return false once in N calls
   EXPECT_CALL(i2cMock, isTransactionOngoing)
@@ -67,7 +82,6 @@ void AMFXSTM32L152::SetUp()
       return ((++m_isTransactionOngoingCallCounter) % EACH_N_CHECK_IF_FALSE) != 0u;
     });
 
-  mfxstm32l152Config.peripheralAddress = MFXSTM32L152_PERIPHERAL_ADDRESS;
   virtualMFXSTM32L152.init(mfxstm32l152Config);
 
   gpioPinConfig.mode = MFXSTM32L152::GPIOPinMode::INTERRUPT;
@@ -76,6 +90,34 @@ void AMFXSTM32L152::SetUp()
 void AMFXSTM32L152::TearDown()
 {
 
+}
+
+void AMFXSTM32L152::setupSysTickReadings(void)
+{
+  ON_CALL(sysTickMock, getElapsedTimeInMs(_))
+    .WillByDefault([&](uint64_t timestamp)
+    {
+      return (m_sysTickElapsedMs++) - timestamp;
+    });
+
+  ON_CALL(sysTickMock, getTicks())
+    .WillByDefault([&](void)
+    {
+      return m_sysTickElapsedMs;
+    });
+}
+
+void AMFXSTM32L152::expectWakeUpPinSetState(GPIO::PinState pinState, uint64_t timestamp, uint64_t afterTimestampInMs)
+{
+  EXPECT_CALL(mockGPIO, setPinState(mfxstm32l152Config.wakeUpPin, _))
+    .Times(AnyNumber());
+
+  EXPECT_CALL(mockGPIO, setPinState(mfxstm32l152Config.wakeUpPin, pinState))
+    .WillRepeatedly([&](GPIO::Pin pin, GPIO::PinState pinState) -> GPIO::ErrorCode
+    {
+      EXPECT_THAT(sysTickMock.getElapsedTimeInMs(timestamp), AllOf(Ge(afterTimestampInMs), Le(afterTimestampInMs + 1u)));
+      return GPIO::ErrorCode::OK;
+    });
 }
 
 void AMFXSTM32L152::expectOthersMemoryRead(void)
@@ -172,14 +214,14 @@ TEST_F(AMFXSTM32L152, UsesPeripheralAddressGivenAtInitForAnyI2CTransferWithTheCo
 TEST_F(AMFXSTM32L152, GetIDReadsIdFromMFXSTM32L152IdRegister)
 {
   static constexpr uint8_t MFXSTM32L152_ID_REG_ADDR = 0x00u;
-  uint8_t id;
-  // TODO replace
-  EXPECT_CALL(i2cMock, readMemory(_, MFXSTM32L152_ID_REG_ADDR, &id, 1u))
-    .Times(1u);
+  static constexpr uint8_t MFXSTM32L152_ID_REG_INIT_VALUE = 0x7B;
+  uint8_t id = 0x0;
+  expectMemoryReadOnlyOnce(MFXSTM32L152_ID_REG_ADDR, MFXSTM32L152_ID_REG_INIT_VALUE);
 
   const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.getID(id);
 
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+  ASSERT_THAT(id, Eq(MFXSTM32L152_ID_REG_INIT_VALUE));
 }
 
 TEST_F(AMFXSTM32L152, EnableGPIOEnablesBothGPIOandAGPIOInSystemControlRegister)
@@ -501,4 +543,40 @@ TEST_F(AMFXSTM32L152, RuntimeTaskCallsRegisteredGPIOInterruptCallbackIfGPIOInter
 
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
   ASSERT_THAT(isCallbackCalled, Eq(true));
+}
+
+TEST_F(AMFXSTM32L152, WakeUpAtTheBegginingSetsWakeUpPinStateToHigh)
+{
+  setupSysTickReadings();
+  const uint64_t timestamp = sysTickMock.getTicks();
+  expectWakeUpPinSetState(GPIO::PinState::HIGH, timestamp, 0u);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.wakeUp();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, WakeUpHoldsWakeUpPinInHighStateFor100MillisecondsBeforeSettingItToLowState)
+{
+  setupSysTickReadings();
+  const uint64_t timestamp = sysTickMock.getTicks();
+  expectWakeUpPinSetState(GPIO::PinState::LOW, timestamp, 100u);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.wakeUp();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, WakeUpHoldsWakeUpPinInLowStateFor10MillisecondsBeforeReturning)
+{
+  constexpr uint64_t WAKEUP_PIN_HIGH_PERIOD_MS = 100u;
+  constexpr uint64_t WAKEUP_PIN_LOW_PERIOD_MS = 10u;
+  constexpr uint64_t WAKEUP_TIME_TOTAL = WAKEUP_PIN_HIGH_PERIOD_MS + WAKEUP_PIN_LOW_PERIOD_MS;
+  setupSysTickReadings();
+  const uint64_t timestamp = sysTickMock.getTicks();
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.wakeUp();
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+  EXPECT_THAT(sysTickMock.getElapsedTimeInMs(timestamp), AllOf(Ge(WAKEUP_TIME_TOTAL), Le(WAKEUP_TIME_TOTAL + 2u)));
 }

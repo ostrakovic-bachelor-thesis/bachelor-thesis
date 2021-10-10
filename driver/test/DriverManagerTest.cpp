@@ -74,3 +74,11 @@ TEST(TheDriverManager, GetsInterruptControllerInstance)
   ASSERT_THAT(reinterpret_cast<uintptr_t>(interruptController.getRawPointerSCB()),
     Eq(static_cast<uintptr_t>(CoreHardware::SCB)));
 }
+
+TEST(TheDriverManager, GetsPowerControlInstance)
+{
+  const PowerControl &powerControl =
+    DriverManager::getInstance(DriverManager::PowerControlInstance::GENERIC);
+
+  ASSERT_THAT(powerControl.getPeripheralTag(), Eq(Peripheral::PWR));
+}

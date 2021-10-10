@@ -2,6 +2,8 @@
 #define MFXSTM32L152_H
 
 #include "I2C.h"
+#include "GPIO.h"
+#include "SysTick.h"
 
 
 class MFXSTM32L152
@@ -10,7 +12,7 @@ public:
 
   typedef void (*CallbackFunc)(void*);
 
-  MFXSTM32L152(I2C *I2CPtr);
+  MFXSTM32L152(I2C *I2CPtr, SysTick *sysTickPtr);
 
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
@@ -22,7 +24,9 @@ public:
 
   struct MFXSTM32L152Config
   {
-    uint16_t peripheralAddress;
+    uint16_t peripheralAddress; //!< MFXSTM32L152 I2C address
+    GPIO *wakeUpPinGPIOPortPtr; //!< MFXSTM32L152 wakeup pin GPIO port
+    GPIO::Pin wakeUpPin;        //!< MFXSTM32L152 wakeup pin
   };
 
   enum class Interrupt : uint8_t
@@ -140,6 +144,8 @@ public:
   };
 
   ErrorCode init(MFXSTM32L152Config &mfxstm32l152Config);
+
+  ErrorCode wakeUp(void);
 
   ErrorCode configureGPIOPin(GPIOPin pin, const GPIOPinConfiguration &pinConfiguration);
 
@@ -283,6 +289,8 @@ private:
 
   void callAllPendgingGPIOInterruptsCallbacks(const GPIOInterrupts &gpioInterrupts);
 
+  void waitMs(uint64_t periodToWaitInMs);
+
   static ErrorCode mapToErrorCode(I2C::ErrorCode i2cErrorCode);
 
   void setBitsInRegister(uint8_t &registerValue, uint8_t bitPosition);
@@ -304,11 +312,14 @@ private:
   CallbackFunc m_callback[24]  = { nullptr };
   void *m_callbackArgument[24] = { nullptr };
 
-  //! MFXSTM32L152C (peripheral) I2C address
-  uint16_t m_peripheralAddress;
+  //! MFXSTM32L152 configuration
+  MFXSTM32L152Config m_configuration;
 
   //! Pointer to I2C, used to communicate with MFXSTM32L152
   I2C *m_I2CPtr;
+
+  //! Pointer to SysTick
+  SysTick *m_sysTickPtr;
 };
 
 #endif // #ifndef MFXSTM32L152_H

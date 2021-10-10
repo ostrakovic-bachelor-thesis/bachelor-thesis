@@ -21,13 +21,19 @@ public:
   enum class ErrorCode : uint8_t
   {
     OK                               = 0u,
-    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 1u
+    VOLTAGE_IS_BELOW_THRESHOLD       = 1u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 2u
   };
 
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
   ErrorCode init(void);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode enablePowerSupplyVDDIO2(void);
 
   /**
    * @brief   Method gets peripheral tag of the PowerControl instance.
@@ -44,6 +50,10 @@ public:
 private:
 
   ErrorCode enablePeripheralClock(void);
+
+  void enableVDDIO2Monitoring(void);
+  bool isVDDIO2AboveThreshold(void);
+  void validateVDDIO2PowerSupply(void);
 
   //! Pointer to PWR peripheral
   PWR_TypeDef *m_PWRPeripheralPtr;

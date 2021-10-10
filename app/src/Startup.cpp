@@ -4,8 +4,10 @@
 #include "GPIO.h"
 #include "USART.h"
 #include "DMA2D.h"
+#include "PowerControl.h"
 #include "DriverManager.h"
 #include "GPIOManager.h"
+#include "MFXSTM32L152.h"
 #include "GPIOConfiguration.h"
 #include <cstdint>
 #include <cstdio>
@@ -82,6 +84,7 @@ void panic(void)
 
 void startup(void)
 {
+  PowerControl &powerControl = DriverManager::getInstance(DriverManager::PowerControlInstance::GENERIC);
   GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
@@ -101,6 +104,20 @@ void startup(void)
 
     SysTick::ErrorCode error = sysTick.init(sysTickConfig);
     if (SysTick::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    PowerControl::ErrorCode errorCode = powerControl.init();
+    if (PowerControl::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+
+    errorCode = powerControl.enablePowerSupplyVDDIO2();
+    if (PowerControl::ErrorCode::OK != errorCode)
     {
       panic();
     }
@@ -152,6 +169,12 @@ void startup(void)
     }
 
     error = interruptController.enableInterrupt(DMA2D_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = interruptController.enableInterrupt(I2C1_EV_IRQn);
     if (InterruptController::ErrorCode::OK != error)
     {
       panic();
@@ -240,6 +263,53 @@ void startup(void)
   }
 */
 
+  MFXSTM32L152 mfx = MFXSTM32L152(&i2c1, &sysTick);
+
+  {
+    MFXSTM32L152::MFXSTM32L152Config mfxConfig =
+    {
+      .peripheralAddress    = 0x42,
+      .wakeUpPinGPIOPortPtr = &DriverManager::getInstance(DriverManager::GPIOInstance::GPIOB),
+      .wakeUpPin            = GPIO::Pin::PIN2,
+    };
+
+    MFXSTM32L152::GPIOPinConfiguration mfxGPIOPinConfig =
+    {
+      .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
+      .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
+      .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
+    };
+
+    MFXSTM32L152::ErrorCode error = mfx.init(mfxConfig);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = mfx.wakeUp();
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = mfx.enableGPIO();
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN0, mfxGPIOPinConfig);
+  }
+
+  uint8_t mfxId = 0u;
+  {
+    MFXSTM32L152::ErrorCode error = mfx.getID(mfxId);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
   uint8_t message[2000];
   uint32_t messageLen;
 
@@ -270,10 +340,12 @@ void startup(void)
 
     if ((ticks % 10000u) < 5000u)
     {
+      mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
       gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::HIGH);
     }
     else
     {
+      mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
       gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
     }
   }

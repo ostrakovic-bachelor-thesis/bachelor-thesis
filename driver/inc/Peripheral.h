@@ -89,6 +89,10 @@
 #undef I2C3
 #endif // #ifdef I2C3
 
+#ifdef PWR
+#undef PWR
+#endif // #ifdef PWR
+
 
 enum class Peripheral : uintptr_t
 {
@@ -112,6 +116,7 @@ enum class Peripheral : uintptr_t
   I2C1    = I2C1_BASE,
   I2C2    = I2C2_BASE,
   I2C3    = I2C3_BASE,
+  PWR     = PWR_BASE,
 
 #ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,

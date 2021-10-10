@@ -57,3 +57,10 @@ void DMA2D_IRQHandler(void)
 
   dma2D.IRQHandler();
 }
+
+void I2C1_EV_IRQHandler(void)
+{
+  static I2C &i2c1 = DriverManager::getInstance(DriverManager::I2CInstance::I2C1);
+
+  i2c1.IRQHandler();
+}

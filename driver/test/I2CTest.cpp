@@ -44,18 +44,22 @@ public:
 
   uint32_t m_messageIdx;
   bool m_isTransactionWrite;
+  bool m_isMemoryAddressSent;
+  bool m_isMemoryAddressTxReloadCompleted;
 
   void setI2CInputClockFrequency(uint32_t clockFrequency);
   void setupISRRegisterReadings(uint32_t messageLen);
+  void setupISRAndCR2RegistersReadingsForWriteMemory(uint32_t messageLen);
   void setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLen);
   void expectDataToBeWrittenInTXDR(const void *messagePtr, uint32_t messageLen);
+  void expectDataToBeWrittenInTXDR(uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen);
 
   void SetUp() override;
   void TearDown() override;
 };
 
 const uint8_t  AnI2C::RANDOM_MSG[]   = "Random message.";
-const uint32_t AnI2C::RANDOM_MSG_LEN = sizeof(AnI2C::RANDOM_MSG);
+const uint32_t AnI2C::RANDOM_MSG_LEN = sizeof(AnI2C::RANDOM_MSG) - 1u;
 const uint16_t AnI2C::RANDOM_SLAVE_ADDRESS  = 0x7F;
 const uint8_t  AnI2C::RANDOM_MEMORY_ADDRESS = 0x80;
 
@@ -66,7 +70,9 @@ void AnI2C::SetUp()
   DriverTest::SetUp();
 
   m_messageIdx = 0u;
-  m_isTransactionWrite = true;
+  m_isTransactionWrite  = true;
+  m_isMemoryAddressSent = false;
+  m_isMemoryAddressTxReloadCompleted = false;
 
   // set values of virtual I2C peripheral to reset values
   virtualI2CPeripheral.CR1      = I2C_CR1_RESET_VALUE;
@@ -113,6 +119,37 @@ void AnI2C::setupISRRegisterReadings(uint32_t messageLen)
     });
 }
 
+void AnI2C::setupISRAndCR2RegistersReadingsForWriteMemory(uint32_t messageLen)
+{
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualI2CPeripheral.ISR)))
+    .WillByDefault([&, messageLen](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t USART_ISR_TXIS_POSITION = 1u;
+      constexpr uint32_t USART_ISR_TCR_POSITION = 7u;
+
+      if (m_isMemoryAddressSent && (not m_isMemoryAddressTxReloadCompleted) && (0u == m_messageIdx))
+      {
+        virtualI2CPeripheral.ISR =
+          expectedRegVal(I2C_ISR_RESET_VALUE, USART_ISR_TCR_POSITION, 1u, 1u);
+      }
+      else
+      {
+        virtualI2CPeripheral.ISR =
+          expectedRegVal(I2C_ISR_RESET_VALUE, USART_ISR_TXIS_POSITION, 1u, (m_messageIdx < messageLen));
+      }
+
+      return virtualI2CPeripheral.ISR;
+    });
+
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualI2CPeripheral.CR2)))
+    .WillByDefault([&, messageLen](volatile const uint32_t *registerPtr)
+    {
+      m_isMemoryAddressTxReloadCompleted = true;
+
+      return virtualI2CPeripheral.CR2;
+    });
+}
+
 void AnI2C::expectDataToBeWrittenInTXDR(const void *messagePtr, uint32_t messageLen)
 {
   m_isTransactionWrite = true;
@@ -127,6 +164,35 @@ void AnI2C::expectDataToBeWrittenInTXDR(const void *messagePtr, uint32_t message
         virtualI2C.IRQHandler();
       }
     });
+}
+
+void AnI2C::expectDataToBeWrittenInTXDR(uint8_t memoryAddress, const void *messagePtr, uint32_t messageLen)
+{
+  m_isTransactionWrite = true;
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualI2CPeripheral.TXDR), _))
+    .Times(messageLen + sizeof(memoryAddress))
+    .WillRepeatedly([&, messagePtr, messageLen](volatile void *registerPtr, uint32_t registerValue)
+    {
+      if (m_isMemoryAddressSent == false)
+      {
+        m_isMemoryAddressSent = true;
+        ASSERT_THAT(registerValue, memoryAddress);
+        virtualI2C.IRQHandler();
+      }
+      else
+      {
+        ASSERT_THAT(registerValue, reinterpret_cast<const uint8_t*>(messagePtr)[m_messageIdx++]);
+      }
+
+      if (m_messageIdx < messageLen)
+      {
+        virtualI2C.IRQHandler();
+      }
+    });
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(&(virtualI2CPeripheral.TXDR)), Matcher<uint32_t>(_)))
+    .Times(AnyNumber());
 }
 
 void AnI2C::setupRXDRRegisterReadings(const void *messagePtr, uint32_t messageLen)
@@ -556,11 +622,31 @@ TEST_F(AnI2C, IRQHandlerDoesNotWriteToTXDRRegisterIfTransmitInterruptIsNotEnable
   virtualI2C.IRQHandler();
 }
 
-TEST_F(AnI2C, IRQHandlerWritesDataToTransmitInTXDR)
+TEST_F(AnI2C, IRQHandlerWritesDataToTransmitInTXDRIfOngoingTransactionIsWrite)
 {
   setupISRRegisterReadings(RANDOM_MSG_LEN);
   virtualI2C.write(RANDOM_SLAVE_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
   expectDataToBeWrittenInTXDR(RANDOM_MSG, RANDOM_MSG_LEN);
+
+  // trigger calling of IRQ handler and writting to TXDR register
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerWritesMemoryAddressToBeReadInTXDRIfOngoingTransactionIsReadMemory)
+{
+  setupISRRegisterReadings(sizeof(RANDOM_MEMORY_ADDRESS));
+  virtualI2C.readMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+  expectDataToBeWrittenInTXDR(&RANDOM_MEMORY_ADDRESS, sizeof(RANDOM_MEMORY_ADDRESS));
+
+  // trigger calling of IRQ handler and writting to TXDR register
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerWritesMemoryAddressToBeWrittenBeforeDataInTXDRIfOngoingTransactionIsWriteMemory)
+{
+  virtualI2C.writeMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
+  setupISRAndCR2RegistersReadingsForWriteMemory(RANDOM_MSG_LEN);
+  expectDataToBeWrittenInTXDR(RANDOM_MEMORY_ADDRESS, RANDOM_MSG, RANDOM_MSG_LEN);
 
   // trigger calling of IRQ handler and writting to TXDR register
   virtualI2C.IRQHandler();
@@ -636,9 +722,31 @@ TEST_F(AnI2C, IRQHandlerSetsInNBYTESNumberOfBytesToReadWhenTransferIsCompletedIf
   virtualI2C.IRQHandler();
 }
 
-TEST_F(AnI2C, IRQHandlerEnablesAutoEndModeWhenTransferIsCompletedIfOngoingTransactionIsWriteMemory)
+TEST_F(AnI2C, IRQHandlerStartsNewTransferWhenOngoingTransferIsCompletedIfOngoingTransactionIsReadMemory)
 {
   constexpr uint32_t I2C_ISR_TC_POSITION = 6u;
+  constexpr uint32_t I2C_CR1_TCIE_POSITION = 6u;
+  constexpr uint32_t I2C_CR2_START_POSITION = 13u;
+  constexpr uint32_t EXPECTED_I2C_CR2_START_VALUE = 0x1;
+  virtualI2C.readMemory(RANDOM_SLAVE_ADDRESS, RANDOM_MEMORY_ADDRESS, rxBufferPtr, RANDOM_MSG_LEN);
+  // clear START flag as real hardware does after transfer is started
+  virtualI2CPeripheral.CR2 =
+    expectedRegVal(virtualI2CPeripheral.CR2, I2C_CR2_START_POSITION, 1u, 0u);
+  // force values as if transfer complete interrupt happened
+  virtualI2CPeripheral.CR1 =
+    expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_TCIE_POSITION, 1u, 1u);
+  virtualI2CPeripheral.ISR =
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TC_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(I2C_CR2_START_POSITION, EXPECTED_I2C_CR2_START_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualI2CPeripheral.CR2), bitValueMatcher);
+
+  virtualI2C.IRQHandler();
+}
+
+TEST_F(AnI2C, IRQHandlerEnablesAutoEndModeWhenReloadIsNeededIfOngoingTransactionIsWriteMemory)
+{
+  constexpr uint32_t I2C_ISR_TCR_POSITION = 7u;
   constexpr uint32_t I2C_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t I2C_CR2_AUTOEND_POSITION = 25u;
   constexpr uint32_t EXPECTED_I2C_CR2_AUTOEND_VALUE = 0x1;
@@ -647,7 +755,7 @@ TEST_F(AnI2C, IRQHandlerEnablesAutoEndModeWhenTransferIsCompletedIfOngoingTransa
   virtualI2CPeripheral.CR1 =
     expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_TCIE_POSITION, 1u, 1u);
   virtualI2CPeripheral.ISR =
-    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TC_POSITION, 1u, 1u);
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TCR_POSITION, 1u, 1u);
   auto bitValueMatcher =
     BitHasValue(I2C_CR2_AUTOEND_POSITION, EXPECTED_I2C_CR2_AUTOEND_VALUE);
   expectSpecificRegisterSetToBeCalledLast(&(virtualI2CPeripheral.CR2), bitValueMatcher);
@@ -655,9 +763,9 @@ TEST_F(AnI2C, IRQHandlerEnablesAutoEndModeWhenTransferIsCompletedIfOngoingTransa
   virtualI2C.IRQHandler();
 }
 
-TEST_F(AnI2C, IRQHandlerDisablesReloadModeWhenTransferIsCompletedIfOngoingTransactionIsWriteMemory)
+TEST_F(AnI2C, IRQHandlerDisablesReloadModeWhenReloadIsNeededIfOngoingTransactionIsWriteMemory)
 {
-  constexpr uint32_t I2C_ISR_TC_POSITION = 6u;
+  constexpr uint32_t I2C_ISR_TCR_POSITION = 7u;
   constexpr uint32_t I2C_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t I2C_CR2_RELOAD_POSITION = 24u;
   constexpr uint32_t EXPECTED_I2C_CR2_RELOAD_VALUE = 0x0;
@@ -666,7 +774,7 @@ TEST_F(AnI2C, IRQHandlerDisablesReloadModeWhenTransferIsCompletedIfOngoingTransa
   virtualI2CPeripheral.CR1 =
     expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_TCIE_POSITION, 1u, 1u);
   virtualI2CPeripheral.ISR =
-    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TC_POSITION, 1u, 1u);
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TCR_POSITION, 1u, 1u);
   auto bitValueMatcher =
     BitHasValue(I2C_CR2_RELOAD_POSITION, EXPECTED_I2C_CR2_RELOAD_VALUE);
   expectSpecificRegisterSetToBeCalledLast(&(virtualI2CPeripheral.CR2), bitValueMatcher);
@@ -674,9 +782,9 @@ TEST_F(AnI2C, IRQHandlerDisablesReloadModeWhenTransferIsCompletedIfOngoingTransa
   virtualI2C.IRQHandler();
 }
 
-TEST_F(AnI2C, IRQHandlerSetsInNBYTESNumberOfBytesToWriteWhenTransferIsCompletedIfOngoingTransactionIsWriteMemory)
+TEST_F(AnI2C, IRQHandlerSetsInNBYTESNumberOfBytesToWriteWhenReloadIsNeededIfOngoingTransactionIsWriteMemory)
 {
-  constexpr uint32_t I2C_ISR_TC_POSITION = 6u;
+  constexpr uint32_t I2C_ISR_TCR_POSITION = 7u;
   constexpr uint32_t I2C_CR1_TCIE_POSITION = 6u;
   constexpr uint32_t I2C_CR2_NBYTES_POSITION = 16u;
   constexpr uint32_t I2C_CR2_NBYTES_SIZE = 8u;
@@ -686,7 +794,7 @@ TEST_F(AnI2C, IRQHandlerSetsInNBYTESNumberOfBytesToWriteWhenTransferIsCompletedI
   virtualI2CPeripheral.CR1 =
     expectedRegVal(virtualI2CPeripheral.CR1, I2C_CR1_TCIE_POSITION, 1u, 1u);
   virtualI2CPeripheral.ISR =
-    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TC_POSITION, 1u, 1u);
+    expectedRegVal(virtualI2CPeripheral.ISR, I2C_ISR_TCR_POSITION, 1u, 1u);
   auto bitValueMatcher =
     BitsHaveValue(I2C_CR2_NBYTES_POSITION, I2C_CR2_NBYTES_SIZE, EXPECTED_I2C_CR2_NBYTES_VALUE);
   expectSpecificRegisterSetToBeCalledLast(&(virtualI2CPeripheral.CR2), bitValueMatcher);

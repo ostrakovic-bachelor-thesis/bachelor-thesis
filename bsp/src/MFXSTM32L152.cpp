@@ -3,13 +3,37 @@
 #include "RegisterUtility.h"
 
 
-MFXSTM32L152::MFXSTM32L152(I2C *I2CPtr):
-  m_I2CPtr(I2CPtr)
+MFXSTM32L152::MFXSTM32L152(I2C *I2CPtr, SysTick *sysTickPtr):
+  m_I2CPtr(I2CPtr),
+  m_sysTickPtr(sysTickPtr)
 {}
 
 MFXSTM32L152::ErrorCode MFXSTM32L152::init(MFXSTM32L152Config &mfxstm32l152Config)
 {
-  m_peripheralAddress = mfxstm32l152Config.peripheralAddress;
+  m_configuration = mfxstm32l152Config;
+
+  return ErrorCode::OK;
+}
+
+void MFXSTM32L152::waitMs(uint64_t periodToWaitInMs)
+{
+  const uint32_t timestamp = m_sysTickPtr->getTicks();
+
+  while (m_sysTickPtr->getElapsedTimeInMs(timestamp) < periodToWaitInMs);
+}
+
+MFXSTM32L152::ErrorCode MFXSTM32L152::wakeUp(void)
+{
+  constexpr uint64_t WAKEUP_PIN_HIGH_PERIOD_MS = 100u;
+  constexpr uint64_t WAKEUP_PIN_LOW_PERIOD_MS = 10u;
+
+  m_configuration.wakeUpPinGPIOPortPtr->setPinState(m_configuration.wakeUpPin, GPIO::PinState::HIGH);
+
+  waitMs(WAKEUP_PIN_HIGH_PERIOD_MS);
+
+  m_configuration.wakeUpPinGPIOPortPtr->setPinState(m_configuration.wakeUpPin, GPIO::PinState::LOW);
+
+  waitMs(WAKEUP_PIN_LOW_PERIOD_MS);
 
   return ErrorCode::OK;
 }
@@ -494,7 +518,8 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::resetBitsInRegister(RegisterAddress regist
 MFXSTM32L152::ErrorCode
 MFXSTM32L152::readRegister(uint8_t registerAddress, void *messagePtr, uint32_t messageLen)
 {
-  I2C::ErrorCode errorCode = m_I2CPtr->readMemory(m_peripheralAddress, registerAddress, messagePtr, messageLen);
+  I2C::ErrorCode errorCode =
+    m_I2CPtr->readMemory(m_configuration.peripheralAddress, registerAddress, messagePtr, messageLen);
 
   if (I2C::ErrorCode::OK == errorCode)
   {
@@ -507,7 +532,8 @@ MFXSTM32L152::readRegister(uint8_t registerAddress, void *messagePtr, uint32_t m
 MFXSTM32L152::ErrorCode
 MFXSTM32L152::writeRegister(uint8_t registerAddress, const void *messagePtr, uint32_t messageLen)
 {
-  I2C::ErrorCode errorCode = m_I2CPtr->writeMemory(m_peripheralAddress, registerAddress, messagePtr, messageLen);
+  I2C::ErrorCode errorCode =
+    m_I2CPtr->writeMemory(m_configuration.peripheralAddress, registerAddress, messagePtr, messageLen);
 
   if (I2C::ErrorCode::OK == errorCode)
   {

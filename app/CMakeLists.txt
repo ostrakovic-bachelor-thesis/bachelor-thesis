@@ -14,13 +14,18 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/InterruptController.cpp
     ../driver/src/DMA2D.cpp
     ../driver/src/I2C.cpp
+    ../driver/src/PowerControl.cpp
     ../driver/src/DriverManager.cpp)
+
+set(BachelorThesis_bsp_component_cpp_sources
+    ../bsp/src/MFXSTM32L152.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp
     src/Startup.cpp)
 
 add_executable(app ${BachelorThesis_driver_component_cpp_sources}
+                   ${BachelorThesis_bsp_component_cpp_sources}
                    ${BachelorThesis_app_component_cpp_sources}
                    src/startup_stm32l4r9xx.s
                    src/system_stm32l4xx.c

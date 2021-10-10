@@ -65,6 +65,12 @@ const I2C::CSRegisterMapping I2C::s_interruptStatusFlagsRegisterMapping[static_c
     .bitPosition = 6u,
   },
 
+  [static_cast<uint8_t>(I2C::Flag::IS_RELOAD_NEEDED)] =
+  {
+    .registerOffset = offsetof(I2C_TypeDef, ISR),
+    .bitPosition = 7u,
+  },
+
 };
 
 
@@ -181,9 +187,10 @@ I2C::readMemory(uint16_t slaveAddress, uint8_t memoryAddress, void *messagePtr, 
   {
     m_transactionTag = TransactionTag::READ_MEMORY;
 
-    m_messagePtr = messagePtr;
-    m_messageLen = messageLen;
-    m_messagePos = 0u;
+    m_memoryAddress = memoryAddress;
+    m_messagePtr    = messagePtr;
+    m_messageLen    = messageLen;
+    m_messagePos    = 0u;
 
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
@@ -214,7 +221,12 @@ I2C::writeMemory(uint16_t slaveAddress, uint8_t memoryAddress, const void *messa
 
   if (startTransaction())
   {
-    m_transactionTag = TransactionTag::WRITE_MEMORY;
+    m_transactionTag = TransactionTag::WRITE_MEMORY_PART1;
+
+    m_memoryAddress = memoryAddress;
+    m_messagePtr    = const_cast<void*>(messagePtr);
+    m_messageLen    = messageLen;
+    m_messagePos    = 0u;
 
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
@@ -249,15 +261,42 @@ bool I2C::isTransactionOngoing(void) const
 
 void I2C::IRQHandler(void)
 {
-  if (isInterruptEnabled(Interrupt::STOP_DETECTION) && isFlagSet(Flag::IS_STOP_DETECTED))
+  if (isInterruptEnabled(Interrupt::TRANSMIT) && isFlagSet(Flag::DATA_TO_TXDR_MUST_BE_WRITTEN))
   {
-    disableInterrupts(Interrupt::TRANSFER_COMPLETE, Interrupt::STOP_DETECTION, Interrupt::TRANSMIT, Interrupt::RECEIVE);
-    clearFlag(Flag::IS_STOP_DETECTED);
-    flushTXDR();
-    endTransaction();
+    if ((TransactionTag::WRITE == m_transactionTag) || (TransactionTag::WRITE_MEMORY_PART2 == m_transactionTag))
+    {
+      if (m_messagePos < m_messageLen)
+      {
+        writeData(reinterpret_cast<const uint8_t*>(m_messagePtr)[m_messagePos++]);
+      }
+    }
+    else if ((TransactionTag::WRITE_MEMORY_PART1 == m_transactionTag) || (TransactionTag::READ_MEMORY == m_transactionTag))
+    {
+      writeData(m_memoryAddress);
+    }
   }
+  else if (isInterruptEnabled(Interrupt::RECEIVE) && isFlagSet(Flag::RXDR_NOT_EMPTY))
+  {
+    if (m_messagePos < m_messageLen)
+    {
+      readData(reinterpret_cast<uint8_t*>(m_messagePtr)[m_messagePos++]);
+    }
+  }
+  else if (isInterruptEnabled(Interrupt::TRANSFER_COMPLETE) && isFlagSet(Flag::IS_RELOAD_NEEDED))
+  {
+    uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
-  if (isInterruptEnabled(Interrupt::TRANSFER_COMPLETE) && isFlagSet(Flag::IS_TRANSFER_COMPLETED))
+    if (TransactionTag::WRITE_MEMORY_PART1 == m_transactionTag)
+    {
+      m_transactionTag = TransactionTag::WRITE_MEMORY_PART2;
+      enableAutoEndMode(registerValueCR2);
+      disableReloadMode(registerValueCR2);
+      setNumberOfBytesToTransfer(registerValueCR2, m_messageLen);
+    }
+
+    MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
+  }
+  else if (isInterruptEnabled(Interrupt::TRANSFER_COMPLETE) && isFlagSet(Flag::IS_TRANSFER_COMPLETED))
   {
     uint32_t registerValueCR2 = MemoryAccess::getRegisterValue(&(m_I2CPeripheralPtr->CR2));
 
@@ -266,32 +305,17 @@ void I2C::IRQHandler(void)
       enableAutoEndMode(registerValueCR2);
       setNumberOfBytesToTransfer(registerValueCR2, m_messageLen);
       setTransferDirectionToRead(registerValueCR2);
-    }
-
-    if (TransactionTag::WRITE_MEMORY == m_transactionTag)
-    {
-      enableAutoEndMode(registerValueCR2);
-      disableReloadMode(registerValueCR2);
-      setNumberOfBytesToTransfer(registerValueCR2, m_messageLen);
+      setStartTransactionFlag(registerValueCR2);
     }
 
     MemoryAccess::setRegisterValue(&(m_I2CPeripheralPtr->CR2), registerValueCR2);
   }
-
-  if (isInterruptEnabled(Interrupt::TRANSMIT) && isFlagSet(Flag::DATA_TO_TXDR_MUST_BE_WRITTEN))
+  else if (isInterruptEnabled(Interrupt::STOP_DETECTION) && isFlagSet(Flag::IS_STOP_DETECTED))
   {
-    if (m_messagePos < m_messageLen)
-    {
-      writeData(reinterpret_cast<const uint8_t*>(m_messagePtr)[m_messagePos++]);
-    }
-  }
-
-  if (isInterruptEnabled(Interrupt::RECEIVE) && isFlagSet(Flag::RXDR_NOT_EMPTY))
-  {
-    if (m_messagePos < m_messageLen)
-    {
-      readData(reinterpret_cast<uint8_t*>(m_messagePtr)[m_messagePos++]);
-    }
+    disableInterrupts(Interrupt::TRANSFER_COMPLETE, Interrupt::STOP_DETECTION, Interrupt::TRANSMIT, Interrupt::RECEIVE);
+    clearFlag(Flag::IS_STOP_DETECTED);
+    flushTXDR();
+    endTransaction();
   }
 }
 

@@ -158,3 +158,30 @@ TEST_F(ASysTick, IRQHandlerCallIncreasesTickCountByOne)
 
   ASSERT_THAT(endTicks - startTicks, Eq(1ull));
 }
+
+TEST_F(ASysTick, GetsTicksPerSecondReturnsNumberOfTicksPerSecondIfInitializationOfSysTickWasSuccessful)
+{
+  virtualSysTick.init(sysTickConfig);
+
+  ASSERT_THAT(virtualSysTick.getTicksPerSecond(), Eq(sysTickConfig.ticksPerSecond));
+}
+
+TEST_F(ASysTick, GetsTicksPerSecondReturnZeroIfSysTickIsNotInitialized)
+{
+  ASSERT_THAT(virtualSysTick.getTicksPerSecond(), Eq(0u));
+}
+
+TEST_F(ASysTick, GetElapsedTimeInMsGetsElapsedTimeinMillisecondsSinceProvidedTimestamp)
+{
+  constexpr uint32_t EXPECTED_ELAPSED_TIME_IN_MS = 500u;
+  constexpr uint32_t MILLISECONDS_IN_SECOND = 1000u;
+  const uint32_t numberOfIRQHandlerCalls =
+    (EXPECTED_ELAPSED_TIME_IN_MS * virtualSysTick.getTicksPerSecond()) / MILLISECONDS_IN_SECOND;
+  const uint64_t timestamp = virtualSysTick.getTicks();
+  for (uint32_t i = 0u; i < numberOfIRQHandlerCalls; ++i)
+  {
+    virtualSysTick.IRQHandler();
+  }
+
+  ASSERT_THAT(virtualSysTick.getElapsedTimeInMs(timestamp), Eq(EXPECTED_ELAPSED_TIME_IN_MS));
+}

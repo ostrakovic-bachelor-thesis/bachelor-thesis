@@ -15,6 +15,7 @@ void UART4_IRQHandler(void);
 void UART5_IRQHandler(void);
 void LPUART1_IRQHandler(void);
 void DMA2D_IRQHandler(void);
+void I2C1_EV_IRQHandler(void);
 
 #ifdef __cplusplus
 }

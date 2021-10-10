@@ -15,7 +15,7 @@ class I2CMock : public I2C
 public:
 
   I2CMock():
-    I2C(nullptr, nullptr)
+    I2C(nullptr, nullptr, nullptr)
   {}
 
   virtual ~I2CMock() = default;

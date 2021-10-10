@@ -15,6 +15,11 @@ public:
 
   SysTick(SysTick_Type *sysTickPtr, ClockControl *clockControlPtr, InterruptController *InterruptControllerPtr);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ~SysTick() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -31,13 +36,35 @@ public:
     bool enableOnInit;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode init(const SysTickConfig& sysTickConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   inline uint64_t getTicks(void) const
   {
     return m_ticks;
   }
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  inline uint32_t getTicksPerSecond(void) const
+  {
+    return m_ticksPerSecond;
+  }
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  uint64_t getElapsedTimeInMs(uint64_t timestamp) const;
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   void IRQHandler(void);
 
 #ifdef UNIT_TEST
@@ -75,6 +102,9 @@ private:
 
   //! TODO
   uint64_t m_ticks;
+
+  //! TODO
+  uint32_t m_ticksPerSecond;
 };
 
 #endif // #ifndef SYS_TICK_H
