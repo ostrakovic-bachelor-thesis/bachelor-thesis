@@ -2,6 +2,7 @@
 #define SYSTEM_CONFIG_H
 
 #include "stm32l4r9xx.h"
+#include "ResetControl.h"
 #include "Peripheral.h"
 
 
@@ -9,12 +10,14 @@ class SystemConfig
 {
 public:
 
-  SystemConfig(SYSCFG_TypeDef *sysCfgPeripheralPtr);
+  SystemConfig(SYSCFG_TypeDef *sysCfgPeripheralPtr, ResetControl *resetControlPtr);
 
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK = 0u
+    OK                               = 0u,
+    INVALID_GPIO_PORT                = 1u,
+    CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 2u
   };
 
   enum class EXTILine : uint8_t
@@ -50,11 +53,27 @@ public:
     GPIOI = 0b1000
   };
 
+  ErrorCode init(void);
+
   ErrorCode mapGPIOToEXTILine(EXTILine extiLine, GPIOPort gpioPort);
+
+  inline Peripheral getPeripheralTag(void) const
+  {
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<SYSCFG_TypeDef*>(m_sysCfgPeripheralPtr)));
+  }
 
 private:
 
+  ErrorCode enablePeripheralClock(void);
+  void setGPIOToEXTILineMapping(EXTILine extiLine, GPIOPort gpioPort);
+
+  static bool isGPIOPortValid(GPIOPort gpioPort, EXTILine extiLine);
+
+  //! Pointer to SYSCFG peripheral
   SYSCFG_TypeDef *m_sysCfgPeripheralPtr;
+
+  //! Pointer to Reset Control module
+  ResetControl *m_resetControlPtr;
 };
 
 #endif // #ifndef SYSTEM_CONFIG_H

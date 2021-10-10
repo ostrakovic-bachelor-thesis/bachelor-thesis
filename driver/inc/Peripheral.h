@@ -93,6 +93,10 @@
 #undef PWR
 #endif // #ifdef PWR
 
+#ifdef EXTI
+#undef EXTI
+#endif // #ifdef EXTI
+
 
 enum class Peripheral : uintptr_t
 {
@@ -117,6 +121,7 @@ enum class Peripheral : uintptr_t
   I2C2    = I2C2_BASE,
   I2C3    = I2C3_BASE,
   PWR     = PWR_BASE,
+  EXTI    = EXTI_BASE,
 
 #ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,

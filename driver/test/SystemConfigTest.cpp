@@ -2,6 +2,7 @@
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -27,7 +28,8 @@ public:
   static constexpr uint32_t SYSCFG_SWPR2_RESET_VALUE   = 0x00000000;
 
   SYSCFG_TypeDef virtualSYSCFGPeripheral;
-  SystemConfig virtualSystemConfig = SystemConfig(&virtualSYSCFGPeripheral);
+  NiceMock<ResetControlMock> resetControlMock;
+  SystemConfig virtualSystemConfig = SystemConfig(&virtualSYSCFGPeripheral, &resetControlMock);
 
   void SetUp() override;
   void TearDown() override;
@@ -56,6 +58,35 @@ void ASystemConfig::TearDown()
   DriverTest::TearDown();
 }
 
+
+TEST_F(ASystemConfig, GetPeripheralTagReturnsPointerToUnderlayingSYSCTRLPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualSystemConfig.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualSYSCFGPeripheral))));
+}
+
+TEST_F(ASystemConfig, InitTurnsOnSYSCFGPeripheralClock)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualSystemConfig.getPeripheralTag()))
+    .Times(1u);
+
+  const SystemConfig::ErrorCode errorCode = virtualSystemConfig.init();
+
+  ASSERT_THAT(errorCode, Eq(SystemConfig::ErrorCode::OK));
+}
+
+TEST_F(ASystemConfig, InitFailsIfTurningOnOfSYSCFGPeripheralClockFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualSystemConfig.getPeripheralTag()))
+    .Times(1u);
+
+  const SystemConfig::ErrorCode errorCode = virtualSystemConfig.init();
+
+  ASSERT_THAT(errorCode, Eq(SystemConfig::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
+}
+
 TEST_F(ASystemConfig, MapGPIOToEXTILineDefinesForGivenEXTILineWithWhichGPIOPortItShouldBeInterconnected)
 {
   constexpr uint32_t EXTIX_CONFIG_PER_EXTICR_REG = 4u;
@@ -74,4 +105,14 @@ TEST_F(ASystemConfig, MapGPIOToEXTILineDefinesForGivenEXTILineWithWhichGPIOPortI
 
   ASSERT_THAT(errorCode, Eq(SystemConfig::ErrorCode::OK));
   ASSERT_THAT(virtualSYSCFGPeripheral.EXTICR[SYSCFG_EXTICR_REG_IDX], bitValueMatcher);
+}
+
+TEST_F(ASystemConfig, MapGPIOToEXTILineCanNotInterconnectGPIOIToEXTILines12To15)
+{
+  expectNoRegisterToChange();
+
+  const SystemConfig::ErrorCode errorCode =
+    virtualSystemConfig.mapGPIOToEXTILine(SystemConfig::EXTILine::EXTI12, SystemConfig::GPIOPort::GPIOI);
+
+  ASSERT_THAT(errorCode, Eq(SystemConfig::ErrorCode::INVALID_GPIO_PORT));
 }
