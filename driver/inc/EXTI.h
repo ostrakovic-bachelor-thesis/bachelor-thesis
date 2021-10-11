@@ -17,6 +17,17 @@ public:
     OK = 0u
   };
 
+  enum class IRQTag : uint8_t
+  {
+    EXTI0        = 0u,
+    EXTI1        = 1u,
+    EXTI2        = 2u,
+    EXTI3        = 3u,
+    EXTI4        = 4u,
+    EXTI5_TO_9   = 5u,
+    EXTI10_TO_15 = 6u
+  };
+
   enum class EXTILine : uint8_t
   {
     LINE0  = 0u,
@@ -62,14 +73,35 @@ public:
     LINE40 = 40u
   };
 
+  enum class InterruptTrigger : uint8_t
+  {
+    RISING_EDGE  = 0u,
+    FALLING_EDGE = 1u,
+    BOTH_EDGE    = 2u
+  };
+
   struct EXTIConfig
   {
     bool isInterruptMasked;
+    InterruptTrigger interruptTrigger;
   };
 
   ErrorCode configureEXITLine(EXTILine line, EXTIConfig config);
 
+  void IRQHandler(IRQTag irqTag);
+
 private:
+
+  static constexpr uint32_t NUMBER_OF_BITS_IN_UINT32_T = 32u;
+
+  void unmaskInterruptLine(EXTILine line);
+  void maskInterruptLine(EXTILine line);
+
+  void enableInterruptTriggeringOnRisingEdge(EXTILine line);
+  void disableInterruptTriggeringOnRisingEdge(EXTILine line);
+
+  void enableInterruptTriggeringOnFallingEdge(EXTILine line);
+  void disableInterruptTriggeringOnFallingEdge(EXTILine line);
 
   EXTI_TypeDef *m_EXTIPeripheralPtr;
 };

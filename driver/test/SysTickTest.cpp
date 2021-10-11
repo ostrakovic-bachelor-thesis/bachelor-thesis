@@ -175,6 +175,7 @@ TEST_F(ASysTick, GetElapsedTimeInMsGetsElapsedTimeinMillisecondsSinceProvidedTim
 {
   constexpr uint32_t EXPECTED_ELAPSED_TIME_IN_MS = 500u;
   constexpr uint32_t MILLISECONDS_IN_SECOND = 1000u;
+  virtualSysTick.init(sysTickConfig);
   const uint32_t numberOfIRQHandlerCalls =
     (EXPECTED_ELAPSED_TIME_IN_MS * virtualSysTick.getTicksPerSecond()) / MILLISECONDS_IN_SECOND;
   const uint64_t timestamp = virtualSysTick.getTicks();
