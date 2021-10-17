@@ -82,3 +82,17 @@ TEST(TheDriverManager, GetsPowerControlInstance)
 
   ASSERT_THAT(powerControl.getPeripheralTag(), Eq(Peripheral::PWR));
 }
+
+TEST(TheDriverManager, GetsEXTIInstance)
+{
+  const EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  ASSERT_THAT(exti.getPeripheralTag(), Eq(Peripheral::EXTI));
+}
+
+TEST(TheDriverManager, GetsSystemConfigInstance)
+{
+  const SystemConfig &systemConfig = DriverManager::getInstance(DriverManager::SystemConfigInstance::GENERIC);
+
+  ASSERT_THAT(systemConfig.getPeripheralTag(), Eq(Peripheral::SYSCFG));
+}

@@ -29,6 +29,8 @@ const ResetControl::EnablePeripheralClockRegisterMapping ResetControl::s_enableP
   { .peripheral = Peripheral::I2C3, .enableRegister = Register::APB1ENR1, .enableBitPosition = 23u },
 
   { .peripheral = Peripheral::PWR, .enableRegister = Register::APB1ENR1, .enableBitPosition = 28u },
+
+  { .peripheral = Peripheral::SYSCFG, .enableRegister = Register::APB2ENR, .enableBitPosition = 0u },
 };
 
 

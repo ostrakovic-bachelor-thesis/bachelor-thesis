@@ -11,6 +11,8 @@
 #include "PowerControl.h"
 #include "SysTick.h"
 #include "InterruptController.h"
+#include "EXTI.h"
+#include "SystemConfig.h"
 #include <cstdint>
 
 
@@ -78,6 +80,17 @@ public:
     GENERIC = 0u
   };
 
+  enum class EXTIInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
+  enum class SystemConfigInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -115,12 +128,22 @@ public:
 
   inline static DMA2D& getInstance(DMA2DInstance dma2DInstance)
   {
-    return s_dma2dInstance;
+    return s_dma2dDriverInstance;
   }
 
   inline static PowerControl& getInstance(PowerControlInstance powerControlInstance)
   {
-    return s_powerControlInstance;
+    return s_powerControlDriverInstance;
+  }
+
+  inline static EXTI& getInstance(EXTIInstance extiInstance)
+  {
+    return s_extiDriverInstance;
+  }
+
+  inline static SystemConfig& getInstance(SystemConfigInstance systemConfigInstance)
+  {
+    return s_systemConfigDriverInstance;
   }
 
 private:
@@ -138,7 +161,7 @@ private:
   static SysTick s_sysTickDriverInstance;
 
   //! TODO
-  static DMA2D s_dma2dInstance;
+  static DMA2D s_dma2dDriverInstance;
 
   //! TODO
   static GPIO s_gpioDriverInstance[];
@@ -150,7 +173,13 @@ private:
   static I2C s_i2cDriverInstance[];
 
   //! TODO
-  static PowerControl s_powerControlInstance;
+  static PowerControl s_powerControlDriverInstance;
+
+  //! TODO
+  static EXTI s_extiDriverInstance;
+
+  //! TODO
+  static SystemConfig s_systemConfigDriverInstance;
 
 };
 

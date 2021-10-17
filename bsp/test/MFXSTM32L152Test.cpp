@@ -36,6 +36,7 @@ public:
   NiceMock<SysTickMock> sysTickMock;
   MFXSTM32L152 virtualMFXSTM32L152 = MFXSTM32L152(&i2cMock, &sysTickMock);
   MFXSTM32L152::GPIOPinConfiguration gpioPinConfig;
+  MFXSTM32L152::IRQPinConfiguration irqPinConfig;
 
   MFXSTM32L152::MFXSTM32L152Config mfxstm32l152Config =
   {
@@ -389,6 +390,36 @@ TEST_F(AMFXSTM32L152, ConfigurePinEnablesPinInterruptIfPinModeIsInterrupt)
   expectMemoryWriteOnlyOnce(MFXSTM32L152_GPIO_IRQ_EN_REG_ADDR, bitValueMatcher);
 
   const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.configureGPIOPin(RANDOM_GPIO_PIN, gpioPinConfig);
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, ConfigureIRQPinSetsIRQPinOutputTypeAccordingToChosenOutputType)
+{
+  constexpr uint8_t MFXSTM32L152_MFX_IRQ_OUT_REG_ADDR = 0x41u;
+  constexpr uint32_t MFXSTM32L152_MFX_IRQ_OUT_OTYPE_POSITION = 0u;
+  constexpr uint32_t MFXSTM32L152_MFX_IRQ_OUT_OTYPE_VALUE = 1u;
+  irqPinConfig.outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL;
+  auto bitValueMatcher =
+    BitHasValue(MFXSTM32L152_MFX_IRQ_OUT_OTYPE_POSITION, MFXSTM32L152_MFX_IRQ_OUT_OTYPE_VALUE);
+  expectMemoryWriteOnlyOnce(MFXSTM32L152_MFX_IRQ_OUT_REG_ADDR, bitValueMatcher);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.configureIRQPin(irqPinConfig);
+
+  ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
+}
+
+TEST_F(AMFXSTM32L152, ConfigureIRQPinSetsIRQPinPolarityAccordingToChosenPolarity)
+{
+  constexpr uint8_t MFXSTM32L152_MFX_IRQ_OUT_REG_ADDR = 0x41u;
+  constexpr uint32_t MFXSTM32L152_MFX_IRQ_OUT_POLARITY_POSITION = 1u;
+  constexpr uint32_t MFXSTM32L152_MFX_IRQ_OUT_POLARITY_VALUE = 1u;
+  irqPinConfig.polarity = MFXSTM32L152::IRQPinPolarity::HIGH;
+  auto bitValueMatcher =
+    BitHasValue(MFXSTM32L152_MFX_IRQ_OUT_POLARITY_POSITION, MFXSTM32L152_MFX_IRQ_OUT_POLARITY_VALUE);
+  expectMemoryWriteOnlyOnce(MFXSTM32L152_MFX_IRQ_OUT_REG_ADDR, bitValueMatcher);
+
+  const MFXSTM32L152::ErrorCode errorCode = virtualMFXSTM32L152.configureIRQPin(irqPinConfig);
 
   ASSERT_THAT(errorCode, Eq(MFXSTM32L152::ErrorCode::OK));
 }

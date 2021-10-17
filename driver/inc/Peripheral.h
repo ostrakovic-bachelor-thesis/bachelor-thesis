@@ -97,6 +97,10 @@
 #undef EXTI
 #endif // #ifdef EXTI
 
+#ifdef SYSCFG
+#undef SYSCFG
+#endif // #ifdef SYSCFG
+
 
 enum class Peripheral : uintptr_t
 {
@@ -122,6 +126,7 @@ enum class Peripheral : uintptr_t
   I2C3    = I2C3_BASE,
   PWR     = PWR_BASE,
   EXTI    = EXTI_BASE,
+  SYSCFG  = SYSCFG_BASE,
 
 #ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,

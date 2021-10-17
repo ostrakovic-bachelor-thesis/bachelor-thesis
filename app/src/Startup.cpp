@@ -73,6 +73,10 @@ const uint32_t g_bgBitmap[9][9] =
 
 uint16_t g_frameBuffer[100][100] = { 0u };
 
+MFXSTM32L152 g_mfx = MFXSTM32L152(
+  &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
+  &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
+
 extern "C" void initSYSCLOCK(void);
 
 void panic(void)
@@ -82,10 +86,34 @@ void panic(void)
   while (loopWhileTrue);
 }
 
+void mfxIrqCallback(EXTI::EXTILine extiLine)
+{
+  MFXSTM32L152::ErrorCode errorCode = g_mfx.runtimeTask();
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
+}
+
+void turnOnGreenLed(void *argumentPtr)
+{
+  GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
+
+  gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::HIGH);
+}
+
+void turnOffGreenLed(void *argumentPtr)
+{
+  GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
+
+  gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
+}
+
 void startup(void)
 {
   PowerControl &powerControl = DriverManager::getInstance(DriverManager::PowerControlInstance::GENERIC);
-  GPIO &gpioH = DriverManager::getInstance(DriverManager::GPIOInstance::GPIOH);
+  SystemConfig &systemConfig = DriverManager::getInstance(DriverManager::SystemConfigInstance::GENERIC);
+  EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
   InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
@@ -156,26 +184,6 @@ void startup(void)
   {
     DMA2D::ErrorCode error = dma2D.init();
     if (DMA2D::ErrorCode::OK != error)
-    {
-      panic();
-    }
-  }
-
-  {
-    InterruptController::ErrorCode error = interruptController.enableInterrupt(USART2_IRQn);
-    if (InterruptController::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = interruptController.enableInterrupt(DMA2D_IRQn);
-    if (InterruptController::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = interruptController.enableInterrupt(I2C1_EV_IRQn);
-    if (InterruptController::ErrorCode::OK != error)
     {
       panic();
     }
@@ -263,7 +271,60 @@ void startup(void)
   }
 */
 
-  MFXSTM32L152 mfx = MFXSTM32L152(&i2c1, &sysTick);
+  {
+    SystemConfig::ErrorCode errorCode = systemConfig.init();
+    if (SystemConfig::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+
+    errorCode = systemConfig.mapGPIOToEXTILine(SystemConfig::EXTILine::EXTI1, SystemConfig::GPIOPort::GPIOI);
+    if (SystemConfig::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  {
+    EXTI::EXTIConfig extiLineConfig =
+    {
+      .isInterruptMasked = false,
+      .interruptTrigger  = EXTI::InterruptTrigger::RISING_EDGE,
+      .interruptCallback = mfxIrqCallback
+    };
+
+    EXTI::ErrorCode errorCode = exti.configureEXTILine(EXTI::EXTILine::LINE1, extiLineConfig);
+    if (EXTI::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  {
+    InterruptController::ErrorCode error = interruptController.enableInterrupt(USART2_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = interruptController.enableInterrupt(EXTI1_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = interruptController.enableInterrupt(I2C1_EV_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = interruptController.enableInterrupt(I2C1_EV_IRQn);
+    if (InterruptController::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
 
   {
     MFXSTM32L152::MFXSTM32L152Config mfxConfig =
@@ -273,6 +334,42 @@ void startup(void)
       .wakeUpPin            = GPIO::Pin::PIN2,
     };
 
+    MFXSTM32L152::ErrorCode error = g_mfx.init(mfxConfig);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.wakeUp();
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.enableGPIO();
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.enableInterrupt(MFXSTM32L152::Interrupt::GPIO);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    MFXSTM32L152::IRQPinConfiguration irqPinConfiguration =
+    {
+      .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
+      .polarity   = MFXSTM32L152::IRQPinPolarity::HIGH
+    };
+
+    error = g_mfx.configureIRQPin(irqPinConfiguration);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
     MFXSTM32L152::GPIOPinConfiguration mfxGPIOPinConfig =
     {
       .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
@@ -280,30 +377,57 @@ void startup(void)
       .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
     };
 
-    MFXSTM32L152::ErrorCode error = mfx.init(mfxConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN0, mfxGPIOPinConfig);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = mfx.wakeUp();
+    mfxGPIOPinConfig.mode             = MFXSTM32L152::GPIOPinMode::INTERRUPT;
+    mfxGPIOPinConfig.outputType       = MFXSTM32L152::GPIOOutputType::PUSH_PULL;
+    mfxGPIOPinConfig.pullConfig       = MFXSTM32L152::GPIOPullConfig::PULL_DOWN;
+    mfxGPIOPinConfig.interruptTrigger = MFXSTM32L152::GPIOInterruptTrigger::HIGH_LEVEL;
+
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN1, mfxGPIOPinConfig);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = mfx.enableGPIO();
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN2, mfxGPIOPinConfig);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN0, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN3, mfxGPIOPinConfig);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN4, mfxGPIOPinConfig);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN1, turnOnGreenLed, nullptr);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN2, turnOffGreenLed, nullptr);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
   }
 
   uint8_t mfxId = 0u;
   {
-    MFXSTM32L152::ErrorCode error = mfx.getID(mfxId);
+    MFXSTM32L152::ErrorCode error = g_mfx.getID(mfxId);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
@@ -316,6 +440,14 @@ void startup(void)
   while (true)
   {
     const uint64_t ticks = sysTick.getTicks();
+
+    {
+      EXTI::ErrorCode errorCode = exti.runtimeTask();
+      if (EXTI::ErrorCode::OK != errorCode)
+      {
+        panic();
+      }
+    }
 
     if (not usart2.isWriteTransactionOngoing())
     {
@@ -338,15 +470,19 @@ void startup(void)
       usart2.write(message, messageLen);
     }
 
+    MFXSTM32L152::ErrorCode error = g_mfx.runtimeTask();
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
     if ((ticks % 10000u) < 5000u)
     {
-      mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
-      gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::HIGH);
+      g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
     }
     else
     {
-      mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
-      gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
+      g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
     }
   }
 }

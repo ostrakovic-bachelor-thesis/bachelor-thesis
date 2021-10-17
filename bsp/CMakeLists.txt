@@ -26,6 +26,8 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/LTDC.cpp
     ../driver/src/I2C.cpp
     ../driver/src/PowerControl.cpp
+    ../driver/src/SystemConfig.cpp
+    ../driver/src/EXTI.cpp
     ../driver/src/InterruptController.cpp
     ../driver/src/DriverManager.cpp)
 

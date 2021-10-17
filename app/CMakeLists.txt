@@ -15,6 +15,8 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/DMA2D.cpp
     ../driver/src/I2C.cpp
     ../driver/src/PowerControl.cpp
+    ../driver/src/EXTI.cpp
+    ../driver/src/SystemConfig.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_bsp_component_cpp_sources

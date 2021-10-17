@@ -127,6 +127,12 @@ public:
     FALLING_EDGE = 0b01
   };
 
+  enum class IRQPinPolarity : uint8_t
+  {
+    LOW  = 0b0,
+    HIGH = 0b1
+  };
+
   /**
    * This structure contains information needed for pin configuration. Depending on the mode,
    * all or only some configuration parameters from the structure will be used:
@@ -143,11 +149,19 @@ public:
     GPIOInterruptTrigger interruptTrigger;
   };
 
+  struct IRQPinConfiguration
+  {
+    GPIOOutputType outputType;
+    IRQPinPolarity polarity;
+  };
+
   ErrorCode init(MFXSTM32L152Config &mfxstm32l152Config);
 
   ErrorCode wakeUp(void);
 
   ErrorCode configureGPIOPin(GPIOPin pin, const GPIOPinConfiguration &pinConfiguration);
+
+  ErrorCode configureIRQPin(const IRQPinConfiguration &irqPinConfiguration);
 
   /**
    * @brief Metod sets GPIO pin state.
@@ -177,8 +191,6 @@ public:
 
   ErrorCode registerGPIOInterruptCallback(GPIOPin pin, CallbackFunc callback, void *callbackArgument);
 
-  void IRQHandler(void);
-
   ErrorCode runtimeTask(void);
 
 private:
@@ -193,6 +205,7 @@ private:
     GPIO_IRQ_PENDING = 0x0Cu, //!< GPIO IRQ pending register (READ)
     GPIO_STATE       = 0x10u, //!< GPIO state register (READ)
     SYSTEM_CONTROL   = 0x40u, //!< System control register (READ/WRITE)
+    IRQ_PIN_CONFIG   = 0x41u, //!< IRQ pin configuration register (WRITE)
     IRQ_SRC_EN       = 0x42u, //!< IRQ source enable register (READ/WRITE)
     IRQ_ACK          = 0x44u, //!< IRQ interrupt acknowledge register (WRITE)
     GPIO_IRQ_EN      = 0x48u, //!< GPIO interrupt enable register (READ/WRITE)

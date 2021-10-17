@@ -85,6 +85,29 @@ MFXSTM32L152::ErrorCode MFXSTM32L152::configureGPIOPin(GPIOPin pin, const GPIOPi
   return ErrorCode::OK;
 }
 
+MFXSTM32L152::ErrorCode MFXSTM32L152::configureIRQPin(const IRQPinConfiguration &irqPinConfiguration)
+{
+  constexpr uint8_t IRQ_PIN_CONFIG_OUTPUT_TYPE_POSITION = 0u;
+  constexpr uint8_t IRQ_PIN_CONFIG_POLARITY_POSITION = 1u;
+
+  uint8_t registerValue = 0u;
+
+  if (GPIOOutputType::PUSH_PULL == irqPinConfiguration.outputType)
+  {
+    registerValue = MemoryUtility<uint8_t>::setBit(registerValue, IRQ_PIN_CONFIG_OUTPUT_TYPE_POSITION);
+  }
+
+  if (IRQPinPolarity::HIGH == irqPinConfiguration.polarity)
+  {
+    registerValue = MemoryUtility<uint8_t>::setBit(registerValue, IRQ_PIN_CONFIG_POLARITY_POSITION);
+  }
+
+  ErrorCode errorCode =
+    writeRegister(static_cast<uint8_t>(RegisterAddress::IRQ_PIN_CONFIG), &registerValue, sizeof(uint8_t));
+
+  return errorCode;
+}
+
 MFXSTM32L152::ErrorCode MFXSTM32L152::setGPIOPinState(GPIOPin pin, GPIOPinState state)
 {
   ErrorCode errorCode;
@@ -121,11 +144,6 @@ MFXSTM32L152::registerGPIOInterruptCallback(GPIOPin pin, CallbackFunc callback, 
   m_callbackArgument[static_cast<uint8_t>(pin)] = callbackArgument;
 
   return ErrorCode::OK;
-}
-
-void MFXSTM32L152::IRQHandler(void)
-{
-
 }
 
 MFXSTM32L152::ErrorCode MFXSTM32L152::runtimeTask(void)

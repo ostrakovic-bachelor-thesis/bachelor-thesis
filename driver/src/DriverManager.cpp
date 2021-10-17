@@ -13,11 +13,17 @@ InterruptController DriverManager::s_interruptControllerDriverInstance =
 SysTick DriverManager::s_sysTickDriverInstance =
   SysTick(reinterpret_cast<SysTick_Type*>(CoreHardware::SYSTICK), &s_clockControlDriverInstance, &s_interruptControllerDriverInstance);
 
-DMA2D DriverManager::s_dma2dInstance =
+DMA2D DriverManager::s_dma2dDriverInstance =
   DMA2D(reinterpret_cast<DMA2D_TypeDef*>(Peripheral::DMA2D), &s_resetControlDriverInstance);
 
-PowerControl DriverManager::s_powerControlInstance =
+PowerControl DriverManager::s_powerControlDriverInstance =
   PowerControl(reinterpret_cast<PWR_TypeDef*>(Peripheral::PWR), &s_resetControlDriverInstance);
+
+EXTI DriverManager::s_extiDriverInstance =
+  EXTI(reinterpret_cast<EXTI_TypeDef*>(Peripheral::EXTI));
+
+SystemConfig DriverManager::s_systemConfigDriverInstance =
+  SystemConfig(reinterpret_cast<SYSCFG_TypeDef*>(Peripheral::SYSCFG), &s_resetControlDriverInstance);
 
 GPIO DriverManager::s_gpioDriverInstance[] =
 {

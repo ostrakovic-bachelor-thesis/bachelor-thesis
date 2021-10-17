@@ -2,6 +2,7 @@
 #include "MemoryUtility.h"
 #include "MemoryAccess.h"
 #include "DriverTest.h"
+#include <memory>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -12,6 +13,15 @@ using namespace ::testing;
 class AnEXTI : public DriverTest
 {
 public:
+
+  class IRQHandlerCallbackMock
+  {
+  public:
+    virtual ~IRQHandlerCallbackMock() = default;
+
+    // mock methods
+    MOCK_METHOD(void, interruptCallback, (EXTI::EXTILine));
+  };
 
   //! Based on real reset values for EXTI registers
   static constexpr uint32_t EXTI_IMR1_RESET_VALUE   = 0xFF820000;
@@ -31,9 +41,14 @@ public:
   EXTI virtualEXTI= EXTI(&virtualEXTIPeripheral);
   EXTI::EXTIConfig extiConfig;
 
+  static std::unique_ptr<IRQHandlerCallbackMock> irqHandlerCallbackMockPtr;
+  static void interruptCallback(EXTI::EXTILine extiLine);
+
   void SetUp() override;
   void TearDown() override;
 };
+
+std::unique_ptr<AnEXTI::IRQHandlerCallbackMock> AnEXTI::irqHandlerCallbackMockPtr;
 
 void AnEXTI::SetUp()
 {
@@ -52,13 +67,28 @@ void AnEXTI::SetUp()
   virtualEXTIPeripheral.FTSR2  = EXTI_FTSR2_RESET_VALUE;
   virtualEXTIPeripheral.SWIER2 = EXTI_SWIER2_RESET_VALUE;
   virtualEXTIPeripheral.PR2    = EXTI_PR2_RESET_VALUE;
+
+  irqHandlerCallbackMockPtr = std::make_unique<AnEXTI::IRQHandlerCallbackMock>();
 }
 
 void AnEXTI::TearDown()
 {
   DriverTest::TearDown();
+
+  irqHandlerCallbackMockPtr.reset();
 }
 
+void AnEXTI::interruptCallback(EXTI::EXTILine extiLine)
+{
+  irqHandlerCallbackMockPtr->interruptCallback(extiLine);
+}
+
+
+TEST_F(AnEXTI, GetPeripheralTagReturnsPointerToUnderlayingEXTIPeripheralCastedToPeripheralType)
+{
+  ASSERT_THAT(virtualEXTI.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualEXTIPeripheral))));
+}
 
 TEST_F(AnEXTI, ConfigureEXTILineSetsIMxValueToOneInIMRxRegisterIfConfigParameterIsInterruptMaskedIsEqualToFalse)
 {
@@ -69,7 +99,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsIMxValueToOneInIMRxRegisterIfConfigParameter
     BitHasValue(EXTI_IMR1_IMX_POSITION, EXPECTED_EXTI_IMR1_IMX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.IMR1), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE2, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE2, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -85,7 +115,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsIMxValueToZeroInIMRxRegisterIfConfigParamete
     BitHasValue(EXTI_IMR2_IMX_POSITION, EXPECTED_EXTI_IMR2_IMX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.IMR2), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE33, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE33, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -96,7 +126,7 @@ TEST_F(AnEXTI, ConfigureEXTILineDoesNotChangeValuesOfRTSR1RegisterIfConfigParame
   extiConfig.interruptTrigger  = EXTI::InterruptTrigger::RISING_EDGE;
   expectRegisterNotToChange(&(virtualEXTIPeripheral.RTSR1));
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE22, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE22, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -107,7 +137,7 @@ TEST_F(AnEXTI, ConfigureEXTILineDoesNotChangeValuesOfRTSR2RegisterIfConfigParame
   extiConfig.interruptTrigger  = EXTI::InterruptTrigger::RISING_EDGE;
   expectRegisterNotToChange(&(virtualEXTIPeripheral.RTSR2));
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE30, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE30, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -118,7 +148,7 @@ TEST_F(AnEXTI, ConfigureEXTILineDoesNotChangeValuesOfFTSR1RegisterIfConfigParame
   extiConfig.interruptTrigger  = EXTI::InterruptTrigger::BOTH_EDGE;
   expectRegisterNotToChange(&(virtualEXTIPeripheral.FTSR1));
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE2, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE2, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -129,7 +159,7 @@ TEST_F(AnEXTI, ConfigureEXTILineDoesNotChangeValuesOfFTSR2RegisterIfConfigParame
   extiConfig.interruptTrigger  = EXTI::InterruptTrigger::FALLING_EDGE;
   expectRegisterNotToChange(&(virtualEXTIPeripheral.FTSR2));
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE32, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE32, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -146,7 +176,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsRTxValueToOneInRTSRxRegisterIfInterruptTrigg
     BitHasValue(EXTI_RTSR2_RTX_POSITION, EXPECTED_EXTI_RTSR2_RTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.RTSR2), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE36, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE36, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -163,7 +193,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsRTxValueToOneInRTSRxRegisterIfInterruptTrigg
     BitHasValue(EXTI_RTSR2_RTX_POSITION, EXPECTED_EXTI_RTSR2_RTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.RTSR2), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE37, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE37, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -178,7 +208,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsRTxValueToZeroInRTSRxRegisterIfInterruptTrig
     BitHasValue(EXTI_RTSR1_RTX_POSITION, EXPECTED_EXTI_RTSR1_RTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.RTSR1), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE20, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE20, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -193,7 +223,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsFTxValueToOneInFTSRxRegisterIfInterruptTrigg
     BitHasValue(EXTI_FTSR1_FTX_POSITION, EXPECTED_EXTI_FTSR1_FTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.FTSR1), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE20, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE20, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -208,7 +238,7 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsFTxValueToOneInFTSRxRegisterIfInterruptTrigg
     BitHasValue(EXTI_FTSR1_FTX_POSITION, EXPECTED_EXTI_FTSR1_FTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.FTSR1), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE20, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE20, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
@@ -225,12 +255,12 @@ TEST_F(AnEXTI, ConfigureEXTILineSetsFTxValueToZeroInFTSRxRegisterIfInterruptTrig
     BitHasValue(EXTI_FTSR2_FTX_POSITION, EXPECTED_EXTI_FTSR2_FTX_VALUE);
   expectSpecificRegisterSetToBeCalledFirst(&(virtualEXTIPeripheral.FTSR2), bitValueMatcher);
 
-  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXITLine(EXTI::EXTILine::LINE38, extiConfig);
+  const EXTI::ErrorCode errorCode = virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE38, extiConfig);
 
   ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }
 
-TEST_F(AnEXTI, IRQHandlerClearsPendingInterruptsWhichAreInTheyTagRange)
+TEST_F(AnEXTI, IRQHandlerClearsPendingInterruptsWhichAreInProvidenRange)
 {
   constexpr uint32_t EXTI_PR1_PIF7_POSITION = 7u;
   constexpr uint32_t EXPECTED_EXTI_PR1_PIF7_VALUE = 1u;
@@ -241,5 +271,53 @@ TEST_F(AnEXTI, IRQHandlerClearsPendingInterruptsWhichAreInTheyTagRange)
     BitHasValue(EXTI_PR1_PIF7_POSITION, EXPECTED_EXTI_PR1_PIF7_VALUE);
   expectRegisterSetOnlyOnce(&(virtualEXTIPeripheral.PR1), bitValueMatcher);
 
-  virtualEXTI.IRQHandler(EXTI::IRQTag::EXTI5_TO_9);
+  virtualEXTI.IRQHandler(EXTI::EXTILine::LINE5, EXTI::EXTILine::LINE9);
+}
+
+TEST_F(AnEXTI, IRQHandlerDoesNotClearPendingInterruptsWhichAreNotInProvidenRange)
+{
+  constexpr uint32_t EXTI_PR1_PIF3_POSITION = 3u;
+  constexpr uint32_t EXPECTED_EXTI_PR1_PIF3_VALUE = 1u;
+  // set value of pending register as if interrupt on EXTI line 3 happened
+  virtualEXTIPeripheral.PR1 =
+    expectedRegVal(EXTI_PR1_RESET_VALUE, EXTI_PR1_PIF3_POSITION, 1u, 1u);
+  auto bitValueMatcher =
+    BitHasValue(EXTI_PR1_PIF3_POSITION, EXPECTED_EXTI_PR1_PIF3_VALUE);
+  doesNotExpectRegisterSet(&(virtualEXTIPeripheral.PR1), bitValueMatcher);
+
+  virtualEXTI.IRQHandler(EXTI::EXTILine::LINE5, EXTI::EXTILine::LINE9);
+}
+
+TEST_F(AnEXTI, RuntimeTaskCallsInterruptCallbacksForAllInterruptsPreviouslyClearedInIRQHandler)
+{
+  constexpr uint32_t EXTI_PR1_PIF3_POSITION = 3u;
+  // configure interrupt callback for the given line
+  extiConfig.interruptCallback = interruptCallback;
+  virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE3, extiConfig);
+  // set value of pending register as if interrupt on EXTI line 3 happened
+  virtualEXTIPeripheral.PR1 =
+    expectedRegVal(EXTI_PR1_RESET_VALUE, EXTI_PR1_PIF3_POSITION, 1u, 1u);
+  EXPECT_CALL(*irqHandlerCallbackMockPtr, interruptCallback(EXTI::EXTILine::LINE3))
+    .Times(1u);
+  virtualEXTI.IRQHandler(EXTI::EXTILine::LINE3, EXTI::EXTILine::LINE3);
+
+  const EXTI::ErrorCode errorCode = virtualEXTI.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
+}
+
+TEST_F(AnEXTI, RuntimeTaskDoesNotDoAnythingWhenInterruptOnEXTILineOccursIfInterruptCallbacksIsNotDefined)
+{
+  constexpr uint32_t EXTI_PR1_PIF3_POSITION = 3u;
+  // configure interrupt callback for the given line
+  extiConfig.interruptCallback = nullptr;
+  virtualEXTI.configureEXTILine(EXTI::EXTILine::LINE3, extiConfig);
+  // set value of pending register as if interrupt on EXTI line 3 happened
+  virtualEXTIPeripheral.PR1 =
+    expectedRegVal(EXTI_PR1_RESET_VALUE, EXTI_PR1_PIF3_POSITION, 1u, 1u);
+  virtualEXTI.IRQHandler(EXTI::EXTILine::LINE3, EXTI::EXTILine::LINE3);
+
+  const EXTI::ErrorCode errorCode = virtualEXTI.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(EXTI::ErrorCode::OK));
 }

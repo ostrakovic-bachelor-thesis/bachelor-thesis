@@ -17,17 +17,6 @@ public:
     OK = 0u
   };
 
-  enum class IRQTag : uint8_t
-  {
-    EXTI0        = 0u,
-    EXTI1        = 1u,
-    EXTI2        = 2u,
-    EXTI3        = 3u,
-    EXTI4        = 4u,
-    EXTI5_TO_9   = 5u,
-    EXTI10_TO_15 = 6u
-  };
-
   enum class EXTILine : uint8_t
   {
     LINE0  = 0u,
@@ -80,19 +69,32 @@ public:
     BOTH_EDGE    = 2u
   };
 
+  //! Interrupt callback type
+  typedef void (*InterruptCallback_t)(EXTILine line);
+
+  // TODO rename to EXTILineConfig or LineConfig
   struct EXTIConfig
   {
     bool isInterruptMasked;
     InterruptTrigger interruptTrigger;
+    InterruptCallback_t interruptCallback;
   };
 
-  ErrorCode configureEXITLine(EXTILine line, EXTIConfig config);
+  ErrorCode configureEXTILine(EXTILine line, EXTIConfig config);
 
-  void IRQHandler(IRQTag irqTag);
+  void IRQHandler(EXTILine extiLineRangeStart, EXTILine extiLineRangeEnd);
+
+  ErrorCode runtimeTask(void);
+
+  inline Peripheral getPeripheralTag(void) const
+  {
+    return static_cast<Peripheral>(reinterpret_cast<uintptr_t>(const_cast<EXTI_TypeDef*>(m_EXTIPeripheralPtr)));
+  }
 
 private:
 
   static constexpr uint32_t NUMBER_OF_BITS_IN_UINT32_T = 32u;
+  static constexpr uint32_t NUMBER_OF_EXTI_LINES = 41u;
 
   void unmaskInterruptLine(EXTILine line);
   void maskInterruptLine(EXTILine line);
@@ -103,7 +105,21 @@ private:
   void enableInterruptTriggeringOnFallingEdge(EXTILine line);
   void disableInterruptTriggeringOnFallingEdge(EXTILine line);
 
+  bool isInterruptPending(EXTILine line) const;
+  void clearPendingInterrupt(EXTILine line);
+
+  void registerInterruptCallback(EXTILine line, InterruptCallback_t interruptCallback);
+  void callInterruptCallback(EXTILine line);
+
+  void requestInterruptCallbackCalling(EXTILine line);
+  bool isCallingOfInterruptCallbackRequested(EXTILine line) const;
+  void clearInterruptCallbackCallingRequest(EXTILine line);
+
   EXTI_TypeDef *m_EXTIPeripheralPtr;
+
+  InterruptCallback_t m_interruptCallbacks[NUMBER_OF_EXTI_LINES] = { nullptr };
+
+  bool m_callInterruptCallback[NUMBER_OF_EXTI_LINES] = { false };
 };
 
 #endif // #ifndef EXTI_H

@@ -64,3 +64,52 @@ void I2C1_EV_IRQHandler(void)
 
   i2c1.IRQHandler();
 }
+
+void EXTI0_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE0, EXTI::EXTILine::LINE0);
+}
+
+void EXTI1_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE1, EXTI::EXTILine::LINE1);
+}
+
+void EXTI2_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE2, EXTI::EXTILine::LINE2);
+}
+
+void EXTI3_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE3, EXTI::EXTILine::LINE3);
+}
+
+void EXTI4_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE4, EXTI::EXTILine::LINE4);
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE5, EXTI::EXTILine::LINE9);
+}
+
+void EXTI15_10_IRQHandler(void)
+{
+  static EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+
+  exti.IRQHandler(EXTI::EXTILine::LINE10, EXTI::EXTILine::LINE15);
+}
