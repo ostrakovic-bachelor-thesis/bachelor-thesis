@@ -1,5 +1,6 @@
 #include "LTDC.h"
 #include "DriverTest.h"
+#include "ResetControlMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -42,7 +43,9 @@ public:
   LTDC_TypeDef virtualLTDCPeripheral;
   LTDC_Layer_TypeDef virtualLTDCPeripheralLayer1;
   LTDC_Layer_TypeDef virtualLTDCPeripheralLayer2;
-  LTDC virtualLTDC = LTDC(&virtualLTDCPeripheral, &virtualLTDCPeripheralLayer1, &virtualLTDCPeripheralLayer2);
+  NiceMock<ResetControlMock> resetControlMock;
+  LTDC virtualLTDC =
+    LTDC(&virtualLTDCPeripheral, &virtualLTDCPeripheralLayer1, &virtualLTDCPeripheralLayer2, &resetControlMock);
   LTDC::LTDCConfig ltdcConfig;
 
   void SetUp() override;
@@ -100,23 +103,191 @@ void ALTDC::TearDown()
   DriverTest::TearDown();
 }
 
-TEST_F(ALTDC, InitSetsValueOfSSCRRegisterAccordingToHsyncWidthAndVSyncWidth)
+
+TEST_F(ALTDC, GetPeripheralTagReturnsPointerToUnderlayingLTDCPeripheralCastedToPeripheralType)
 {
+  ASSERT_THAT(virtualLTDC.getPeripheralTag(),
+    Eq(static_cast<Peripheral>(reinterpret_cast<uintptr_t>(&virtualLTDCPeripheral))));
+}
+
+TEST_F(ALTDC, InitTurnsOnLTDCPeripheralClock)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::OK);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualLTDC.getPeripheralTag()))
+    .Times(1u);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+}
+
+TEST_F(ALTDC, InitFailsIfTurningOnOfLTDCPeripheralClockFail)
+{
+  resetControlMock.setReturnErrorCode(ResetControl::ErrorCode::INTERNAL);
+  EXPECT_CALL(resetControlMock, enablePeripheralClock(virtualLTDC.getPeripheralTag()))
+    .Times(1u);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK));
+}
+
+TEST_F(ALTDC, InitSetsValueOfVSHInSSCRRegisterAccordingToVSyncWidth)
+{
+  constexpr uint32_t VSYNC_WIDTH = 230u;
   constexpr uint32_t LTDC_SSCR_VSH_POSITION = 0u;
-  constexpr uint32_t LTDC_SSCR_HSW_POSITION = 16u;
   constexpr uint32_t LTDC_SSCR_VSH_SIZE     = 11u;
-  constexpr uint32_t LTDC_SSCR_HSW_SIZE     = 12u;
-  constexpr uint32_t EXPECTED_LTDC_SSCR_VSH_VALUE = 0u;
-  constexpr uint32_t EXPECTED_LTDC_SSCR_HSW_VALUE = 0u;
+  constexpr uint32_t EXPECTED_LTDC_SSCR_VSH_VALUE = VSYNC_WIDTH - 1u;
   auto bitValueMatcher =
-    AllOf(BitsHaveValue(LTDC_SSCR_VSH_POSITION, LTDC_SSCR_VSH_SIZE, EXPECTED_LTDC_SSCR_VSH_VALUE),
-          BitsHaveValue(LTDC_SSCR_HSW_POSITION, LTDC_SSCR_HSW_SIZE, EXPECTED_LTDC_SSCR_HSW_VALUE));
-  ltdcConfig.hsyncWidth = EXPECTED_LTDC_SSCR_HSW_VALUE + 1u;
-  ltdcConfig.vsyncWidth = EXPECTED_LTDC_SSCR_VSH_VALUE + 1u;
+    BitsHaveValue(LTDC_SSCR_VSH_POSITION, LTDC_SSCR_VSH_SIZE, EXPECTED_LTDC_SSCR_VSH_VALUE);
+  ltdcConfig.vsyncWidth = VSYNC_WIDTH;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.SSCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
   ASSERT_THAT(virtualLTDCPeripheral.SSCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfHSWInSSCRRegisterAccordingToHSyncWidth)
+{
+  constexpr uint32_t HSYNC_WIDTH = 240u;
+  constexpr uint32_t LTDC_SSCR_HSW_POSITION = 16u;
+  constexpr uint32_t LTDC_SSCR_HSW_SIZE     = 12u;
+  constexpr uint32_t EXPECTED_LTDC_SSCR_HSW_VALUE = HSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_SSCR_HSW_POSITION, LTDC_SSCR_HSW_SIZE, EXPECTED_LTDC_SSCR_HSW_VALUE);
+  ltdcConfig.hsyncWidth = HSYNC_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.SSCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.SSCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfAVBPInBPCRRegisterAccordingToVsyncWidthAndVerticalBackPorch)
+{
+  constexpr uint32_t VSYNC_WIDTH = 30u;
+  constexpr uint32_t VBP         = 10u;
+  constexpr uint32_t LTDC_BPCR_AVBP_POSITION = 0u;
+  constexpr uint32_t LTDC_BPCR_AVBP_SIZE = 11u;
+  constexpr uint32_t EXPECTED_LTDC_BPCR_AVBP_VALUE = VBP + VSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_BPCR_AVBP_POSITION, LTDC_BPCR_AVBP_SIZE, EXPECTED_LTDC_BPCR_AVBP_VALUE);
+  ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
+  ltdcConfig.verticalBackPorch = VBP;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BPCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.BPCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfAHBPInBPCRRegisterAccordingToHsyncWidthAndHorizontalBackPorch)
+{
+  constexpr uint32_t HSYNC_WIDTH = 40u;
+  constexpr uint32_t HBP         = 10u;
+  constexpr uint32_t LTDC_BPCR_AHBP_POSITION = 16u;
+  constexpr uint32_t LTDC_BPCR_AHBP_SIZE     = 12u;
+  constexpr uint32_t EXPECTED_LTDC_BPCR_AHBP_VALUE = HBP + HSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_BPCR_AHBP_POSITION, LTDC_BPCR_AHBP_SIZE, EXPECTED_LTDC_BPCR_AHBP_VALUE);
+  ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
+  ltdcConfig.horizontalBackPorch = HBP;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BPCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.BPCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfAAHInAWCRRegisterAccordingToVsyncWidthAndVerticalBackPorchAndDisplayHeight)
+{
+  constexpr uint32_t VSYNC_WIDTH    = 20u;
+  constexpr uint32_t VBP            = 10u;
+  constexpr uint32_t DISPLAY_HEIGHT = 300u;
+  constexpr uint32_t LTDC_AWCR_AAH_POSITION = 0u;
+  constexpr uint32_t LTDC_AWCR_AAH_SIZE     = 11u;
+  constexpr uint32_t EXPECTED_LTDC_AWCR_AAH_VALUE = DISPLAY_HEIGHT + VBP + VSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_AWCR_AAH_POSITION, LTDC_AWCR_AAH_SIZE, EXPECTED_LTDC_AWCR_AAH_VALUE);
+  ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
+  ltdcConfig.verticalBackPorch = VBP;
+  ltdcConfig.displayHeight     = DISPLAY_HEIGHT;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.AWCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.AWCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfAAWInAWCRRegisterAccordingToHsyncWidthAndHorizontalBackPorchAndDisplayWidth)
+{
+  constexpr uint32_t HSYNC_WIDTH   = 20u;
+  constexpr uint32_t HBP           = 10u;
+  constexpr uint32_t DISPLAY_WIDTH = 400u;
+  constexpr uint32_t LTDC_AWCR_AAW_POSITION = 16u;
+  constexpr uint32_t LTDC_AWCR_AAW_SIZE     = 12u;
+  constexpr uint32_t EXPECTED_LTDC_AWCR_AAW_VALUE = DISPLAY_WIDTH  + HBP + HSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_AWCR_AAW_POSITION, LTDC_AWCR_AAW_SIZE, EXPECTED_LTDC_AWCR_AAW_VALUE);
+  ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
+  ltdcConfig.horizontalBackPorch = HBP;
+  ltdcConfig.displayWidth        = DISPLAY_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.AWCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.AWCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfTOTALHInTWCRRegisterAccordingToVsyncWidthAndVerticalBackPorchAndDisplayHeightAndVerticalFrontPorch)
+{
+  constexpr uint32_t VSYNC_WIDTH    = 20u;
+  constexpr uint32_t VBP            = 10u;
+  constexpr uint32_t DISPLAY_HEIGHT = 300u;
+  constexpr uint32_t VFP            = 10u;
+  constexpr uint32_t LTDC_TWCR_TOTALH_POSITION = 0u;
+  constexpr uint32_t LTDC_TWCR_TOTALH_SIZE     = 11u;
+  constexpr uint32_t EXPECTED_LTDC_TWCR_TOTALH_VALUE = VFP + DISPLAY_HEIGHT + VBP + VSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_TWCR_TOTALH_POSITION, LTDC_TWCR_TOTALH_SIZE, EXPECTED_LTDC_TWCR_TOTALH_VALUE);
+  ltdcConfig.vsyncWidth         = VSYNC_WIDTH;
+  ltdcConfig.verticalBackPorch  = VBP;
+  ltdcConfig.displayHeight      = DISPLAY_HEIGHT;
+  ltdcConfig.verticalFrontPorch = VFP;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.TWCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.TWCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfTOTALWInTWCRRegisterAccordingToHsyncWidthAndHorizontalBackPorchAndDisplayWidthAndHorizontalFrontPorch)
+{
+  constexpr uint32_t HSYNC_WIDTH   = 20u;
+  constexpr uint32_t HBP           = 10u;
+  constexpr uint32_t DISPLAY_WIDTH = 400u;
+  constexpr uint32_t HFP           = 10u;
+  constexpr uint32_t LTDC_TWCR_TOTALW_POSITION = 16u;
+  constexpr uint32_t LTDC_TWCR_TOTALW_SIZE     = 12u;
+  constexpr uint32_t EXPECTED_LTDC_TWCR_TOTALW_VALUE = HFP + DISPLAY_WIDTH  + HBP + HSYNC_WIDTH - 1u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_TWCR_TOTALW_POSITION, LTDC_TWCR_TOTALW_SIZE, EXPECTED_LTDC_TWCR_TOTALW_VALUE);
+  ltdcConfig.hsyncWidth           = HSYNC_WIDTH;
+  ltdcConfig.horizontalBackPorch  = HBP;
+  ltdcConfig.displayWidth         = DISPLAY_WIDTH;
+  ltdcConfig.horizontalFrontPorch = HFP;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.TWCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.TWCR, bitValueMatcher);
 }
