@@ -23,6 +23,20 @@ public:
     CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 1u
   };
 
+  //! TODO
+  enum class Polarity : uint8_t
+  {
+    ACTIVE_LOW  = 0u,
+    ACTIVE_HIGH = 1u
+  };
+
+  struct Color
+  {
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+  };
+
   struct LTDCConfig
   {
     uint16_t hsyncWidth;
@@ -33,6 +47,11 @@ public:
     uint16_t displayHeight;
     uint16_t horizontalFrontPorch;
     uint16_t verticalFrontPorch;
+    Polarity hsyncPolarity;
+    Polarity vsyncPolarity;
+    Polarity notDataEnablePolarity;
+    Polarity pixelClockPolarity;
+    Color    backgroundColor;
   };
 
   ErrorCode init(const LTDCConfig &ltdcConfig);
@@ -58,6 +77,16 @@ private:
   void setAccumulatedTotalWidthAndHeight(uint16_t accumulatedTotalWidth, uint16_t accumulatedTotalHeight);
   void setAccumulatedTotalWidth(uint32_t &registerValueTWCR, uint16_t accumulatedTotalWidth);
   void setAccumulatedTotalHeight(uint32_t &registerValueTWCR, uint16_t accumulatedTotalHeight);
+
+  void setHorizontalSyncPolarity(uint32_t &registerValueGCR, Polarity hsyncPolarity);
+  void setVerticalSyncPolarity(uint32_t &registerValueGCR, Polarity vsyncPolarity);
+  void setNotDataEnablePolarity(uint32_t &registerValueGCR, Polarity notDataEnablePolarity);
+  void setPixelClockPolarity(uint32_t &registerValueGCR, Polarity pixelClockPolarity);
+
+  void setBackgroundColor(Color backgroundColor);
+  void setBackgroundColorBlueComponenet(uint32_t &registerValueBCCR, uint8_t blue);
+  void setBackgroundColorGreenComponenet(uint32_t &registerValueBCCR, uint8_t green);
+  void setBackgroundColorRedComponenet(uint32_t &registerValueBCCR, uint8_t red);
 
   //! Pointer to USART peripheral
   LTDC_TypeDef *m_LTDCPeripheralPtr;

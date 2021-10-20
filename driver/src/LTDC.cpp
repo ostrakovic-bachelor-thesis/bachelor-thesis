@@ -34,6 +34,17 @@ LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig)
   setAccumulatedActiveWidthAndHeight(accumulatedActiveWidth, accumulatedActiveHeight);
   setAccumulatedTotalWidthAndHeight(accumulatedTotalWidth, accumulatedTotalHeight);
 
+  uint32_t registerValueGCR = 0u;
+
+  setHorizontalSyncPolarity(registerValueGCR, ltdcConfig.hsyncPolarity);
+  setVerticalSyncPolarity(registerValueGCR, ltdcConfig.vsyncPolarity);
+  setNotDataEnablePolarity(registerValueGCR, ltdcConfig.notDataEnablePolarity);
+  setPixelClockPolarity(registerValueGCR, ltdcConfig.pixelClockPolarity);
+
+  MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->GCR), registerValueGCR);
+
+  setBackgroundColor(ltdcConfig.backgroundColor);
+
   return ErrorCode::OK;
 }
 
@@ -75,6 +86,17 @@ void LTDC::setAccumulatedTotalWidthAndHeight(uint16_t accumulatedTotalWidth, uin
   setAccumulatedTotalHeight(registerValueTWCR, accumulatedTotalHeight);
 
   MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->TWCR), registerValueTWCR);
+}
+
+void LTDC::setBackgroundColor(Color backgroundColor)
+{
+  uint32_t registerValueBCCR = 0u;
+
+  setBackgroundColorBlueComponenet(registerValueBCCR, backgroundColor.blue);
+  setBackgroundColorGreenComponenet(registerValueBCCR, backgroundColor.green);
+  setBackgroundColorRedComponenet(registerValueBCCR, backgroundColor.red);
+
+  MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->BCCR), registerValueBCCR);
 }
 
 inline void LTDC::setHorizontalSynchronizationWidth(uint32_t &registerValueSSCR, uint16_t hsyncWidth)
@@ -173,6 +195,90 @@ inline void LTDC::setAccumulatedTotalHeight(uint32_t &registerValueTWCR, uint16_
     LTDC_TWCR_TOTALH_POSITION,
     LTDC_TWCR_TOTALH_SIZE,
     static_cast<uint32_t>(accumulatedTotalHeight - 1u));
+}
+
+inline void LTDC::setHorizontalSyncPolarity(uint32_t &registerValueGCR, Polarity hsyncPolarity)
+{
+  constexpr uint32_t LTDC_GCR_HSPOL_POSITION = 31u;
+  constexpr uint32_t LTDC_GCR_HSPOL_SIZE     = 1u;
+
+  registerValueGCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGCR,
+    LTDC_GCR_HSPOL_POSITION,
+    LTDC_GCR_HSPOL_SIZE,
+    static_cast<uint32_t>(hsyncPolarity));
+}
+
+inline void LTDC::setVerticalSyncPolarity(uint32_t &registerValueGCR, Polarity vsyncPolarity)
+{
+  constexpr uint32_t LTDC_GCR_VSPOL_POSITION = 30u;
+  constexpr uint32_t LTDC_GCR_VSPOL_SIZE     = 1u;
+
+  registerValueGCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGCR,
+    LTDC_GCR_VSPOL_POSITION,
+    LTDC_GCR_VSPOL_SIZE,
+    static_cast<uint32_t>(vsyncPolarity));
+}
+
+inline void LTDC::setNotDataEnablePolarity(uint32_t &registerValueGCR, Polarity notDataEnablePolarity)
+{
+  constexpr uint32_t LTDC_GCR_DEPOL_POSITION = 29u;
+  constexpr uint32_t LTDC_GCR_DEPOL_SIZE     = 1u;
+
+  registerValueGCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGCR,
+    LTDC_GCR_DEPOL_POSITION,
+    LTDC_GCR_DEPOL_SIZE,
+    static_cast<uint32_t>(notDataEnablePolarity));
+}
+
+inline void LTDC::setPixelClockPolarity(uint32_t &registerValueGCR, Polarity pixelClockPolarity)
+{
+  constexpr uint32_t LTDC_GCR_PCPOL_POSITION = 28u;
+  constexpr uint32_t LTDC_GCR_PCPOL_SIZE     = 1u;
+
+  registerValueGCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGCR,
+    LTDC_GCR_PCPOL_POSITION,
+    LTDC_GCR_PCPOL_SIZE,
+    static_cast<uint32_t>(pixelClockPolarity));
+}
+
+inline void LTDC::setBackgroundColorBlueComponenet(uint32_t &registerValueBCCR, uint8_t blue)
+{
+  constexpr uint32_t LTDC_BCCR_BCBLUE_POSITION = 0u;
+  constexpr uint32_t LTDC_BCCR_BCBLUE_SIZE     = 8u;
+
+  registerValueBCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueBCCR,
+    LTDC_BCCR_BCBLUE_POSITION,
+    LTDC_BCCR_BCBLUE_SIZE,
+    static_cast<uint32_t>(blue));
+}
+
+inline void LTDC::setBackgroundColorGreenComponenet(uint32_t &registerValueBCCR, uint8_t green)
+{
+  constexpr uint32_t LTDC_BCCR_BCGREEN_POSITION = 8u;
+  constexpr uint32_t LTDC_BCCR_BCGREEN_SIZE     = 8u;
+
+  registerValueBCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueBCCR,
+    LTDC_BCCR_BCGREEN_POSITION,
+    LTDC_BCCR_BCGREEN_SIZE,
+    static_cast<uint32_t>(green));
+}
+
+inline void LTDC::setBackgroundColorRedComponenet(uint32_t &registerValueBCCR, uint8_t red)
+{
+  constexpr uint32_t LTDC_BCCR_BCRED_POSITION = 16u;
+  constexpr uint32_t LTDC_BCCR_BCRED_SIZE     = 8u;
+
+  registerValueBCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueBCCR,
+    LTDC_BCCR_BCRED_POSITION,
+    LTDC_BCCR_BCRED_SIZE,
+    static_cast<uint32_t>(red));
 }
 
 inline LTDC::ErrorCode LTDC::enablePeripheralClock(void)

@@ -291,3 +291,111 @@ TEST_F(ALTDC, InitSetsValueOfTOTALWInTWCRRegisterAccordingToHsyncWidthAndHorizon
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
   ASSERT_THAT(virtualLTDCPeripheral.TWCR, bitValueMatcher);
 }
+
+TEST_F(ALTDC, InitSetsValueOfHSPOLInGCRRegisterAccordingToHSyncPolarity)
+{
+  constexpr uint32_t LTDC_GCR_HSPOL_POSITION = 31u;
+  constexpr uint32_t EXPECTED_LTDC_GCR_HSPOL_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(LTDC_GCR_HSPOL_POSITION, EXPECTED_LTDC_GCR_HSPOL_VALUE);
+  ltdcConfig.hsyncPolarity = LTDC::Polarity::ACTIVE_HIGH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfVSPOLInGCRRegisterAccordingToVSyncPolarity)
+{
+  constexpr uint32_t LTDC_GCR_VSPOL_POSITION = 30u;
+  constexpr uint32_t EXPECTED_LTDC_GCR_VSPOL_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(LTDC_GCR_VSPOL_POSITION, EXPECTED_LTDC_GCR_VSPOL_VALUE);
+  ltdcConfig.vsyncPolarity = LTDC::Polarity::ACTIVE_HIGH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfDEPOLInGCRRegisterAccordingToNotDataEnablePolarity)
+{
+  constexpr uint32_t LTDC_GCR_DEPOL_POSITION = 29u;
+  constexpr uint32_t EXPECTED_LTDC_GCR_DEPOL_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(LTDC_GCR_DEPOL_POSITION, EXPECTED_LTDC_GCR_DEPOL_VALUE);
+  ltdcConfig.notDataEnablePolarity = LTDC::Polarity::ACTIVE_HIGH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfPCPOLInGCRRegisterAccordingToPixelClockPolarity)
+{
+  constexpr uint32_t LTDC_GCR_PCPOL_POSITION = 28u;
+  constexpr uint32_t EXPECTED_LTDC_GCR_PCPOL_VALUE = 1u;
+  auto bitValueMatcher =
+    BitHasValue(LTDC_GCR_PCPOL_POSITION, EXPECTED_LTDC_GCR_PCPOL_VALUE);
+  ltdcConfig.pixelClockPolarity = LTDC::Polarity::ACTIVE_HIGH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfBCBLUEInBCCRRegisterAccordingToBackgroundColorBlueComponent)
+{
+  constexpr uint32_t LTDC_BCCR_BCBLUE_POSITION = 0u;
+  constexpr uint32_t LTDC_BCCR_BCBLUE_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_LTDC_BCCR_BCBLUE_VALUE = 143u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_BCCR_BCBLUE_POSITION, LTDC_BCCR_BCBLUE_SIZE, EXPECTED_LTDC_BCCR_BCBLUE_VALUE);
+  ltdcConfig.backgroundColor.blue = EXPECTED_LTDC_BCCR_BCBLUE_VALUE;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfBCGREENInBCCRRegisterAccordingToBackgroundColorGreenComponent)
+{
+  constexpr uint32_t LTDC_BCCR_BCGREEN_POSITION = 8u;
+  constexpr uint32_t LTDC_BCCR_BCGREEN_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_LTDC_BCCR_BCGREEN_VALUE = 31u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_BCCR_BCGREEN_POSITION, LTDC_BCCR_BCGREEN_SIZE, EXPECTED_LTDC_BCCR_BCGREEN_VALUE);
+  ltdcConfig.backgroundColor.green = EXPECTED_LTDC_BCCR_BCGREEN_VALUE;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitSetsValueOfBCREDInBCCRRegisterAccordingToBackgroundColorRedComponent)
+{
+  constexpr uint32_t LTDC_BCCR_BCRED_POSITION = 16u;
+  constexpr uint32_t LTDC_BCCR_BCRED_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_LTDC_BCCR_BCRED_VALUE = 254u;
+  auto bitValueMatcher =
+    BitsHaveValue(LTDC_BCCR_BCRED_POSITION, LTDC_BCCR_BCRED_SIZE, EXPECTED_LTDC_BCCR_BCRED_VALUE);
+  ltdcConfig.backgroundColor.red = EXPECTED_LTDC_BCCR_BCRED_VALUE;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+}
