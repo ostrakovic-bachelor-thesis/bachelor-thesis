@@ -14,7 +14,7 @@ LTDC::LTDC(LTDC_TypeDef *LTDCPeripheralPtr,
   m_resetControlPtr(resetControlPtr)
 {}
 
-LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig)
+LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLayer1Config)
 {
   ErrorCode errorCode = enablePeripheralClock();
   if (ErrorCode::OK != errorCode)
@@ -44,6 +44,25 @@ LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig)
   MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->GCR), registerValueGCR);
 
   setBackgroundColor(ltdcConfig.backgroundColor);
+
+  enableLTDC();
+
+  setLayerWindowHorizontalPosition(m_LTDCPeripheralLayer1Ptr, accumulatedHorizontalBackPorch, accumulatedActiveWidth);
+  setLayerWindowVerticalPosition(m_LTDCPeripheralLayer1Ptr, accumulatedVerticalBackPorch, accumulatedActiveHeight);
+  setLayerFrameBufferColorFormat(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferColorFormat);
+  setLayerConstantAlpha(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.alpha);
+  setLayerDefaultColor(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.defaultColor);
+  setLayerBlendingFactors(m_LTDCPeripheralLayer1Ptr,
+    ltdcLayer1Config.currentLayerBlendingFactor,
+    ltdcLayer1Config.subjacentLayerBlendingFactor);
+  setLayerFrameBufferAddress(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferPtr);
+  setLayerFrameBufferWidth(m_LTDCPeripheralLayer1Ptr,
+    ltdcLayer1Config.frameBufferDimension.width,
+    ltdcLayer1Config.frameBufferColorFormat);
+  setLayerFrameBufferHeight(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferDimension.height);
+  enableLayer(m_LTDCPeripheralLayer1Ptr);
+
+  disableLayer(m_LTDCPeripheralLayer2Ptr);
 
   return ErrorCode::OK;
 }
@@ -92,11 +111,138 @@ void LTDC::setBackgroundColor(Color backgroundColor)
 {
   uint32_t registerValueBCCR = 0u;
 
-  setBackgroundColorBlueComponenet(registerValueBCCR, backgroundColor.blue);
-  setBackgroundColorGreenComponenet(registerValueBCCR, backgroundColor.green);
-  setBackgroundColorRedComponenet(registerValueBCCR, backgroundColor.red);
+  setBackgroundColorBlueComponent(registerValueBCCR, backgroundColor.blue);
+  setBackgroundColorGreenComponent(registerValueBCCR, backgroundColor.green);
+  setBackgroundColorRedComponent(registerValueBCCR, backgroundColor.red);
 
   MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->BCCR), registerValueBCCR);
+}
+
+void LTDC::enableLTDC(void)
+{
+  constexpr uint32_t LTDC_GCR_LTDCEN_POSITION = 0u;
+
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_LTDCPeripheralPtr->GCR), LTDC_GCR_LTDCEN_POSITION);
+}
+
+void LTDC::setLayerWindowHorizontalPosition(
+  LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+  uint16_t accumulatedHorizontalBackPorch,
+  uint16_t accumulatedActiveWidth)
+{
+  uint32_t registerValueWHPCR = 0u;
+
+  setWindowHorizontalStartPosition(registerValueWHPCR, accumulatedHorizontalBackPorch);
+  setWindowHorizontalStopPosition(registerValueWHPCR, accumulatedActiveWidth - 1u);
+
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->WHPCR), registerValueWHPCR);
+}
+
+void LTDC::setLayerWindowVerticalPosition(
+  LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+  uint16_t accumulatedVerticalBackPorch,
+  uint16_t accumulatedActiveHeight)
+{
+  uint32_t registerValueWVPCR = 0u;
+
+  setWindowVerticalStartPosition(registerValueWVPCR, accumulatedVerticalBackPorch);
+  setWindowVerticalStopPosition(registerValueWVPCR, accumulatedActiveHeight - 1u);
+
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->WVPCR), registerValueWVPCR);
+}
+
+void LTDC::setLayerFrameBufferColorFormat(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, ColorFormat colorFormat)
+{
+  constexpr uint32_t LTDC_LAYER_PFCR_PF_POSITION = 0u;
+  constexpr uint32_t LTDC_LAYER_PFCR_PF_SIZE     = 3u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(LTDCPeripheralLayerPtr->PFCR),
+    LTDC_LAYER_PFCR_PF_POSITION,
+    LTDC_LAYER_PFCR_PF_SIZE,
+    static_cast<uint32_t>(colorFormat));
+}
+
+void LTDC::setLayerConstantAlpha(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, uint8_t alpha)
+{
+  constexpr uint32_t LTDC_LAYER_CACR_CONSTA_POSITION = 0u;
+  constexpr uint32_t LTDC_LAYER_CACR_CONSTA_SIZE     = 8u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(LTDCPeripheralLayerPtr->CACR),
+    LTDC_LAYER_CACR_CONSTA_POSITION,
+    LTDC_LAYER_CACR_CONSTA_SIZE,
+    static_cast<uint32_t>(alpha));
+}
+
+void LTDC::setLayerDefaultColor(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, Color defaultColor)
+{
+  uint32_t registerValueDCCR = 0u;
+
+  setDefaultColorBlueComponent(registerValueDCCR, defaultColor.blue);
+  setDefaultColorGreenComponent(registerValueDCCR, defaultColor.green);
+  setDefaultColorRedComponent(registerValueDCCR, defaultColor.red);
+  setDefaultColorAlphaComponent(registerValueDCCR, defaultColor.alpha);
+
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->DCCR), registerValueDCCR);
+}
+
+void LTDC::setLayerBlendingFactors(
+  LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+  BlendingFactor currentLayerBlendingFactor,
+  BlendingFactor subjacentLayerBlendingFactor)
+{
+  uint32_t registerValueBFCR = 0u;
+
+  setCurrentLayerBlendingFactor(registerValueBFCR, currentLayerBlendingFactor);
+  setSubjacentLayerBlendingFactor(registerValueBFCR, subjacentLayerBlendingFactor);
+
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->BFCR), registerValueBFCR);
+}
+
+inline void LTDC::setLayerFrameBufferAddress(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, void *frameBufferPtr)
+{
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->CFBAR),
+    static_cast<uint32_t>(reinterpret_cast<uintptr_t>(frameBufferPtr)));
+}
+
+void LTDC::setLayerFrameBufferWidth(
+  LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+  uint16_t frameBufferWidth,
+  ColorFormat frameBufferColorFormat)
+{
+  uint32_t registerValueCFBLR = 0u;
+
+  setFrameBufferLineLength(registerValueCFBLR, frameBufferWidth, frameBufferColorFormat);
+  setFrameBufferLinePitch(registerValueCFBLR, frameBufferWidth, frameBufferColorFormat);
+
+  MemoryAccess::setRegisterValue(&(LTDCPeripheralLayerPtr->CFBLR), registerValueCFBLR);
+}
+
+inline void LTDC::setLayerFrameBufferHeight(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, uint16_t frameBufferHeight)
+{
+  constexpr uint32_t LTDC_CFBLNR_CFBLNBR_POSITION = 0u;
+  constexpr uint32_t LTDC_CFBLNR_CFBLNBR_SIZE     = 11u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(LTDCPeripheralLayerPtr->CFBLNR),
+    LTDC_CFBLNR_CFBLNBR_POSITION,
+    LTDC_CFBLNR_CFBLNBR_SIZE,
+    static_cast<uint32_t>(frameBufferHeight));
+}
+
+inline void LTDC::enableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr)
+{
+  constexpr uint32_t LTDC_CR_LEN_POSITION = 0u;
+
+  RegisterUtility<uint32_t>::setBitInRegister(&(LTDCPeripheralLayerPtr->CR), LTDC_CR_LEN_POSITION);
+}
+
+inline void LTDC::disableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr)
+{
+  constexpr uint32_t LTDC_CR_LEN_POSITION = 0u;
+
+  RegisterUtility<uint32_t>::resetBitInRegister(&(LTDCPeripheralLayerPtr->CR), LTDC_CR_LEN_POSITION);
 }
 
 inline void LTDC::setHorizontalSynchronizationWidth(uint32_t &registerValueSSCR, uint16_t hsyncWidth)
@@ -245,7 +391,7 @@ inline void LTDC::setPixelClockPolarity(uint32_t &registerValueGCR, Polarity pix
     static_cast<uint32_t>(pixelClockPolarity));
 }
 
-inline void LTDC::setBackgroundColorBlueComponenet(uint32_t &registerValueBCCR, uint8_t blue)
+inline void LTDC::setBackgroundColorBlueComponent(uint32_t &registerValueBCCR, uint8_t blue)
 {
   constexpr uint32_t LTDC_BCCR_BCBLUE_POSITION = 0u;
   constexpr uint32_t LTDC_BCCR_BCBLUE_SIZE     = 8u;
@@ -257,7 +403,7 @@ inline void LTDC::setBackgroundColorBlueComponenet(uint32_t &registerValueBCCR, 
     static_cast<uint32_t>(blue));
 }
 
-inline void LTDC::setBackgroundColorGreenComponenet(uint32_t &registerValueBCCR, uint8_t green)
+inline void LTDC::setBackgroundColorGreenComponent(uint32_t &registerValueBCCR, uint8_t green)
 {
   constexpr uint32_t LTDC_BCCR_BCGREEN_POSITION = 8u;
   constexpr uint32_t LTDC_BCCR_BCGREEN_SIZE     = 8u;
@@ -269,7 +415,7 @@ inline void LTDC::setBackgroundColorGreenComponenet(uint32_t &registerValueBCCR,
     static_cast<uint32_t>(green));
 }
 
-inline void LTDC::setBackgroundColorRedComponenet(uint32_t &registerValueBCCR, uint8_t red)
+inline void LTDC::setBackgroundColorRedComponent(uint32_t &registerValueBCCR, uint8_t red)
 {
   constexpr uint32_t LTDC_BCCR_BCRED_POSITION = 16u;
   constexpr uint32_t LTDC_BCCR_BCRED_SIZE     = 8u;
@@ -281,9 +427,209 @@ inline void LTDC::setBackgroundColorRedComponenet(uint32_t &registerValueBCCR, u
     static_cast<uint32_t>(red));
 }
 
+inline void
+LTDC::setWindowHorizontalStartPosition(uint32_t &registerValueWHPCR, uint16_t windowHorizontalStartPosition)
+{
+  constexpr uint32_t LTDC_LAYER_WHPCR_WHSTPOS_POSITION = 0u;
+  constexpr uint32_t LTDC_LAYER_WHPCR_WHSTPOS_SIZE     = 12u;
+
+  registerValueWHPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueWHPCR,
+    LTDC_LAYER_WHPCR_WHSTPOS_POSITION,
+    LTDC_LAYER_WHPCR_WHSTPOS_SIZE,
+    static_cast<uint32_t>(windowHorizontalStartPosition));
+}
+
+inline void
+LTDC::setWindowHorizontalStopPosition(uint32_t &registerValueWHPCR, uint16_t windowHorizontalStopPosition)
+{
+  constexpr uint32_t LTDC_LAYER_WHPCR_WHSPPOS_POSITION = 16u;
+  constexpr uint32_t LTDC_LAYER_WHPCR_WHSPPOS_SIZE     = 12u;
+
+  registerValueWHPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueWHPCR,
+    LTDC_LAYER_WHPCR_WHSPPOS_POSITION,
+    LTDC_LAYER_WHPCR_WHSPPOS_SIZE,
+    static_cast<uint32_t>(windowHorizontalStopPosition));
+}
+
+inline void
+LTDC::setWindowVerticalStartPosition(uint32_t &registerValueWVPCR, uint16_t windowVerticalStartPosition)
+{
+  constexpr uint32_t LTDC_LAYER_WVPCR_WVSTPOS_POSITION = 0u;
+  constexpr uint32_t LTDC_LAYER_WVPCR_WVSTPOS_SIZE     = 11u;
+
+  registerValueWVPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueWVPCR,
+    LTDC_LAYER_WVPCR_WVSTPOS_POSITION,
+    LTDC_LAYER_WVPCR_WVSTPOS_SIZE,
+    static_cast<uint32_t>(windowVerticalStartPosition));
+}
+
+inline void
+LTDC::setWindowVerticalStopPosition(uint32_t &registerValueWVPCR, uint16_t windowVerticalStopPosition)
+{
+  constexpr uint32_t LTDC_LAYER_WVPCR_WVSPPOS_POSITION = 16u;
+  constexpr uint32_t LTDC_LAYER_WVPCR_WVSPPOS_SIZE     = 11u;
+
+  registerValueWVPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueWVPCR,
+    LTDC_LAYER_WVPCR_WVSPPOS_POSITION,
+    LTDC_LAYER_WVPCR_WVSPPOS_SIZE,
+    static_cast<uint32_t>(windowVerticalStopPosition));
+}
+
+inline void LTDC::setDefaultColorBlueComponent(uint32_t &registerValueDCCR, uint8_t blue)
+{
+  constexpr uint32_t LTDC_DCCR_DCBLUE_POSITION = 0u;
+  constexpr uint32_t LTDC_DCCR_DCBLUE_SIZE     = 8u;
+
+  registerValueDCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueDCCR,
+    LTDC_DCCR_DCBLUE_POSITION,
+    LTDC_DCCR_DCBLUE_SIZE,
+    static_cast<uint32_t>(blue));
+}
+
+inline void LTDC::setDefaultColorGreenComponent(uint32_t &registerValueDCCR, uint8_t green)
+{
+  constexpr uint32_t LTDC_DCCR_DCGREEN_POSITION = 8u;
+  constexpr uint32_t LTDC_DCCR_DCGREEN_SIZE     = 8u;
+
+  registerValueDCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueDCCR,
+    LTDC_DCCR_DCGREEN_POSITION,
+    LTDC_DCCR_DCGREEN_SIZE,
+    static_cast<uint32_t>(green));
+}
+
+inline void LTDC::setDefaultColorRedComponent(uint32_t &registerValueDCCR, uint8_t red)
+{
+  constexpr uint32_t LTDC_DCCR_DCRED_POSITION = 16u;
+  constexpr uint32_t LTDC_DCCR_DCRED_SIZE     = 8u;
+
+  registerValueDCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueDCCR,
+    LTDC_DCCR_DCRED_POSITION,
+    LTDC_DCCR_DCRED_SIZE,
+    static_cast<uint32_t>(red));
+}
+
+inline void LTDC::setDefaultColorAlphaComponent(uint32_t &registerValueDCCR, uint8_t alpha)
+{
+  constexpr uint32_t LTDC_DCCR_DCALPHA_POSITION = 24u;
+  constexpr uint32_t LTDC_DCCR_DCALPHA_SIZE     = 8u;
+
+  registerValueDCCR = MemoryUtility<uint32_t>::setBits(
+    registerValueDCCR,
+    LTDC_DCCR_DCALPHA_POSITION,
+    LTDC_DCCR_DCALPHA_SIZE,
+    static_cast<uint32_t>(alpha));
+}
+
+inline void
+LTDC::setCurrentLayerBlendingFactor(uint32_t &registerValueBFCR, BlendingFactor currentLayerBlendingFactor)
+{
+  constexpr uint32_t LTDC_BFCR_BF1_POSITION = 8u;
+  constexpr uint32_t LTDC_BFCR_BF1_SIZE     = 3u;
+
+  registerValueBFCR = MemoryUtility<uint32_t>::setBits(
+    registerValueBFCR,
+    LTDC_BFCR_BF1_POSITION,
+    LTDC_BFCR_BF1_SIZE,
+    static_cast<uint32_t>(currentLayerBlendingFactor));
+}
+
+inline void
+LTDC::setSubjacentLayerBlendingFactor(uint32_t &registerValueBFCR, BlendingFactor subjacentLayerBlendingFactor)
+{
+  constexpr uint32_t LTDC_BFCR_BF2_POSITION = 0u;
+  constexpr uint32_t LTDC_BFCR_BF2_SIZE     = 3u;
+
+  registerValueBFCR = MemoryUtility<uint32_t>::setBits(
+    registerValueBFCR,
+    LTDC_BFCR_BF2_POSITION,
+    LTDC_BFCR_BF2_SIZE,
+    static_cast<uint32_t>(subjacentLayerBlendingFactor));
+}
+
+void LTDC::setFrameBufferLineLength(
+  uint32_t &registerValueCFBLR,
+  uint16_t frameBufferWidth,
+  ColorFormat frameBufferColorFormat)
+{
+  constexpr uint32_t LTDC_CFBLR_CFBLL_POSITION = 0u;
+  constexpr uint32_t LTDC_CFBLR_CFBLL_SIZE     = 13u;
+
+  registerValueCFBLR = MemoryUtility<uint32_t>::setBits(
+    registerValueCFBLR,
+    LTDC_CFBLR_CFBLL_POSITION,
+    LTDC_CFBLR_CFBLL_SIZE,
+    static_cast<uint32_t>(frameBufferWidth * getPixelSize(frameBufferColorFormat) + 3u));
+}
+
+void LTDC::setFrameBufferLinePitch(
+  uint32_t &registerValueCFBLR,
+  uint16_t frameBufferWidth,
+  ColorFormat frameBufferColorFormat)
+{
+  constexpr uint32_t LTDC_CFBLR_CFBP_POSITION = 16u;
+  constexpr uint32_t LTDC_CFBLR_CFBP_SIZE     = 13u;
+
+  registerValueCFBLR = MemoryUtility<uint32_t>::setBits(
+    registerValueCFBLR,
+    LTDC_CFBLR_CFBP_POSITION ,
+    LTDC_CFBLR_CFBP_SIZE,
+    static_cast<uint32_t>(frameBufferWidth * getPixelSize(frameBufferColorFormat)));
+}
+
 inline LTDC::ErrorCode LTDC::enablePeripheralClock(void)
 {
   ResetControl::ErrorCode errorCode = m_resetControlPtr->enablePeripheralClock(getPeripheralTag());
 
   return (ResetControl::ErrorCode::OK == errorCode) ? ErrorCode::OK : ErrorCode::CAN_NOT_TURN_ON_PERIPHERAL_CLOCK;
+}
+
+uint8_t LTDC::getPixelSize(ColorFormat colorFormat)
+{
+  uint8_t pixelSize;
+
+  switch (colorFormat)
+  {
+    case ColorFormat::ARGB8888:
+    {
+      pixelSize = 4u;
+    }
+    break;
+
+    case ColorFormat::RGB888:
+    {
+      pixelSize = 3u;
+    }
+    break;
+
+    case ColorFormat::RGB565:
+    case ColorFormat::ARGB1555:
+    case ColorFormat::ARGB4444:
+    case ColorFormat::AL88:
+    {
+      pixelSize = 2u;
+    }
+    break;
+
+    case ColorFormat::L8:
+    case ColorFormat::AL44:
+    {
+      pixelSize = 1u;
+    }
+    break;
+
+    default:
+    {
+      pixelSize = 0u;
+    }
+    break;
+  }
+
+  return pixelSize;
 }

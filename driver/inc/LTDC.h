@@ -32,9 +32,40 @@ public:
 
   struct Color
   {
+    uint8_t alpha;
     uint8_t red;
     uint8_t green;
     uint8_t blue;
+  };
+
+  enum class ColorFormat : uint8_t
+  {
+    ARGB8888 = 0b000,
+    RGB888   = 0b001,
+    RGB565   = 0b010,
+    ARGB1555 = 0b011,
+    ARGB4444 = 0b100,
+    L8       = 0b101,
+    AL44     = 0b110,
+    AL88     = 0b111
+  };
+
+  enum class BlendingFactor : uint8_t
+  {
+    CONST_ALPHA               = 0b100,
+    PIXEL_ALPHA_X_CONST_ALPHA = 0b110
+  };
+
+  struct Position
+  {
+    uint16_t x;
+    uint16_t y;
+  };
+
+  struct Dimension
+  {
+    uint16_t width;
+    uint16_t height;
   };
 
   struct LTDCConfig
@@ -54,7 +85,18 @@ public:
     Color    backgroundColor;
   };
 
-  ErrorCode init(const LTDCConfig &ltdcConfig);
+  struct LTDCLayerConfig
+  {
+    ColorFormat frameBufferColorFormat;
+    uint8_t alpha;
+    Color defaultColor;
+    BlendingFactor currentLayerBlendingFactor;
+    BlendingFactor subjacentLayerBlendingFactor;
+    void *frameBufferPtr;
+    Dimension frameBufferDimension;
+  };
+
+  ErrorCode init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLayer1Config);
 
   inline Peripheral getPeripheralTag(void) const
   {
@@ -84,9 +126,68 @@ private:
   void setPixelClockPolarity(uint32_t &registerValueGCR, Polarity pixelClockPolarity);
 
   void setBackgroundColor(Color backgroundColor);
-  void setBackgroundColorBlueComponenet(uint32_t &registerValueBCCR, uint8_t blue);
-  void setBackgroundColorGreenComponenet(uint32_t &registerValueBCCR, uint8_t green);
-  void setBackgroundColorRedComponenet(uint32_t &registerValueBCCR, uint8_t red);
+  void setBackgroundColorBlueComponent(uint32_t &registerValueBCCR, uint8_t blue);
+  void setBackgroundColorGreenComponent(uint32_t &registerValueBCCR, uint8_t green);
+  void setBackgroundColorRedComponent(uint32_t &registerValueBCCR, uint8_t red);
+
+  void enableLTDC(void);
+
+  void setLayerWindowHorizontalPosition(
+    LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+    uint16_t accumulatedHorizontalBackPorch,
+    uint16_t accumulatedActiveWidth);
+
+  void setLayerWindowVerticalPosition(
+    LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+    uint16_t accumulatedVerticalBackPorch,
+    uint16_t accumulatedActiveHeight);
+
+  void setWindowHorizontalStartPosition(uint32_t &registerValueWHPCR, uint16_t windowHorizontalStartPosition);
+  void setWindowHorizontalStopPosition(uint32_t &registerValueWHPCR, uint16_t windowHorizontalStopPosition);
+  void setWindowVerticalStartPosition(uint32_t &registerValueWVPCR, uint16_t windowVerticalStartPosition);
+  void setWindowVerticalStopPosition(uint32_t &registerValueWVPCR, uint16_t windowVerticalStopPosition);
+
+  void setLayerFrameBufferColorFormat(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, ColorFormat colorFormat);
+  void setLayerConstantAlpha(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, uint8_t alpha);
+
+  void setLayerDefaultColor(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, Color defaultColor);
+
+  void setDefaultColorBlueComponent(uint32_t &registerValueDCCR, uint8_t blue);
+  void setDefaultColorGreenComponent(uint32_t &registerValueDCCR, uint8_t green);
+  void setDefaultColorRedComponent(uint32_t &registerValueDCCR, uint8_t red);
+  void setDefaultColorAlphaComponent(uint32_t &registerValueDCCR, uint8_t alpha);
+
+  void setLayerBlendingFactors(
+    LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+    BlendingFactor currentLayerBlendingFactor,
+    BlendingFactor subjacentLayerBlendingFactor);
+
+  void setCurrentLayerBlendingFactor(uint32_t &registerValueBFCR, BlendingFactor currentLayerBlendingFactor);
+  void setSubjacentLayerBlendingFactor(uint32_t &registerValueBFCR, BlendingFactor subjacentLayerBlendingFactor);
+
+  void setLayerFrameBufferAddress(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, void *frameBufferPtr);
+
+  void setLayerFrameBufferWidth(
+    LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+    uint16_t frameBufferWidth,
+    ColorFormat frameBufferColorFormat);
+
+  void setFrameBufferLineLength(
+    uint32_t &registerValueCFBLR,
+    uint16_t frameBufferWidth,
+    ColorFormat frameBufferColorFormat);
+
+  void setFrameBufferLinePitch(
+    uint32_t &registerValueCFBLR,
+    uint16_t frameBufferWidth,
+    ColorFormat frameBufferColorFormat);
+
+  void setLayerFrameBufferHeight(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr, uint16_t frameBufferHeight);
+
+  void enableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr);
+  void disableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr);
+
+  static uint8_t getPixelSize(ColorFormat colorFormat);
 
   //! Pointer to USART peripheral
   LTDC_TypeDef *m_LTDCPeripheralPtr;
