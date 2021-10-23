@@ -23,6 +23,7 @@ public:
 
   RCC_TypeDef virtualRCCPeripheral;
   ClockControl virtualClockControl = ClockControl(&virtualRCCPeripheral);
+  ClockControl::PLLConfiguration pllConfig;
 
   void setPLL(uint32_t PLLM, uint32_t PLLN, uint32_t PLLR, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLSRC);
   void setMSI(uint32_t msiRange, bool isMsiRangeInCR);
@@ -117,7 +118,7 @@ TEST_F(AClockControl, GetsHSIClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::HSI, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::HSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_HSI_CLOCK_FREQUENCY));
@@ -130,7 +131,7 @@ TEST_F(AClockControl, GetsHSEClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::HSE, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::HSE, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_HSE_CLOCK_FREQUENCY));
@@ -143,7 +144,7 @@ TEST_F(AClockControl, GetsLSEClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::LSE, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::LSE, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_LSE_CLOCK_FREQUENCY));
@@ -158,7 +159,7 @@ TEST_F(AClockControl, GetMSIClockFrequencyFromCR)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::MSI, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::MSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_MSI_CLOCK_FREQUENCY));
@@ -173,7 +174,7 @@ TEST_F(AClockControl, GetMSIClockFrequencyFromCSR)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::MSI, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::MSI, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_MSI_CLOCK_FREQUENCY));
@@ -187,7 +188,7 @@ TEST_F(AClockControl, GetPLLClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::PLL, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::PLL, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_PLL_CLOCK_FREQUENCY));
@@ -202,7 +203,7 @@ TEST_F(AClockControl, GetsSystemClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::SYSTEM_CLOCK, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::SYSTEM_CLOCK, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_SYSTEM_CLOCK_FREQUENCY));
@@ -217,7 +218,7 @@ TEST_F(AClockControl, GetsAHBClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::AHB, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::AHB, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_AHB_CLOCK_FREQUENCY));
@@ -233,7 +234,7 @@ TEST_F(AClockControl, GetsAPB1ClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::APB1, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::APB1, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_APB1_CLOCK_FREQUENCY));
@@ -249,7 +250,7 @@ TEST_F(AClockControl, GetsAPB2ClockFrequency)
 
   uint32_t clockFrequency;
   const ClockControl::ErrorCode errorCode =
-    virtualClockControl.getClockFrequency(ClockControl::ClockSource::APB2, clockFrequency);
+    virtualClockControl.getClockFrequency(ClockControl::Clock::APB2, clockFrequency);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_APB2_CLOCK_FREQUENCY));
@@ -301,4 +302,49 @@ TEST_F(AClockControl, GetsI2C1ClockFrequency)
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_I2C1_CLOCK_FREQUENCY));
+}
+
+TEST_F(AClockControl, SetsPLLClockSource)
+{
+  constexpr uint32_t RCC_PLLCFGR_PLLSRC_POSITION = 0u;
+  constexpr uint32_t RCC_PLLCFGR_PLLSRC_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLSRC_VALUE = 0b01;
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_PLLCFGR_PLLSRC_POSITION, RCC_PLLCFGR_PLLSRC_SIZE, EXPECTED_RCC_PLLCFGR_PLLSRC_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::MSI);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, SetsPLLClockSourceFailsIfGivenClockCanNotBeUsedAsPLLClockSource)
+{
+  void expectNoRegisterToChange();
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::LSE);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::INVALID_CLOCK_SOURCE));
+}
+
+TEST_F(AClockControl, ConfigurePLLSAI2SetsPLLSAI2MInPLLSAI2CFGRAccordingToInputClockDivider)
+{
+  constexpr uint8_t PLLSAI2_INPUT_CLOCK_DIVIDER = 15u;
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2M_POSITION = 4u;
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2M_SIZE     = 4u;
+  constexpr uint32_t EXPECTED_RCC_PLLSAI2CFGR_PLLSAI2M_VALUE = PLLSAI2_INPUT_CLOCK_DIVIDER - 1u;
+  pllConfig.inputClockDivider = PLLSAI2_INPUT_CLOCK_DIVIDER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLSAI2CFGR_PLLSAI2M_POSITION,
+    RCC_PLLSAI2CFGR_PLLSAI2M_SIZE,
+    EXPECTED_RCC_PLLSAI2CFGR_PLLSAI2M_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLSAI2CFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.configurePLL(ClockControl::Clock::PLLSAI2, pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLSAI2CFGR, bitsValueMatcher);
 }

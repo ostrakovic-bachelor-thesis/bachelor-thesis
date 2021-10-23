@@ -92,16 +92,17 @@ const ClockControl::GetClockFrequencyFunction_t ClockControl::s_systemClockFrequ
 
 const ClockControl::GetClockFrequencyFunction_t ClockControl::s_clockFrequency[] =
 {
-  [static_cast<uint8_t>(ClockSource::LSE)] = &ClockControl::getLSEClockFrequency,
-  [static_cast<uint8_t>(ClockSource::MSI)] = &ClockControl::getMSIClockFrequency,
-  [static_cast<uint8_t>(ClockSource::HSI)] = &ClockControl::getHSIClockFrequency,
-  [static_cast<uint8_t>(ClockSource::HSE)] = &ClockControl::getHSEClockFrequency,
-  [static_cast<uint8_t>(ClockSource::PLL)] = &ClockControl::getPLLClockFrequency,
-  [static_cast<uint8_t>(ClockSource::SYSTEM_CLOCK)] = &ClockControl::getSystemClockFrequency,
-  [static_cast<uint8_t>(ClockSource::AHB)]  = &ClockControl::getAHBClockFrequency,
-  [static_cast<uint8_t>(ClockSource::APB1)] = &ClockControl::getAPB1ClockFrequency,
-  [static_cast<uint8_t>(ClockSource::APB2)] = &ClockControl::getAPB2ClockFrequency,
-  [static_cast<uint8_t>(ClockSource::NO_CLOCK)] = &ClockControl::getNoClockFrequency
+  [static_cast<uint8_t>(Clock::LSE)]          = &ClockControl::getLSEClockFrequency,
+  [static_cast<uint8_t>(Clock::MSI)]          = &ClockControl::getMSIClockFrequency,
+  [static_cast<uint8_t>(Clock::HSI)]          = &ClockControl::getHSIClockFrequency,
+  [static_cast<uint8_t>(Clock::HSE)]          = &ClockControl::getHSEClockFrequency,
+  [static_cast<uint8_t>(Clock::PLL)]          = &ClockControl::getPLLClockFrequency,
+  [static_cast<uint8_t>(Clock::PLLSAI2)]      = &ClockControl::getNoClockFrequency,
+  [static_cast<uint8_t>(Clock::SYSTEM_CLOCK)] = &ClockControl::getSystemClockFrequency,
+  [static_cast<uint8_t>(Clock::AHB)]          = &ClockControl::getAHBClockFrequency,
+  [static_cast<uint8_t>(Clock::APB1)]         = &ClockControl::getAPB1ClockFrequency,
+  [static_cast<uint8_t>(Clock::APB2)]         = &ClockControl::getAPB2ClockFrequency,
+  [static_cast<uint8_t>(Clock::NO_CLOCK)]     = &ClockControl::getNoClockFrequency
 };
 
 
@@ -109,10 +110,25 @@ ClockControl::ClockControl(RCC_TypeDef *RCCPeripheralPtr):
   m_RCCPeripheralPtr(RCCPeripheralPtr)
 {}
 
-ClockControl::ErrorCode
-ClockControl::getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const
+ClockControl::ErrorCode ClockControl::setClockSource(Clock clock, Clock clockSource)
 {
-  clockFrequency = (this->*(s_clockFrequency[static_cast<uint8_t>(clockSource)]))();
+  // TODO ErrorCode errorCode = (this->*s_setClockSource[static_cast<uint8_t>(clock)])(clockSource);
+  ErrorCode errorCode = setPLLClockSource(clockSource);
+
+  return errorCode;
+}
+
+ClockControl::ErrorCode ClockControl::configurePLL(Clock pllClock, const PLLConfiguration &pllConfig)
+{
+  ErrorCode errorCode = configurePLLSAI2(pllConfig);
+
+  return errorCode;
+}
+
+ClockControl::ErrorCode
+ClockControl::getClockFrequency(Clock clock, uint32_t &clockFrequency) const
+{
+  clockFrequency = (this->*(s_clockFrequency[static_cast<uint8_t>(clock)]))();
   return ErrorCode::OK;
 }
 
@@ -346,4 +362,72 @@ uint32_t ClockControl::getI2C1ClockFrequency(void) const
     I2C1SEL_NUM_OF_BITS);
 
   return (this->*(s_i2cClockFrequency[i2c1ClockSourceIndex]))();
+}
+
+ClockControl::ErrorCode ClockControl::configurePLLSAI2(const PLLConfiguration &pllConfig)
+{
+  setPLLInputClockDivider(&(m_RCCPeripheralPtr->PLLSAI2CFGR), pllConfig.inputClockDivider);
+
+  return ErrorCode::OK;
+}
+
+ClockControl::ErrorCode ClockControl::setPLLClockSource(Clock clockSource)
+{
+  constexpr uint32_t RCC_PLLCFGR_PLLSRC_POSITION = 0u;
+  constexpr uint32_t RCC_PLLCFGR_PLLSRC_SIZE     = 2u;
+  uint8_t pllClockSource;
+
+  ErrorCode errorCode = mapToPLLClockSource(clockSource, pllClockSource);
+  if (ErrorCode::OK == errorCode)
+  {
+    RegisterUtility<uint32_t>::setBitsInRegister(
+      &(m_RCCPeripheralPtr->PLLCFGR),
+      RCC_PLLCFGR_PLLSRC_POSITION,
+      RCC_PLLCFGR_PLLSRC_SIZE,
+      static_cast<uint32_t>(pllClockSource));
+  }
+
+  return errorCode;
+}
+
+ClockControl::ErrorCode ClockControl::mapToPLLClockSource(Clock clockSource, uint8_t &pllClockSource)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  switch (clockSource)
+  {
+    case Clock::NO_CLOCK:
+      pllClockSource = 0b00;
+      break;
+
+    case Clock::MSI:
+      pllClockSource = 0b01;
+      break;
+
+    case Clock::HSI:
+      pllClockSource = 0b10;
+      break;
+
+    case Clock::HSE:
+      pllClockSource = 0b11;
+      break;
+
+    default:
+      errorCode = ErrorCode::INVALID_CLOCK_SOURCE;
+      break;
+  }
+
+  return errorCode;
+}
+
+void ClockControl::setPLLInputClockDivider(volatile uint32_t *pllConfigRegisterPtr, uint8_t inputClockDivider)
+{
+  constexpr uint32_t RCC_PLLXCFGR_PLLM_POSITION = 4u;
+  constexpr uint32_t RCC_PLLXCFGR_PLLM_SIZE     = 4u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    pllConfigRegisterPtr,
+    RCC_PLLXCFGR_PLLM_POSITION,
+    RCC_PLLXCFGR_PLLM_SIZE,
+    static_cast<uint32_t>(inputClockDivider - 1u));
 }

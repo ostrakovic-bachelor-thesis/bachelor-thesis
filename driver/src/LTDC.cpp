@@ -4,17 +4,14 @@
 #include "RegisterUtility.h"
 
 
-LTDC::LTDC(LTDC_TypeDef *LTDCPeripheralPtr,
-    LTDC_Layer_TypeDef *LTDCPeripheralLayer1Ptr,
-    LTDC_Layer_TypeDef *LTDCPeripheralLayer2Ptr,
-    ResetControl *resetControlPtr):
+LTDC::LTDC(LTDC_TypeDef *LTDCPeripheralPtr, ResetControl *resetControlPtr):
   m_LTDCPeripheralPtr(LTDCPeripheralPtr),
-  m_LTDCPeripheralLayer1Ptr(LTDCPeripheralLayer1Ptr),
-  m_LTDCPeripheralLayer2Ptr(LTDCPeripheralLayer2Ptr),
+  m_LTDCPeripheralLayer1Ptr(reinterpret_cast<LTDC_Layer_TypeDef*>(reinterpret_cast<uintptr_t>(LTDCPeripheralPtr) + LAYER1_OFFSET)),
+  m_LTDCPeripheralLayer2Ptr(reinterpret_cast<LTDC_Layer_TypeDef*>(reinterpret_cast<uintptr_t>(LTDCPeripheralPtr) + LAYER2_OFFSET)),
   m_resetControlPtr(resetControlPtr)
 {}
 
-LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLayer1Config)
+LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig, const LTDCLayerConfig &ltdcLayer1Config)
 {
   ErrorCode errorCode = enablePeripheralClock();
   if (ErrorCode::OK != errorCode)
@@ -22,6 +19,21 @@ LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLa
     return errorCode;
   }
 
+  configureLTDC(ltdcConfig);
+  enableLTDC();
+
+  configureLTDCLayer(m_LTDCPeripheralLayer1Ptr, ltdcConfig, ltdcLayer1Config);
+  enableLayer(m_LTDCPeripheralLayer1Ptr);
+
+  disableLayer(m_LTDCPeripheralLayer2Ptr);
+
+  forceReloadOfShadowRegisters();
+
+  return ErrorCode::OK;
+}
+
+void LTDC::configureLTDC(const LTDCConfig &ltdcConfig)
+{
   const uint16_t accumulatedHorizontalBackPorch = ltdcConfig.horizontalBackPorch + ltdcConfig.hsyncWidth;
   const uint16_t accumulatedVerticalBackPorch   = ltdcConfig.verticalBackPorch   + ltdcConfig.vsyncWidth;
   const uint16_t accumulatedActiveWidth  = ltdcConfig.displayWidth  + accumulatedHorizontalBackPorch;
@@ -44,27 +56,31 @@ LTDC::ErrorCode LTDC::init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLa
   MemoryAccess::setRegisterValue(&(m_LTDCPeripheralPtr->GCR), registerValueGCR);
 
   setBackgroundColor(ltdcConfig.backgroundColor);
+}
 
-  enableLTDC();
+void LTDC::configureLTDCLayer(
+  LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+  const LTDCConfig &ltdcConfig,
+  const LTDCLayerConfig &ltdcLayerConfig)
+{
+  const uint16_t accumulatedHorizontalBackPorch = ltdcConfig.horizontalBackPorch + ltdcConfig.hsyncWidth;
+  const uint16_t accumulatedVerticalBackPorch   = ltdcConfig.verticalBackPorch   + ltdcConfig.vsyncWidth;
+  const uint16_t accumulatedActiveWidth  = ltdcConfig.displayWidth  + accumulatedHorizontalBackPorch;
+  const uint16_t accumulatedActiveHeight = ltdcConfig.displayHeight + accumulatedVerticalBackPorch;
 
-  setLayerWindowHorizontalPosition(m_LTDCPeripheralLayer1Ptr, accumulatedHorizontalBackPorch, accumulatedActiveWidth);
-  setLayerWindowVerticalPosition(m_LTDCPeripheralLayer1Ptr, accumulatedVerticalBackPorch, accumulatedActiveHeight);
-  setLayerFrameBufferColorFormat(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferColorFormat);
-  setLayerConstantAlpha(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.alpha);
-  setLayerDefaultColor(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.defaultColor);
-  setLayerBlendingFactors(m_LTDCPeripheralLayer1Ptr,
-    ltdcLayer1Config.currentLayerBlendingFactor,
-    ltdcLayer1Config.subjacentLayerBlendingFactor);
-  setLayerFrameBufferAddress(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferPtr);
-  setLayerFrameBufferWidth(m_LTDCPeripheralLayer1Ptr,
-    ltdcLayer1Config.frameBufferDimension.width,
-    ltdcLayer1Config.frameBufferColorFormat);
-  setLayerFrameBufferHeight(m_LTDCPeripheralLayer1Ptr, ltdcLayer1Config.frameBufferDimension.height);
-  enableLayer(m_LTDCPeripheralLayer1Ptr);
-
-  disableLayer(m_LTDCPeripheralLayer2Ptr);
-
-  return ErrorCode::OK;
+  setLayerWindowHorizontalPosition(LTDCPeripheralLayerPtr, accumulatedHorizontalBackPorch, accumulatedActiveWidth);
+  setLayerWindowVerticalPosition(LTDCPeripheralLayerPtr, accumulatedVerticalBackPorch, accumulatedActiveHeight);
+  setLayerFrameBufferColorFormat(LTDCPeripheralLayerPtr, ltdcLayerConfig.frameBufferConfig.colorFormat);
+  setLayerConstantAlpha(LTDCPeripheralLayerPtr, ltdcLayerConfig.alpha);
+  setLayerDefaultColor(LTDCPeripheralLayerPtr, ltdcLayerConfig.defaultColor);
+  setLayerBlendingFactors(LTDCPeripheralLayerPtr,
+    ltdcLayerConfig.currentLayerBlendingFactor,
+    ltdcLayerConfig.subjacentLayerBlendingFactor);
+  setLayerFrameBufferAddress(LTDCPeripheralLayerPtr, ltdcLayerConfig.frameBufferConfig.bufferPtr);
+  setLayerFrameBufferWidth(LTDCPeripheralLayerPtr,
+    ltdcLayerConfig.frameBufferConfig.bufferDimension.width,
+    ltdcLayerConfig.frameBufferConfig.colorFormat);
+  setLayerFrameBufferHeight(LTDCPeripheralLayerPtr, ltdcLayerConfig.frameBufferConfig.bufferDimension.height);
 }
 
 void LTDC::setSynchronizationWidths(uint16_t hsyncWidth, uint16_t vsyncWidth)
@@ -243,6 +259,13 @@ inline void LTDC::disableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr)
   constexpr uint32_t LTDC_CR_LEN_POSITION = 0u;
 
   RegisterUtility<uint32_t>::resetBitInRegister(&(LTDCPeripheralLayerPtr->CR), LTDC_CR_LEN_POSITION);
+}
+
+inline void LTDC::forceReloadOfShadowRegisters(void)
+{
+  constexpr uint32_t LTDC_SRCR_IMR_POSITION = 0u;
+
+  RegisterUtility<uint32_t>::resetBitInRegister(&(m_LTDCPeripheralPtr->SRCR), LTDC_SRCR_IMR_POSITION);
 }
 
 inline void LTDC::setHorizontalSynchronizationWidth(uint32_t &registerValueSSCR, uint16_t hsyncWidth)

@@ -52,7 +52,7 @@ SysTick::ErrorCode SysTick::ticksPerSecondToReloadValue(uint32_t ticksPerSecond,
   uint32_t systemClockFrequency = 0u;
 
   const auto clockControlErrorCode =  m_clockControlPtr->getClockFrequency(
-    ClockControl::ClockSource::SYSTEM_CLOCK,
+    ClockControl::Clock::SYSTEM_CLOCK,
     systemClockFrequency);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {

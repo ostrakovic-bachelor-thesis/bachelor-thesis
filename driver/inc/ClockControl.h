@@ -33,18 +33,24 @@ public:
   };
 
   // TODO
-  enum class ClockSource : uint8_t
+  enum class Clock : uint8_t
   {
     LSE = 0u,     //!<
     MSI,          //!<
     HSI,          //!<
     HSE,          //!<
     PLL,          //!<
+    PLLSAI2,      //!<
     SYSTEM_CLOCK, //!<
     AHB,          //!<
     APB1,         //!<
     APB2,         //!<
     NO_CLOCK      //!<
+  };
+
+  struct PLLConfiguration
+  {
+    uint8_t inputClockDivider;
   };
 
   /**
@@ -53,7 +59,23 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
-  ErrorCode getClockFrequency(ClockSource clockSource, uint32_t &clockFrequency) const;
+  ErrorCode setClockSource(Clock clock, Clock clockSource);
+
+  /**
+   * TODO
+   */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode configurePLL(Clock pllClock, const PLLConfiguration &pllConfig);
+
+  /**
+   * TODO
+   */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode getClockFrequency(Clock clock, uint32_t &clockFrequency) const;
 
   /**
    * TODO
@@ -99,6 +121,14 @@ private:
   uint32_t getUSART1ClockFrequency(void) const;
   uint32_t getUSART2ClockFrequency(void) const;
   uint32_t getI2C1ClockFrequency(void) const;
+
+  ErrorCode setPLLClockSource(Clock clockSource);
+
+  ErrorCode mapToPLLClockSource(Clock clockSource, uint8_t &pllClockSource);
+
+  ErrorCode configurePLLSAI2(const PLLConfiguration &pllConfig);
+
+  void setPLLInputClockDivider(volatile uint32_t *pllConfigRegisterPtr, uint8_t inputClockDivider);
 
   static const uint32_t s_msiClockFreq[];
 

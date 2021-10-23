@@ -11,10 +11,7 @@ class LTDC
 {
 public:
 
-  LTDC(LTDC_TypeDef *LTDCPeripheralPtr,
-    LTDC_Layer_TypeDef *LTDCPeripheralLayer1Ptr,
-    LTDC_Layer_TypeDef *LTDCPeripheralLayer2Ptr,
-    ResetControl *resetControlPtr);
+  LTDC(LTDC_TypeDef *LTDCPeripheralPtr, ResetControl *resetControlPtr);
 
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
@@ -85,18 +82,23 @@ public:
     Color    backgroundColor;
   };
 
+  struct FrameBufferConfiguration
+  {
+    ColorFormat colorFormat;
+    Dimension bufferDimension;
+    void *bufferPtr;
+  };
+
   struct LTDCLayerConfig
   {
-    ColorFormat frameBufferColorFormat;
     uint8_t alpha;
     Color defaultColor;
     BlendingFactor currentLayerBlendingFactor;
     BlendingFactor subjacentLayerBlendingFactor;
-    void *frameBufferPtr;
-    Dimension frameBufferDimension;
+    FrameBufferConfiguration frameBufferConfig;
   };
 
-  ErrorCode init(const LTDCConfig &ltdcConfig, LTDCLayerConfig &ltdcLayer1Config);
+  ErrorCode init(const LTDCConfig &ltdcConfig, const LTDCLayerConfig &ltdcLayer1Config);
 
   inline Peripheral getPeripheralTag(void) const
   {
@@ -105,7 +107,17 @@ public:
 
 private:
 
+  static constexpr uint32_t LAYER1_OFFSET = 0x84;
+  static constexpr uint32_t LAYER2_OFFSET = 0x104;
+
   ErrorCode enablePeripheralClock(void);
+
+  void configureLTDC(const LTDCConfig &ltdcConfig);
+
+  void configureLTDCLayer(
+    LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr,
+    const LTDCConfig &ltdcConfig,
+    const LTDCLayerConfig &ltdcLayerConfig);
 
   void setSynchronizationWidths(uint16_t hsyncWidth, uint16_t vsyncWidth);
   void setHorizontalSynchronizationWidth(uint32_t &registerValueSSCR, uint16_t hsyncWidth);
@@ -187,15 +199,17 @@ private:
   void enableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr);
   void disableLayer(LTDC_Layer_TypeDef *LTDCPeripheralLayerPtr);
 
+  void forceReloadOfShadowRegisters(void);
+
   static uint8_t getPixelSize(ColorFormat colorFormat);
 
-  //! Pointer to USART peripheral
+  //! Pointer to LTDC peripheral
   LTDC_TypeDef *m_LTDCPeripheralPtr;
 
-  //! Pointer to USART peripheral
+  //! Pointer to LTDC peripheral layer 1
   LTDC_Layer_TypeDef *m_LTDCPeripheralLayer1Ptr;
 
-  //! Pointer to USART peripheral
+  //! Pointer to LTDC peripheral layer 2
   LTDC_Layer_TypeDef *m_LTDCPeripheralLayer2Ptr;
 
   //! Pointer to Reset Control module

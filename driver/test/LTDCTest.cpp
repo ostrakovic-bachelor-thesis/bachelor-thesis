@@ -40,12 +40,17 @@ public:
   static constexpr uint32_t LTDC_LAYER_X_CFBLNR_RESET_VALUE = 0x00000000;
   static constexpr uint32_t LTDC_LAYER_X_CLUTWR_RESET_VALUE = 0x00000000;
 
-  LTDC_TypeDef virtualLTDCPeripheral;
-  LTDC_Layer_TypeDef virtualLTDCPeripheralLayer1;
-  LTDC_Layer_TypeDef virtualLTDCPeripheralLayer2;
+  static constexpr uint32_t LTDC_PERIPHERAL_SIZE = 0x200u;
+  uint8_t virtualLTDCPeripheral[LTDC_PERIPHERAL_SIZE];
+
+  LTDC_TypeDef *virtualLTDCPeripheralPtr = reinterpret_cast<LTDC_TypeDef*>(&virtualLTDCPeripheral[0x0]);
+  LTDC_Layer_TypeDef *virtualLTDCPeripheralLayer1Ptr =
+    reinterpret_cast<LTDC_Layer_TypeDef*>(&virtualLTDCPeripheral[0x84]);
+  LTDC_Layer_TypeDef *virtualLTDCPeripheralLayer2Ptr =
+    reinterpret_cast<LTDC_Layer_TypeDef*>(&virtualLTDCPeripheral[0x104]);
+
   NiceMock<ResetControlMock> resetControlMock;
-  LTDC virtualLTDC =
-    LTDC(&virtualLTDCPeripheral, &virtualLTDCPeripheralLayer1, &virtualLTDCPeripheralLayer2, &resetControlMock);
+  LTDC virtualLTDC = LTDC(virtualLTDCPeripheralPtr, &resetControlMock);
   LTDC::LTDCConfig ltdcConfig;
   LTDC::LTDCLayerConfig ltdcLayer1Config;
 
@@ -58,45 +63,45 @@ void ALTDC::SetUp()
   DriverTest::SetUp();
 
   // based on real reset values for LTDC registers (source STM32L4R9 reference manual)
-  virtualLTDCPeripheral.SSCR  = LTDC_SSCR_RESET_VALUE;
-  virtualLTDCPeripheral.BPCR  = LTDC_BPCR_RESET_VALUE;
-  virtualLTDCPeripheral.AWCR  = LTDC_AWCR_RESET_VALUE;
-  virtualLTDCPeripheral.TWCR  = LTDC_TWCR_RESET_VALUE;
-  virtualLTDCPeripheral.GCR   = LTDC_GCR_RESET_VALUE;
-  virtualLTDCPeripheral.SRCR  = LTDC_SRCR_RESET_VALUE;
-  virtualLTDCPeripheral.BCCR  = LTDC_BCCR_RESET_VALUE;
-  virtualLTDCPeripheral.IER   = LTDC_IER_RESET_VALUE;
-  virtualLTDCPeripheral.ISR   = LTDC_ISR_RESET_VALUE;
-  virtualLTDCPeripheral.ICR   = LTDC_ICR_RESET_VALUE;
-  virtualLTDCPeripheral.LIPCR = LTDC_LIPCR_RESET_VALUE;
-  virtualLTDCPeripheral.CPSR  = LTDC_CPSR_RESET_VALUE;
-  virtualLTDCPeripheral.CDSR  = LTDC_CDSR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->SSCR  = LTDC_SSCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->BPCR  = LTDC_BPCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->AWCR  = LTDC_AWCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->TWCR  = LTDC_TWCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->GCR   = LTDC_GCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->SRCR  = LTDC_SRCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->BCCR  = LTDC_BCCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->IER   = LTDC_IER_RESET_VALUE;
+  virtualLTDCPeripheralPtr->ISR   = LTDC_ISR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->ICR   = LTDC_ICR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->LIPCR = LTDC_LIPCR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->CPSR  = LTDC_CPSR_RESET_VALUE;
+  virtualLTDCPeripheralPtr->CDSR  = LTDC_CDSR_RESET_VALUE;
 
-  virtualLTDCPeripheralLayer1.CR     = LTDC_LAYER_X_CR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.WHPCR  = LTDC_LAYER_X_WHPCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.WVPCR  = LTDC_LAYER_X_WVPCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CKCR   = LTDC_LAYER_X_CKCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.PFCR   = LTDC_LAYER_X_PFCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CACR   = LTDC_LAYER_X_CACR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.DCCR   = LTDC_LAYER_X_DCCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.BFCR   = LTDC_LAYER_X_BFCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CFBAR  = LTDC_LAYER_X_CFBAR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CFBLR  = LTDC_LAYER_X_CFBLR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CFBLNR = LTDC_LAYER_X_CFBLNR_RESET_VALUE;
-  virtualLTDCPeripheralLayer1.CLUTWR = LTDC_LAYER_X_CLUTWR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CR     = LTDC_LAYER_X_CR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->WHPCR  = LTDC_LAYER_X_WHPCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->WVPCR  = LTDC_LAYER_X_WVPCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CKCR   = LTDC_LAYER_X_CKCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->PFCR   = LTDC_LAYER_X_PFCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CACR   = LTDC_LAYER_X_CACR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->DCCR   = LTDC_LAYER_X_DCCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->BFCR   = LTDC_LAYER_X_BFCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CFBAR  = LTDC_LAYER_X_CFBAR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CFBLR  = LTDC_LAYER_X_CFBLR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CFBLNR = LTDC_LAYER_X_CFBLNR_RESET_VALUE;
+  virtualLTDCPeripheralLayer1Ptr->CLUTWR = LTDC_LAYER_X_CLUTWR_RESET_VALUE;
 
-  virtualLTDCPeripheralLayer2.CR     = LTDC_LAYER_X_CR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.WHPCR  = LTDC_LAYER_X_WHPCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.WVPCR  = LTDC_LAYER_X_WVPCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CKCR   = LTDC_LAYER_X_CKCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.PFCR   = LTDC_LAYER_X_PFCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CACR   = LTDC_LAYER_X_CACR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.DCCR   = LTDC_LAYER_X_DCCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.BFCR   = LTDC_LAYER_X_BFCR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CFBAR  = LTDC_LAYER_X_CFBAR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CFBLR  = LTDC_LAYER_X_CFBLR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CFBLNR = LTDC_LAYER_X_CFBLNR_RESET_VALUE;
-  virtualLTDCPeripheralLayer2.CLUTWR = LTDC_LAYER_X_CLUTWR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CR     = LTDC_LAYER_X_CR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->WHPCR  = LTDC_LAYER_X_WHPCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->WVPCR  = LTDC_LAYER_X_WVPCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CKCR   = LTDC_LAYER_X_CKCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->PFCR   = LTDC_LAYER_X_PFCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CACR   = LTDC_LAYER_X_CACR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->DCCR   = LTDC_LAYER_X_DCCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->BFCR   = LTDC_LAYER_X_BFCR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CFBAR  = LTDC_LAYER_X_CFBAR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CFBLR  = LTDC_LAYER_X_CFBLR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CFBLNR = LTDC_LAYER_X_CFBLNR_RESET_VALUE;
+  virtualLTDCPeripheralLayer2Ptr->CLUTWR = LTDC_LAYER_X_CLUTWR_RESET_VALUE;
 }
 
 void ALTDC::TearDown()
@@ -142,12 +147,12 @@ TEST_F(ALTDC, InitSetsValueOfVSHInSSCRRegisterAccordingToVSyncWidth)
   auto bitValueMatcher =
     BitsHaveValue(LTDC_SSCR_VSH_POSITION, LTDC_SSCR_VSH_SIZE, EXPECTED_LTDC_SSCR_VSH_VALUE);
   ltdcConfig.vsyncWidth = VSYNC_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.SSCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->SSCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.SSCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->SSCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfHSWInSSCRRegisterAccordingToHSyncWidth)
@@ -159,12 +164,12 @@ TEST_F(ALTDC, InitSetsValueOfHSWInSSCRRegisterAccordingToHSyncWidth)
   auto bitValueMatcher =
     BitsHaveValue(LTDC_SSCR_HSW_POSITION, LTDC_SSCR_HSW_SIZE, EXPECTED_LTDC_SSCR_HSW_VALUE);
   ltdcConfig.hsyncWidth = HSYNC_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.SSCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->SSCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.SSCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->SSCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfAVBPInBPCRRegisterAccordingToVsyncWidthAndVerticalBackPorch)
@@ -178,12 +183,12 @@ TEST_F(ALTDC, InitSetsValueOfAVBPInBPCRRegisterAccordingToVsyncWidthAndVerticalB
     BitsHaveValue(LTDC_BPCR_AVBP_POSITION, LTDC_BPCR_AVBP_SIZE, EXPECTED_LTDC_BPCR_AVBP_VALUE);
   ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
   ltdcConfig.verticalBackPorch = VBP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->BPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.BPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->BPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfAHBPInBPCRRegisterAccordingToHsyncWidthAndHorizontalBackPorch)
@@ -197,12 +202,12 @@ TEST_F(ALTDC, InitSetsValueOfAHBPInBPCRRegisterAccordingToHsyncWidthAndHorizonta
     BitsHaveValue(LTDC_BPCR_AHBP_POSITION, LTDC_BPCR_AHBP_SIZE, EXPECTED_LTDC_BPCR_AHBP_VALUE);
   ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
   ltdcConfig.horizontalBackPorch = HBP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->BPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.BPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->BPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfAAHInAWCRRegisterAccordingToVsyncWidthAndVerticalBackPorchAndDisplayHeight)
@@ -218,12 +223,12 @@ TEST_F(ALTDC, InitSetsValueOfAAHInAWCRRegisterAccordingToVsyncWidthAndVerticalBa
   ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
   ltdcConfig.verticalBackPorch = VBP;
   ltdcConfig.displayHeight     = DISPLAY_HEIGHT;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.AWCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->AWCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.AWCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->AWCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfAAWInAWCRRegisterAccordingToHsyncWidthAndHorizontalBackPorchAndDisplayWidth)
@@ -239,12 +244,12 @@ TEST_F(ALTDC, InitSetsValueOfAAWInAWCRRegisterAccordingToHsyncWidthAndHorizontal
   ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
   ltdcConfig.horizontalBackPorch = HBP;
   ltdcConfig.displayWidth        = DISPLAY_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.AWCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->AWCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.AWCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->AWCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfTOTALHInTWCRRegisterAccordingToVsyncWidthAndVerticalBackPorchAndDisplayHeightAndVerticalFrontPorch)
@@ -262,12 +267,12 @@ TEST_F(ALTDC, InitSetsValueOfTOTALHInTWCRRegisterAccordingToVsyncWidthAndVertica
   ltdcConfig.verticalBackPorch  = VBP;
   ltdcConfig.displayHeight      = DISPLAY_HEIGHT;
   ltdcConfig.verticalFrontPorch = VFP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.TWCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->TWCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.TWCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->TWCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfTOTALWInTWCRRegisterAccordingToHsyncWidthAndHorizontalBackPorchAndDisplayWidthAndHorizontalFrontPorch)
@@ -285,12 +290,12 @@ TEST_F(ALTDC, InitSetsValueOfTOTALWInTWCRRegisterAccordingToHsyncWidthAndHorizon
   ltdcConfig.horizontalBackPorch  = HBP;
   ltdcConfig.displayWidth         = DISPLAY_WIDTH;
   ltdcConfig.horizontalFrontPorch = HFP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.TWCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->TWCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.TWCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->TWCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfHSPOLInGCRRegisterAccordingToHSyncPolarity)
@@ -300,12 +305,12 @@ TEST_F(ALTDC, InitSetsValueOfHSPOLInGCRRegisterAccordingToHSyncPolarity)
   auto bitValueMatcher =
     BitHasValue(LTDC_GCR_HSPOL_POSITION, EXPECTED_LTDC_GCR_HSPOL_VALUE);
   ltdcConfig.hsyncPolarity = LTDC::Polarity::ACTIVE_HIGH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->GCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->GCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfVSPOLInGCRRegisterAccordingToVSyncPolarity)
@@ -315,12 +320,12 @@ TEST_F(ALTDC, InitSetsValueOfVSPOLInGCRRegisterAccordingToVSyncPolarity)
   auto bitValueMatcher =
     BitHasValue(LTDC_GCR_VSPOL_POSITION, EXPECTED_LTDC_GCR_VSPOL_VALUE);
   ltdcConfig.vsyncPolarity = LTDC::Polarity::ACTIVE_HIGH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->GCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->GCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfDEPOLInGCRRegisterAccordingToNotDataEnablePolarity)
@@ -330,12 +335,12 @@ TEST_F(ALTDC, InitSetsValueOfDEPOLInGCRRegisterAccordingToNotDataEnablePolarity)
   auto bitValueMatcher =
     BitHasValue(LTDC_GCR_DEPOL_POSITION, EXPECTED_LTDC_GCR_DEPOL_VALUE);
   ltdcConfig.notDataEnablePolarity = LTDC::Polarity::ACTIVE_HIGH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->GCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->GCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfPCPOLInGCRRegisterAccordingToPixelClockPolarity)
@@ -345,12 +350,12 @@ TEST_F(ALTDC, InitSetsValueOfPCPOLInGCRRegisterAccordingToPixelClockPolarity)
   auto bitValueMatcher =
     BitHasValue(LTDC_GCR_PCPOL_POSITION, EXPECTED_LTDC_GCR_PCPOL_VALUE);
   ltdcConfig.pixelClockPolarity = LTDC::Polarity::ACTIVE_HIGH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->GCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->GCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfBCBLUEInBCCRRegisterAccordingToBackgroundColorBlueComponent)
@@ -361,12 +366,12 @@ TEST_F(ALTDC, InitSetsValueOfBCBLUEInBCCRRegisterAccordingToBackgroundColorBlueC
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BCCR_BCBLUE_POSITION, LTDC_BCCR_BCBLUE_SIZE, EXPECTED_LTDC_BCCR_BCBLUE_VALUE);
   ltdcConfig.backgroundColor.blue = EXPECTED_LTDC_BCCR_BCBLUE_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->BCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->BCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfBCGREENInBCCRRegisterAccordingToBackgroundColorGreenComponent)
@@ -377,12 +382,12 @@ TEST_F(ALTDC, InitSetsValueOfBCGREENInBCCRRegisterAccordingToBackgroundColorGree
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BCCR_BCGREEN_POSITION, LTDC_BCCR_BCGREEN_SIZE, EXPECTED_LTDC_BCCR_BCGREEN_VALUE);
   ltdcConfig.backgroundColor.green = EXPECTED_LTDC_BCCR_BCGREEN_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->BCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->BCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfBCREDInBCCRRegisterAccordingToBackgroundColorRedComponent)
@@ -393,12 +398,12 @@ TEST_F(ALTDC, InitSetsValueOfBCREDInBCCRRegisterAccordingToBackgroundColorRedCom
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BCCR_BCRED_POSITION, LTDC_BCCR_BCRED_SIZE, EXPECTED_LTDC_BCCR_BCRED_VALUE);
   ltdcConfig.backgroundColor.red = EXPECTED_LTDC_BCCR_BCRED_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.BCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->BCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.BCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->BCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitEnablesLTDCPeripheralBySettingLTDCENBitInGCRRegister)
@@ -407,12 +412,12 @@ TEST_F(ALTDC, InitEnablesLTDCPeripheralBySettingLTDCENBitInGCRRegister)
   constexpr uint32_t EXPECTED_LTDC_GCR_LTDCEN_VALUE = 1u;
   auto bitValueMatcher =
     BitHasValue(LTDC_GCR_LTDCEN_POSITION, EXPECTED_LTDC_GCR_LTDCEN_VALUE);
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheral.GCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralPtr->GCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheral.GCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralPtr->GCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsLayer1WindowHorizontalStartPositionAccordingToHsyncWidthAndHorizontalBackPorch)
@@ -427,12 +432,12 @@ TEST_F(ALTDC, InitSetsLayer1WindowHorizontalStartPositionAccordingToHsyncWidthAn
     EXPECTED_LTDC_LAYER_WHPCR_WHSTPOS_VALUE);
   ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
   ltdcConfig.horizontalBackPorch = HBP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.WHPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->WHPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.WHPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->WHPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsLayer1WindowHorizontalStopPositionAccordingToHsyncWidthAndHorizontalBackPorchAndDisplayWidth)
@@ -449,12 +454,12 @@ TEST_F(ALTDC, InitSetsLayer1WindowHorizontalStopPositionAccordingToHsyncWidthAnd
   ltdcConfig.hsyncWidth          = HSYNC_WIDTH;
   ltdcConfig.horizontalBackPorch = HBP;
   ltdcConfig.displayWidth        = DISPLAY_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.WHPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->WHPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.WHPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->WHPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsLayer1WindowVerticalStartPositionAccordingToVsyncWidthAndVerticalBackPorch)
@@ -469,12 +474,12 @@ TEST_F(ALTDC, InitSetsLayer1WindowVerticalStartPositionAccordingToVsyncWidthAndV
     EXPECTED_LTDC_LAYER_WVPCR_WVSTPOS_VALUE);
   ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
   ltdcConfig.verticalBackPorch = VBP;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.WVPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->WVPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.WVPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->WVPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsLayer1WindowVerticalStopPositionAccordingToVsyncWidthAndVerticalBackPorchAndDisplayHeight)
@@ -491,12 +496,12 @@ TEST_F(ALTDC, InitSetsLayer1WindowVerticalStopPositionAccordingToVsyncWidthAndVe
   ltdcConfig.vsyncWidth        = VSYNC_WIDTH;
   ltdcConfig.verticalBackPorch = VBP;
   ltdcConfig.displayHeight     = DISPLAY_HEIGHT;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.WVPCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->WVPCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.WVPCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->WVPCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfPFBitsInLayer1PFCRRegisterAccordingToLayer1FrameBufferPixelColorFormat)
@@ -507,13 +512,13 @@ TEST_F(ALTDC, InitSetsValueOfPFBitsInLayer1PFCRRegisterAccordingToLayer1FrameBuf
   auto bitValueMatcher = BitsHaveValue(LTDC_LAYER_PFCR_PF_POSITION,
     LTDC_LAYER_PFCR_PF_SIZE,
     EXPECTED_LTDC_LAYER_PFCR_PF_VALUE);
-  ltdcLayer1Config.frameBufferColorFormat = LTDC::ColorFormat::RGB888;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.PFCR), bitValueMatcher);
+  ltdcLayer1Config.frameBufferConfig.colorFormat = LTDC::ColorFormat::RGB888;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->PFCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.PFCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->PFCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfCONSTABitsInLayer1CACRRegisterAccordingToLayer1Alpha)
@@ -525,12 +530,12 @@ TEST_F(ALTDC, InitSetsValueOfCONSTABitsInLayer1CACRRegisterAccordingToLayer1Alph
     LTDC_LAYER_CACR_CONSTA_SIZE,
     EXPECTED_LTDC_LAYER_CACR_CONSTA_VALUE);
   ltdcLayer1Config.alpha = EXPECTED_LTDC_LAYER_CACR_CONSTA_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CACR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CACR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CACR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CACR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfDCBLUEInInLayer1DCCRRegisterAccordingToLayer1DefaultColorBlueComponent)
@@ -541,12 +546,12 @@ TEST_F(ALTDC, InitSetsValueOfDCBLUEInInLayer1DCCRRegisterAccordingToLayer1Defaul
   auto bitValueMatcher =
     BitsHaveValue(LTDC_DCCR_DCBLUE_POSITION, LTDC_DCCR_DCBLUE_SIZE, EXPECTED_LTDC_DCCR_DCBLUE_VALUE);
   ltdcLayer1Config.defaultColor.blue = EXPECTED_LTDC_DCCR_DCBLUE_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.DCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->DCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.DCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->DCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfDCGREENInInLayer1DCCRRegisterAccordingToLayer1DefaultColorGreenComponent)
@@ -557,12 +562,12 @@ TEST_F(ALTDC, InitSetsValueOfDCGREENInInLayer1DCCRRegisterAccordingToLayer1Defau
   auto bitValueMatcher =
     BitsHaveValue(LTDC_DCCR_DCGREEN_POSITION, LTDC_DCCR_DCGREEN_SIZE, EXPECTED_LTDC_DCCR_DCGREEN_VALUE);
   ltdcLayer1Config.defaultColor.green = EXPECTED_LTDC_DCCR_DCGREEN_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.DCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->DCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.DCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->DCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfDCREDInInLayer1DCCRRegisterAccordingToLayer1DefaultColorRedComponent)
@@ -573,12 +578,12 @@ TEST_F(ALTDC, InitSetsValueOfDCREDInInLayer1DCCRRegisterAccordingToLayer1Default
   auto bitValueMatcher =
     BitsHaveValue(LTDC_DCCR_DCRED_POSITION, LTDC_DCCR_DCRED_SIZE, EXPECTED_LTDC_DCCR_DCRED_VALUE);
   ltdcLayer1Config.defaultColor.red = EXPECTED_LTDC_DCCR_DCRED_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.DCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->DCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.DCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->DCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfDCALPHAInInLayer1DCCRRegisterAccordingToLayer1DefaultColorAlphaComponent)
@@ -589,12 +594,12 @@ TEST_F(ALTDC, InitSetsValueOfDCALPHAInInLayer1DCCRRegisterAccordingToLayer1Defau
   auto bitValueMatcher =
     BitsHaveValue(LTDC_DCCR_DCALPHA_POSITION, LTDC_DCCR_DCALPHA_SIZE, EXPECTED_LTDC_DCCR_DCALPHA_VALUE);
   ltdcLayer1Config.defaultColor.alpha = EXPECTED_LTDC_DCCR_DCALPHA_VALUE;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.DCCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->DCCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.DCCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->DCCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfBF1InInLayer1BFCRRegisterAccordingToLayer1CurrentLayerBlendingFactor)
@@ -605,12 +610,12 @@ TEST_F(ALTDC, InitSetsValueOfBF1InInLayer1BFCRRegisterAccordingToLayer1CurrentLa
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BFCR_BF1_POSITION, LTDC_BFCR_BF1_SIZE, EXPECTED_LTDC_BFCR_BF1_VALUE);
   ltdcLayer1Config.currentLayerBlendingFactor = LTDC::BlendingFactor::PIXEL_ALPHA_X_CONST_ALPHA;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.BFCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->BFCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.BFCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->BFCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfBF2InInLayer1BFCRRegisterAccordingToLayer1SubjacentLayerBlendingFactor)
@@ -621,24 +626,24 @@ TEST_F(ALTDC, InitSetsValueOfBF2InInLayer1BFCRRegisterAccordingToLayer1Subjacent
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BFCR_BF2_POSITION, LTDC_BFCR_BF2_SIZE, EXPECTED_LTDC_BFCR_BF2_VALUE);
   ltdcLayer1Config.subjacentLayerBlendingFactor = LTDC::BlendingFactor::CONST_ALPHA;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.BFCR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->BFCR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.BFCR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->BFCR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsLayer1FrameBufferAddressInLayer1CFBARRegister)
 {
   constexpr uint32_t EXPECTED_LTDC_CFBAR_VALUE = 0xA0008000;
-  ltdcLayer1Config.frameBufferPtr = reinterpret_cast<void*>(EXPECTED_LTDC_CFBAR_VALUE);
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CFBAR), EXPECTED_LTDC_CFBAR_VALUE);
+  ltdcLayer1Config.frameBufferConfig.bufferPtr = reinterpret_cast<void*>(EXPECTED_LTDC_CFBAR_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CFBAR), EXPECTED_LTDC_CFBAR_VALUE);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CFBAR, EXPECTED_LTDC_CFBAR_VALUE);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CFBAR, EXPECTED_LTDC_CFBAR_VALUE);
 }
 
 TEST_F(ALTDC, InitSetsValueOfCFBLLInInLayer1CFBLRRegisterAccordingToFrameBufferWidthAndColorFormat)
@@ -650,14 +655,14 @@ TEST_F(ALTDC, InitSetsValueOfCFBLLInInLayer1CFBLRRegisterAccordingToFrameBufferW
   constexpr uint32_t EXPECTED_LTDC_CFBLR_CFBLL_VALUE = FRAME_BUFFER_WIDTH * PIXEL_SIZE_RGB888 + 3u;
   auto bitValueMatcher =
     BitsHaveValue(LTDC_CFBLR_CFBLL_POSITION, LTDC_CFBLR_CFBLL_SIZE, EXPECTED_LTDC_CFBLR_CFBLL_VALUE);
-  ltdcLayer1Config.frameBufferColorFormat     = LTDC::ColorFormat::RGB888;
-  ltdcLayer1Config.frameBufferDimension.width = FRAME_BUFFER_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CFBLR), bitValueMatcher);
+  ltdcLayer1Config.frameBufferConfig.colorFormat           = LTDC::ColorFormat::RGB888;
+  ltdcLayer1Config.frameBufferConfig.bufferDimension.width = FRAME_BUFFER_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CFBLR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CFBLR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CFBLR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfCFBPInInLayer1CFBLRRegisterAccordingToFrameBufferWidthAndColorFormat)
@@ -669,14 +674,14 @@ TEST_F(ALTDC, InitSetsValueOfCFBPInInLayer1CFBLRRegisterAccordingToFrameBufferWi
   constexpr uint32_t EXPECTED_LTDC_CFBLR_CFBP_VALUE = FRAME_BUFFER_WIDTH * PIXEL_SIZE_RGB565;
   auto bitValueMatcher =
     BitsHaveValue(LTDC_CFBLR_CFBP_POSITION, LTDC_CFBLR_CFBP_SIZE, EXPECTED_LTDC_CFBLR_CFBP_VALUE);
-  ltdcLayer1Config.frameBufferColorFormat     = LTDC::ColorFormat::RGB565;
-  ltdcLayer1Config.frameBufferDimension.width = FRAME_BUFFER_WIDTH;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CFBLR), bitValueMatcher);
+  ltdcLayer1Config.frameBufferConfig.colorFormat           = LTDC::ColorFormat::RGB565;
+  ltdcLayer1Config.frameBufferConfig.bufferDimension.width = FRAME_BUFFER_WIDTH;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CFBLR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CFBLR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CFBLR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitSetsValueOfCFBLNBRInInLayer1CFBLNRRegisterAccordingToFrameBufferHeight)
@@ -687,13 +692,13 @@ TEST_F(ALTDC, InitSetsValueOfCFBLNBRInInLayer1CFBLNRRegisterAccordingToFrameBuff
   constexpr uint32_t EXPECTED_LTDC_CFBLNR_CFBLNBR_VALUE = FRAME_BUFFER_HEIGHT;
   auto bitValueMatcher =
     BitsHaveValue(LTDC_CFBLNR_CFBLNBR_POSITION, LTDC_CFBLNR_CFBLNBR_SIZE, EXPECTED_LTDC_CFBLNR_CFBLNBR_VALUE);
-  ltdcLayer1Config.frameBufferDimension.height = FRAME_BUFFER_HEIGHT;
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CFBLNR), bitValueMatcher);
+  ltdcLayer1Config.frameBufferConfig.bufferDimension.height = FRAME_BUFFER_HEIGHT;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CFBLNR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CFBLNR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CFBLNR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitEnablesLayer1BySettingToOneLENBitInLayer1CRRegister)
@@ -702,12 +707,12 @@ TEST_F(ALTDC, InitEnablesLayer1BySettingToOneLENBitInLayer1CRRegister)
   constexpr uint32_t EXPECTED_LTDC_CR_LEN_VALUE = 0x1;
   auto bitValueMatcher =
     BitHasValue(LTDC_CR_LEN_POSITION, EXPECTED_LTDC_CR_LEN_VALUE);
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1.CR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer1Ptr->CR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer1.CR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->CR, bitValueMatcher);
 }
 
 TEST_F(ALTDC, InitDisablesLayer2BySettingToZeroLENBitInLayer2CRRegister)
@@ -716,10 +721,24 @@ TEST_F(ALTDC, InitDisablesLayer2BySettingToZeroLENBitInLayer2CRRegister)
   constexpr uint32_t EXPECTED_LTDC_CR_LEN_VALUE = 0x0;
   auto bitValueMatcher =
     BitHasValue(LTDC_CR_LEN_POSITION, EXPECTED_LTDC_CR_LEN_VALUE);
-  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer2.CR), bitValueMatcher);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualLTDCPeripheralLayer2Ptr->CR), bitValueMatcher);
 
   const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
 
   ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
-  ASSERT_THAT(virtualLTDCPeripheralLayer2.CR, bitValueMatcher);
+  ASSERT_THAT(virtualLTDCPeripheralLayer2Ptr->CR, bitValueMatcher);
+}
+
+TEST_F(ALTDC, InitForcesImmediateReloadOfShadowRegistersAtTheEndOfFunctionFlowBySettingIMRBitInSRCRRegister)
+{
+  constexpr uint32_t LTDC_SRCR_IMR_POSITION = 0u;
+  constexpr uint32_t EXPECTED_LTDC_SRCR_IMR_VALUE = 0x1;
+  auto bitValueMatcher =
+    BitHasValue(LTDC_SRCR_IMR_POSITION, EXPECTED_LTDC_SRCR_IMR_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualLTDCPeripheralPtr->SRCR), bitValueMatcher);
+
+  const LTDC::ErrorCode errorCode = virtualLTDC.init(ltdcConfig, ltdcLayer1Config);
+
+  ASSERT_THAT(errorCode, Eq(LTDC::ErrorCode::OK));
+  ASSERT_THAT(virtualLTDCPeripheralPtr->SRCR, bitValueMatcher);
 }
