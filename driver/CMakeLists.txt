@@ -44,6 +44,7 @@ set(BachelorThesis_driver_test_cpp_sources
     test/SystemConfigTest.cpp
     test/EXTITest.cpp
     test/PowerControlTest.cpp
+    test/DSIHostTest.cpp
     test/DriverManagerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

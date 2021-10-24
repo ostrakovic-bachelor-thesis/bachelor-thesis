@@ -24,8 +24,8 @@ public:
       return m_errorCode;
     }));
 
-    ON_CALL(*this, getClockFrequency(Matcher<ClockSource>(_), _))
-    .WillByDefault(Invoke([&] (ClockSource clockSource, uint32_t &clockFrequency)
+    ON_CALL(*this, getClockFrequency(Matcher<Clock>(_), _))
+    .WillByDefault(Invoke([&] (Clock clock, uint32_t &clockFrequency)
     {
       clockFrequency = m_clockFrequency;
       return m_errorCode;
@@ -45,7 +45,7 @@ public:
   }
 
   // mock methods
-  MOCK_METHOD(ErrorCode, getClockFrequency, (ClockSource, uint32_t &), (const, override));
+  MOCK_METHOD(ErrorCode, getClockFrequency, (Clock, uint32_t &), (const, override));
   MOCK_METHOD(ErrorCode, getClockFrequency, (Peripheral, uint32_t &), (const, override));
 
 private:

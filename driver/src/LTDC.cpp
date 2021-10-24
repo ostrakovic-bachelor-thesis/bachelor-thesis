@@ -265,7 +265,7 @@ inline void LTDC::forceReloadOfShadowRegisters(void)
 {
   constexpr uint32_t LTDC_SRCR_IMR_POSITION = 0u;
 
-  RegisterUtility<uint32_t>::resetBitInRegister(&(m_LTDCPeripheralPtr->SRCR), LTDC_SRCR_IMR_POSITION);
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_LTDCPeripheralPtr->SRCR), LTDC_SRCR_IMR_POSITION);
 }
 
 inline void LTDC::setHorizontalSynchronizationWidth(uint32_t &registerValueSSCR, uint16_t hsyncWidth)
