@@ -108,7 +108,7 @@ bool RegisterUtility<T>::isBitSetInRegister(volatile const T *registerPtr, uint8
 template <typename T>
 void RegisterUtility<T>::setBitsInRegister(volatile T *registerPtr, uint8_t startBit, uint8_t numberOfBits, T value)
 {
-  if ((startBit + numberOfBits) < MAX_ALLOWED_BIT)
+  if ((0u != numberOfBits) && (startBit + numberOfBits) <= MAX_ALLOWED_BIT)
   {
     const T registerValue = MemoryAccess::getRegisterValue(registerPtr);
     T newRegisterValue    = MemoryUtility<T>::setBits(registerValue, startBit, numberOfBits, value);

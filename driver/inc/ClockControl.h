@@ -48,9 +48,17 @@ public:
     NO_CLOCK      //!<
   };
 
-  struct PLLConfiguration
+  struct PLLSAI2Configuration
   {
     uint8_t inputClockDivider;
+    uint8_t inputClockMultiplier;
+    uint8_t outputClockPDivider;
+    uint8_t outputClockQDivider;
+    uint8_t outputClockRDivider;
+    uint8_t ltdcClockDivider;
+    bool    enableOutputClockP;
+    bool    enableOutputClockQ;
+    bool    enableOutputClockR;
   };
 
   /**
@@ -67,7 +75,7 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
-  ErrorCode configurePLL(Clock pllClock, const PLLConfiguration &pllConfig);
+  ErrorCode configurePLL(const PLLSAI2Configuration &pllSAI2Config);
 
   /**
    * TODO
@@ -126,9 +134,24 @@ private:
 
   ErrorCode mapToPLLClockSource(Clock clockSource, uint8_t &pllClockSource);
 
-  ErrorCode configurePLLSAI2(const PLLConfiguration &pllConfig);
+  void setPLLInputClockDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockDivider);
+  void setPLLInputClockMultiplier(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockMultiplier);
+  void setPLLOutputClockRDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockRDivider);
+  void setPLLOutputClockQDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockQDivider);
+  void setPLLOutputClockPDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockPDivider);
+  void enableOutputClockP(uint32_t &registerValuePLLSAI2CFGR);
+  void disableOutputClockP(uint32_t &registerValuePLLSAI2CFGR);
+  void enableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR);
+  void disableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR);
+  void enableOutputClockR(uint32_t &registerValuePLLSAI2CFGR);
+  void disableOutputClockR(uint32_t &registerValuePLLSAI2CFGR);
+  void setLTDCClockDivider(uint8_t ltdcClockDivider);
 
-  void setPLLInputClockDivider(volatile uint32_t *pllConfigRegisterPtr, uint8_t inputClockDivider);
+  void turnOffPLLSAI2(void);
+  void turnOnPLLSAI2(void);
+  void requestTurningOffPLLSAI2(void);
+  void requestTurningOnPLLSAI2(void);
+  bool isPLLSAI2TurnedOn(void) const;
 
   static const uint32_t s_msiClockFreq[];
 

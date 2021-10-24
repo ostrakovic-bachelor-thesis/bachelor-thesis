@@ -118,11 +118,52 @@ ClockControl::ErrorCode ClockControl::setClockSource(Clock clock, Clock clockSou
   return errorCode;
 }
 
-ClockControl::ErrorCode ClockControl::configurePLL(Clock pllClock, const PLLConfiguration &pllConfig)
+ClockControl::ErrorCode ClockControl::configurePLL(const PLLSAI2Configuration &pllSAI2Config)
 {
-  ErrorCode errorCode = configurePLLSAI2(pllConfig);
+  turnOffPLLSAI2();
 
-  return errorCode;
+  uint32_t registerValuePLLSAI2CFGR = MemoryAccess::getRegisterValue(&(m_RCCPeripheralPtr->PLLSAI2CFGR));
+
+  setPLLInputClockDivider(registerValuePLLSAI2CFGR, pllSAI2Config.inputClockDivider);
+  setPLLInputClockMultiplier(registerValuePLLSAI2CFGR, pllSAI2Config.inputClockMultiplier);
+  setPLLOutputClockPDivider(registerValuePLLSAI2CFGR, pllSAI2Config.outputClockPDivider);
+  setPLLOutputClockQDivider(registerValuePLLSAI2CFGR, pllSAI2Config.outputClockQDivider);
+  setPLLOutputClockRDivider(registerValuePLLSAI2CFGR, pllSAI2Config.outputClockRDivider);
+
+  if (pllSAI2Config.enableOutputClockP)
+  {
+    enableOutputClockP(registerValuePLLSAI2CFGR);
+  }
+  else
+  {
+    disableOutputClockP(registerValuePLLSAI2CFGR);
+  }
+
+  if (pllSAI2Config.enableOutputClockQ)
+  {
+    enableOutputClockQ(registerValuePLLSAI2CFGR);
+  }
+  else
+  {
+    disableOutputClockQ(registerValuePLLSAI2CFGR);
+  }
+
+  if (pllSAI2Config.enableOutputClockR)
+  {
+    enableOutputClockR(registerValuePLLSAI2CFGR);
+  }
+  else
+  {
+    disableOutputClockR(registerValuePLLSAI2CFGR);
+  }
+
+  MemoryAccess::setRegisterValue(&(m_RCCPeripheralPtr->PLLSAI2CFGR), registerValuePLLSAI2CFGR);
+
+  setLTDCClockDivider(pllSAI2Config.ltdcClockDivider);
+
+  turnOnPLLSAI2();
+
+  return ErrorCode::OK;
 }
 
 ClockControl::ErrorCode
@@ -364,13 +405,6 @@ uint32_t ClockControl::getI2C1ClockFrequency(void) const
   return (this->*(s_i2cClockFrequency[i2c1ClockSourceIndex]))();
 }
 
-ClockControl::ErrorCode ClockControl::configurePLLSAI2(const PLLConfiguration &pllConfig)
-{
-  setPLLInputClockDivider(&(m_RCCPeripheralPtr->PLLSAI2CFGR), pllConfig.inputClockDivider);
-
-  return ErrorCode::OK;
-}
-
 ClockControl::ErrorCode ClockControl::setPLLClockSource(Clock clockSource)
 {
   constexpr uint32_t RCC_PLLCFGR_PLLSRC_POSITION = 0u;
@@ -420,14 +454,160 @@ ClockControl::ErrorCode ClockControl::mapToPLLClockSource(Clock clockSource, uin
   return errorCode;
 }
 
-void ClockControl::setPLLInputClockDivider(volatile uint32_t *pllConfigRegisterPtr, uint8_t inputClockDivider)
+void ClockControl::setPLLInputClockDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockDivider)
 {
   constexpr uint32_t RCC_PLLXCFGR_PLLM_POSITION = 4u;
   constexpr uint32_t RCC_PLLXCFGR_PLLM_SIZE     = 4u;
 
-  RegisterUtility<uint32_t>::setBitsInRegister(
-    pllConfigRegisterPtr,
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBits(
+    registerValuePLLSAI2CFGR,
     RCC_PLLXCFGR_PLLM_POSITION,
     RCC_PLLXCFGR_PLLM_SIZE,
     static_cast<uint32_t>(inputClockDivider - 1u));
+}
+
+void ClockControl::setPLLInputClockMultiplier(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockMultiplier)
+{
+  constexpr uint32_t RCC_PLLXCFGR_PLLN_POSITION = 8u;
+  constexpr uint32_t RCC_PLLXCFGR_PLLN_SIZE     = 7u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBits(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLXCFGR_PLLN_POSITION,
+    RCC_PLLXCFGR_PLLN_SIZE,
+    static_cast<uint32_t>(inputClockMultiplier));
+}
+
+void ClockControl::setPLLOutputClockRDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockRDivider)
+{
+  constexpr uint32_t RCC_PLLXCFGR_PLLR_POSITION = 25u;
+  constexpr uint32_t RCC_PLLXCFGR_PLLR_SIZE     = 2u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBits(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLXCFGR_PLLR_POSITION,
+    RCC_PLLXCFGR_PLLR_SIZE,
+    static_cast<uint32_t>((outputClockRDivider >> 1u) - 1u));
+}
+
+void ClockControl::setPLLOutputClockQDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockQDivider)
+{
+  constexpr uint32_t RCC_PLLXCFGR_PLLQ_POSITION = 21u;
+  constexpr uint32_t RCC_PLLXCFGR_PLLQ_SIZE     = 2u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBits(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLXCFGR_PLLQ_POSITION,
+    RCC_PLLXCFGR_PLLQ_SIZE,
+    static_cast<uint32_t>((outputClockQDivider >> 1u) - 1u));
+}
+
+void ClockControl::setPLLOutputClockPDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockPDivider)
+{
+  constexpr uint32_t RCC_PLLXCFGR_PLLPDIV_POSITION = 27u;
+  constexpr uint32_t RCC_PLLXCFGR_PLLPDIV_SIZE     = 5u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBits(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLXCFGR_PLLPDIV_POSITION,
+    RCC_PLLXCFGR_PLLPDIV_SIZE,
+    static_cast<uint32_t>(outputClockPDivider));
+}
+
+void ClockControl::enableOutputClockP(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2PEN_POSITION = 16u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2PEN_POSITION);
+}
+
+void ClockControl::disableOutputClockP(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2PEN_POSITION = 16u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::resetBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2PEN_POSITION);
+}
+
+void ClockControl::enableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2QEN_POSITION = 20u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2QEN_POSITION);
+}
+
+void ClockControl::disableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2QEN_POSITION = 20u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::resetBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2QEN_POSITION);
+}
+
+void ClockControl::enableOutputClockR(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2REN_POSITION = 24u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::setBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2REN_POSITION);
+}
+
+void ClockControl::disableOutputClockR(uint32_t &registerValuePLLSAI2CFGR)
+{
+  constexpr uint32_t RCC_PLLSAI2CFGR_PLLSAI2REN_POSITION = 24u;
+
+  registerValuePLLSAI2CFGR = MemoryUtility<uint32_t>::resetBit(
+    registerValuePLLSAI2CFGR,
+    RCC_PLLSAI2CFGR_PLLSAI2REN_POSITION);
+}
+
+void ClockControl::setLTDCClockDivider(uint8_t ltdcClockDivider)
+{
+  constexpr uint32_t RCC_CCIPR2_PLLSAI2DIVR_POSITION = 16u;
+  constexpr uint32_t RCC_CCIPR2_PLLSAI2DIVR_SIZE     = 2u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_RCCPeripheralPtr->CCIPR2),
+    RCC_CCIPR2_PLLSAI2DIVR_POSITION,
+    RCC_CCIPR2_PLLSAI2DIVR_SIZE,
+    static_cast<uint32_t>((ltdcClockDivider + 2u) / 5u));
+}
+
+void ClockControl::turnOffPLLSAI2(void)
+{
+  requestTurningOffPLLSAI2();
+
+  while (isPLLSAI2TurnedOn());
+}
+
+void ClockControl::turnOnPLLSAI2(void)
+{
+  requestTurningOnPLLSAI2();
+
+  while (not isPLLSAI2TurnedOn());
+}
+
+inline void ClockControl::requestTurningOffPLLSAI2(void)
+{
+  constexpr uint32_t RCC_CR_PLLSAI2ON_POSITION = 28u;
+  RegisterUtility<uint32_t>::resetBitInRegister(&(m_RCCPeripheralPtr->CR), RCC_CR_PLLSAI2ON_POSITION);
+}
+
+inline void ClockControl::requestTurningOnPLLSAI2(void)
+{
+  constexpr uint32_t RCC_CR_PLLSAI2ON_POSITION = 28u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_RCCPeripheralPtr->CR), RCC_CR_PLLSAI2ON_POSITION);
+}
+
+inline bool ClockControl::isPLLSAI2TurnedOn(void) const
+{
+  constexpr uint32_t RCC_CR_PLLSAI2RDY_POSITION = 29u;
+  return RegisterUtility<uint32_t>::isBitSetInRegister(&(m_RCCPeripheralPtr->CR), RCC_CR_PLLSAI2RDY_POSITION);
 }
