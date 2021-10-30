@@ -1,6 +1,7 @@
 
 #include "DSIHost.h"
 #include "DriverTest.h"
+#include "ClockControlMock.h"
 #include "ResetControlMock.h"
 #include "MemoryUtility.h"
 #include "gtest/gtest.h"
@@ -76,14 +77,25 @@ public:
   static constexpr uint32_t DSIHOST_WPCRX_RESET_VALUE   = 0x00000000;
   static constexpr uint32_t DSIHOST_WRPCR_RESET_VALUE   = 0x00000000;
 
+  static constexpr uint32_t NANOSECONDS_IN_MICROSECOND = 1000u;
+  static constexpr uint32_t NANOSECONDS_IN_SECOND      = 1000000000u;
+  static constexpr uint32_t BITS_IN_BYTE               = 8u;
+  static constexpr uint32_t FREQ_HZ_TO_MHZ_DIVIDER     = 1000000u;
+
+
   DSI_TypeDef virtualDSIHostPeripheral;
+  NiceMock<ClockControlMock> clockControlMock;
   NiceMock<ResetControlMock> resetControlMock;
-  DSIHost virtualDSIHost = DSIHost(&virtualDSIHostPeripheral, &resetControlMock);
+  DSIHost virtualDSIHost = DSIHost(&virtualDSIHostPeripheral, &clockControlMock, &resetControlMock);
   DSIHost::DSIHostConfig dsiHostConfig;
 
   uint32_t m_isDPHYRegulatorReadyCounter;
   uint32_t m_isDPHYPLLReadyCounter;
 
+  void setHSEClockFrequency(uint32_t clockFrequency);
+  void setGetHSEClockFrequencyErrorCode(ClockControl::ErrorCode errorCode);
+  void setDSIPHYClockFrequencyTo800MHz(void);
+  void setDSIPHYClockFrequencyTo500MHz(void);
   void setupWISRRegisterReadings(void);
   void expectDPHYRegulatorToBeReadyBeforeWrittingToAnyBitOfDSIHostPeripheralOtherThanREGENInWRPCR(void);
   void expectDPHYPLLToBeReadyBeforeWrittingToAnyBitOfDSIHostPeripheralOtherThanREGENInWRPCR(void);
@@ -173,12 +185,52 @@ void ADSIHost::SetUp()
   virtualDSIHostPeripheral.WPCR[4] = DSIHOST_WPCRX_RESET_VALUE;
   virtualDSIHostPeripheral.WRPCR   = DSIHOST_WRPCR_RESET_VALUE;
 
+  dsiHostConfig.pllConfig.inputClockDivider    = 2u;
+  dsiHostConfig.pllConfig.inputClockMultiplier = 100u;
+  dsiHostConfig.pllConfig.outputClockDivider   = 1u;
+
   setupWISRRegisterReadings();
 }
 
 void ADSIHost::TearDown()
 {
   DriverTest::TearDown();
+}
+
+void ADSIHost::setHSEClockFrequency(uint32_t clockFrequency)
+{
+  clockControlMock.setReturnClockFrequency(clockFrequency);
+}
+
+void ADSIHost::setGetHSEClockFrequencyErrorCode(ClockControl::ErrorCode errorCode)
+{
+  clockControlMock.setReturnErrorCode(errorCode);
+}
+
+void ADSIHost::setDSIPHYClockFrequencyTo800MHz(void)
+{
+  constexpr uint32_t HSE_CLOCK_FREQ = 16000000u;
+  setHSEClockFrequency(HSE_CLOCK_FREQ);
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_DIVIDER    = 2u;
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_MULTIPLIER = 100u;
+  constexpr uint32_t DPHY_PLL_OUTPUT_CLOCK_DIVIDER   = 1u;
+
+  dsiHostConfig.pllConfig.inputClockDivider    = DPHY_PLL_INPUT_CLOCK_DIVIDER;
+  dsiHostConfig.pllConfig.inputClockMultiplier = DPHY_PLL_INPUT_CLOCK_MULTIPLIER;
+  dsiHostConfig.pllConfig.outputClockDivider   = DPHY_PLL_OUTPUT_CLOCK_DIVIDER;
+}
+
+void ADSIHost::setDSIPHYClockFrequencyTo500MHz(void)
+{
+  constexpr uint32_t HSE_CLOCK_FREQ = 16000000u;
+  setHSEClockFrequency(HSE_CLOCK_FREQ);
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_DIVIDER    = 4u;
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_MULTIPLIER = 125u;
+  constexpr uint32_t DPHY_PLL_OUTPUT_CLOCK_DIVIDER   = 1u;
+
+  dsiHostConfig.pllConfig.inputClockDivider    = DPHY_PLL_INPUT_CLOCK_DIVIDER;
+  dsiHostConfig.pllConfig.inputClockMultiplier = DPHY_PLL_INPUT_CLOCK_MULTIPLIER;
+  dsiHostConfig.pllConfig.outputClockDivider   = DPHY_PLL_OUTPUT_CLOCK_DIVIDER;
 }
 
 void ADSIHost::setupWISRRegisterReadings(void)
@@ -431,4 +483,445 @@ TEST_F(ADSIHost, InitSetsClockLaneRunningModeToHighSpeedBySettingToOneDPCCBitInC
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.CLCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsUIX4BitsInWPCR0RegisterAccordingToHighSpeedModeClockFrequency)
+{
+  constexpr uint32_t HIGH_SPEED_MODE_CLOCK_FREQ = 500000000u;
+  setDSIPHYClockFrequencyTo500MHz();
+  constexpr uint32_t DSIHOST_WPCR0_UIX4_POSITION = 0u;
+  constexpr uint32_t DSIHOST_WPCR0_UIX4_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_WPCR0_UIX4_VALUE
+    = 4 * NANOSECONDS_IN_MICROSECOND / (HIGH_SPEED_MODE_CLOCK_FREQ / FREQ_HZ_TO_MHZ_DIVIDER);
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_WPCR0_UIX4_POSITION, DSIHOST_WPCR0_UIX4_SIZE, EXPECTED_DSIHOST_WPCR0_UIX4_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WPCR[0]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WPCR[0], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsTXECKDIVBitsInCCRRegisterToAchieveTxEscapeClockFrequencyTheClosestPossibleTo20MHz)
+{
+  constexpr uint32_t HIGH_SPEED_MODE_CLOCK_FREQ = 500000000u;
+  setDSIPHYClockFrequencyTo500MHz();
+  constexpr uint32_t TARGET_FREQ_MHZ = 20u;
+  constexpr uint32_t DSIHOST_CCR_TXECKDIV_POSITION = 0u;
+  constexpr uint32_t DSIHOST_CCR_TXECKDIV_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_CCR_TXECKDIV_VALUE
+    = (((HIGH_SPEED_MODE_CLOCK_FREQ / FREQ_HZ_TO_MHZ_DIVIDER) / BITS_IN_BYTE) + TARGET_FREQ_MHZ - 1u) / TARGET_FREQ_MHZ;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_CCR_TXECKDIV_POSITION, DSIHOST_CCR_TXECKDIV_SIZE, EXPECTED_DSIHOST_CCR_TXECKDIV_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GetDSIPHYClockFrequencyReturnsFrequencyValueAccordingToPLLConfigParamsForwardedToInitFunction)
+{
+  constexpr uint32_t HSE_CLOCK_FREQ = 16000000u;
+  setHSEClockFrequency(HSE_CLOCK_FREQ);
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_DIVIDER    = 4u;
+  constexpr uint32_t DPHY_PLL_INPUT_CLOCK_MULTIPLIER = 125u;
+  constexpr uint32_t DPHY_PLL_OUTPUT_CLOCK_DIVIDER   = 1u;
+  constexpr uint32_t EXPECTED_DSY_PHY_CLOCK_FREQ =
+    ((HSE_CLOCK_FREQ / DPHY_PLL_INPUT_CLOCK_DIVIDER) * DPHY_PLL_INPUT_CLOCK_MULTIPLIER) * DPHY_PLL_OUTPUT_CLOCK_DIVIDER;
+  dsiHostConfig.pllConfig.inputClockDivider    = DPHY_PLL_INPUT_CLOCK_DIVIDER;
+  dsiHostConfig.pllConfig.inputClockMultiplier = DPHY_PLL_INPUT_CLOCK_MULTIPLIER;
+  dsiHostConfig.pllConfig.outputClockDivider   = DPHY_PLL_OUTPUT_CLOCK_DIVIDER;
+  virtualDSIHost.init(dsiHostConfig);
+  expectNoRegisterToChange();
+
+  uint32_t dsiPhyClockFreq;
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.getDSIPHYClockFrequency(dsiPhyClockFreq);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(dsiPhyClockFreq, EXPECTED_DSY_PHY_CLOCK_FREQ);
+}
+
+TEST_F(ADSIHost, InitFailsIfGettingFrequencyOfHSEClockFails)
+{
+  setGetHSEClockFrequencyErrorCode(ClockControl::ErrorCode::INVALID_CLOCK_SOURCE);
+  expectNoRegisterToChange();
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::CAN_NOT_GET_HSE_CLOCK_FREQUENCY));
+}
+
+TEST_F(ADSIHost, InitSetsHS2LPTIMEBitsInCLTCRRegisterAccordingToClockLaneHighSpeedToLowPowerTime)
+{
+  constexpr uint32_t DSI_PHY_PLL_CLOCK_FREQ = 800000000u;
+  setDSIPHYClockFrequencyTo800MHz();
+  constexpr uint32_t CLOCK_LANE_HIGH_SPEED_TO_LOW_POWER_TIME = 200u;
+  constexpr uint32_t DSIHOST_CLTCR_HS2LP_TIME_POSITION = 16u;
+  constexpr uint32_t DSIHOST_CLTCR_HS2LP_TIME_SIZE     = 10u;
+  constexpr uint32_t EXPECTED_DSIHOST_CLTCR_HS2LP_TIME_VALUE =
+    CLOCK_LANE_HIGH_SPEED_TO_LOW_POWER_TIME / (NANOSECONDS_IN_SECOND / (DSI_PHY_PLL_CLOCK_FREQ / BITS_IN_BYTE));
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_CLTCR_HS2LP_TIME_POSITION,
+    DSIHOST_CLTCR_HS2LP_TIME_SIZE,
+    EXPECTED_DSIHOST_CLTCR_HS2LP_TIME_VALUE);
+  dsiHostConfig.dsiPhyTiming.clockLaneHighSpeedToLowPowerTime = CLOCK_LANE_HIGH_SPEED_TO_LOW_POWER_TIME;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CLTCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CLTCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLP2HSTIMEBitsInCLTCRRegisterAccordingToClockLaneLowPowerToHighSpeedTime)
+{
+  constexpr uint32_t DSI_PHY_PLL_CLOCK_FREQ = 800000000u;
+  setDSIPHYClockFrequencyTo800MHz();
+  constexpr uint32_t CLOCK_LANE_LOW_POWER_TO_HIGH_SPEED_TIME = 180u;
+  constexpr uint32_t DSIHOST_CLTCR_LP2HS_TIME_POSITION = 0u;
+  constexpr uint32_t DSIHOST_CLTCR_LP2HS_TIME_SIZE     = 10u;
+  constexpr uint32_t EXPECTED_DSIHOST_CLTCR_LP2HS_TIME_VALUE =
+    CLOCK_LANE_LOW_POWER_TO_HIGH_SPEED_TIME / (NANOSECONDS_IN_SECOND / (DSI_PHY_PLL_CLOCK_FREQ / BITS_IN_BYTE));
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_CLTCR_LP2HS_TIME_POSITION,
+    DSIHOST_CLTCR_LP2HS_TIME_SIZE,
+    EXPECTED_DSIHOST_CLTCR_LP2HS_TIME_VALUE);
+  dsiHostConfig.dsiPhyTiming.clockLaneLowPowerToHighSpeedTime = CLOCK_LANE_LOW_POWER_TO_HIGH_SPEED_TIME;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CLTCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CLTCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsHS2LPTIMEBitsInDLTCRRegisterAccordingToDataLaneHighSpeedToLowPowerTime)
+{
+  constexpr uint32_t DSI_PHY_PLL_CLOCK_FREQ = 800000000u;
+  setDSIPHYClockFrequencyTo800MHz();
+  constexpr uint32_t DATA_LANE_HIGH_SPEED_TO_LOW_POWER_TIME = 120u;
+  constexpr uint32_t DSIHOST_DLTCR_HS2LP_TIME_POSITION = 24u;
+  constexpr uint32_t DSIHOST_DLTCR_HS2LP_TIME_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_DLTCR_HS2LP_TIME_VALUE =
+    DATA_LANE_HIGH_SPEED_TO_LOW_POWER_TIME / (NANOSECONDS_IN_SECOND / (DSI_PHY_PLL_CLOCK_FREQ / BITS_IN_BYTE));
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_DLTCR_HS2LP_TIME_POSITION,
+    DSIHOST_DLTCR_HS2LP_TIME_SIZE,
+    EXPECTED_DSIHOST_DLTCR_HS2LP_TIME_VALUE);
+  dsiHostConfig.dsiPhyTiming.dataLaneHighSpeedToLowPowerTime = DATA_LANE_HIGH_SPEED_TO_LOW_POWER_TIME;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.DLTCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.DLTCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLP2HSTIMEBitsInDLTCRRegisterAccordingToDataLaneLowPowerToHighSpeedTime)
+{
+  constexpr uint32_t DSI_PHY_PLL_CLOCK_FREQ = 800000000u;
+  setDSIPHYClockFrequencyTo800MHz();
+  constexpr uint32_t DATA_LANE_LOW_POWER_TO_HIGH_SPEED_TIME = 150u;
+  constexpr uint32_t DSIHOST_DLTCR_LP2HS_TIME_POSITION = 16u;
+  constexpr uint32_t DSIHOST_DLTCR_LP2HS_TIME_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_DLTCR_LP2HS_TIME_VALUE =
+    DATA_LANE_LOW_POWER_TO_HIGH_SPEED_TIME / (NANOSECONDS_IN_SECOND / (DSI_PHY_PLL_CLOCK_FREQ / BITS_IN_BYTE));
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_DLTCR_LP2HS_TIME_POSITION,
+    DSIHOST_DLTCR_LP2HS_TIME_SIZE,
+    EXPECTED_DSIHOST_DLTCR_LP2HS_TIME_VALUE);
+  dsiHostConfig.dsiPhyTiming.dataLaneLowPowerToHighSpeedTime = DATA_LANE_LOW_POWER_TO_HIGH_SPEED_TIME;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.DLTCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.DLTCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsSWTIMEBitsInPCONFRRegisterAccordingToStopWaitTime)
+{
+  constexpr uint32_t DSI_PHY_PLL_CLOCK_FREQ = 800000000u;
+  setDSIPHYClockFrequencyTo800MHz();
+  constexpr uint32_t STOP_WAIT_TIME = 70u;
+  constexpr uint32_t DSIHOST_PCONFR_SW_TIME_POSITION = 8u;
+  constexpr uint32_t DSIHOST_PCONFR_SW_TIME_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCONFR_SW_TIME_VALUE =
+    STOP_WAIT_TIME / (NANOSECONDS_IN_SECOND / (DSI_PHY_PLL_CLOCK_FREQ / BITS_IN_BYTE));
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_PCONFR_SW_TIME_POSITION,
+    DSIHOST_PCONFR_SW_TIME_SIZE,
+    EXPECTED_DSIHOST_PCONFR_SW_TIME_VALUE);
+  dsiHostConfig.dsiPhyTiming.stopWaitTime = STOP_WAIT_TIME;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCONFR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCONFR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsTimeoutClockDivisionFactorToOneBySettingTOCKDIVBitsInCCRRegister)
+{
+  constexpr uint32_t DSIHOST_CCR_TOCKDIV_POSITION = 8u;
+  constexpr uint32_t DSIHOST_CCR_TOCKDIV_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_CCR_TOCKDIV_VALUE = 1u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_CCR_TOCKDIV_POSITION,
+    DSIHOST_CCR_TOCKDIV_SIZE,
+    EXPECTED_DSIHOST_CCR_TOCKDIV_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsHighSpeedTransmissionTimeoutToZeroBySettingHSTXTOCNTBitsInTCCR0Register)
+{
+  constexpr uint32_t DSIHOST_TCCR0_HSTX_TOCNT_POSITION = 16u;
+  constexpr uint32_t DSIHOST_TCCR0_HSTX_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR0_HSTX_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR0_HSTX_TOCNT_POSITION,
+    DSIHOST_TCCR0_HSTX_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR0_HSTX_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[0]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[0], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLowPowerReceptionTimeoutToZeroBySettingLPRXTOCNTBitsInTCCR0Register)
+{
+  constexpr uint32_t DSIHOST_TCCR0_LPRX_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR0_LPRX_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR0_LPRX_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR0_LPRX_TOCNT_POSITION,
+    DSIHOST_TCCR0_LPRX_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR0_LPRX_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[0]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[0], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsHighSpeedReadTimeoutToZeroBySettingHSRDTOCNTBitsInTCCR1Register)
+{
+  constexpr uint32_t DSIHOST_TCCR1_HSRD_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR1_HSRD_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR1_HSRD_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR1_HSRD_TOCNT_POSITION,
+    DSIHOST_TCCR1_HSRD_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR1_HSRD_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[1]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[1], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLowPowerReadTimeoutToZeroBySettingLPRDTOCNTBitsInTCCR2Register)
+{
+  constexpr uint32_t DSIHOST_TCCR2_LPRD_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR2_LPRD_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR2_LPRD_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR2_LPRD_TOCNT_POSITION,
+    DSIHOST_TCCR2_LPRD_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR2_LPRD_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[2]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[2], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsHighSpeedWriteTimeoutToZeroBySettingHSWRTOCNTBitsInTCCR3Register)
+{
+  constexpr uint32_t DSIHOST_TCCR3_HSWR_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR3_HSWR_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR3_HSWR_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR3_HSWR_TOCNT_POSITION,
+    DSIHOST_TCCR3_HSWR_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR3_HSWR_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[3]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[3], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitDisablesPrespModeBySettingToZeroPMBitInTCCR3Register)
+{
+  constexpr uint32_t DSIHOST_TCCR3_PM_POSITION = 24u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR3_PM_VALUE = 0u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_TCCR3_PM_POSITION, EXPECTED_DSIHOST_TCCR3_PM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[3]), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[3], bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLowPowerWriteTimeoutToZeroBySettingLSWRTOCNTBitsInTCCR4Register)
+{
+  constexpr uint32_t DSIHOST_TCCR4_LSWR_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR4_LSWR_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR4_LSWR_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR4_LSWR_TOCNT_POSITION,
+    DSIHOST_TCCR4_LSWR_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR4_LSWR_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[4]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[4], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsBusTurnAroundTimeoutToZeroBySettingBTATOCNTBitsInTCCR5Register)
+{
+  constexpr uint32_t DSIHOST_TCCR5_BTA_TOCNT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_TCCR5_BTA_TOCNT_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_TCCR5_BTA_TOCNT_VALUE = 0u;
+  auto bitsValueMatcher = BitsHaveValue(DSIHOST_TCCR5_BTA_TOCNT_POSITION,
+    DSIHOST_TCCR5_BTA_TOCNT_SIZE,
+    EXPECTED_DSIHOST_TCCR5_BTA_TOCNT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.TCCR[5]), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.TCCR[5], bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsCRCRXEBitInPCRRegisterAccordingToEnableCRCReceptionConfigParam)
+{
+  constexpr uint32_t DSIHOST_PCR_CRCRXE_POSITION = 4u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCR_CRCRXE_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_PCR_CRCRXE_POSITION, EXPECTED_DSIHOST_PCR_CRCRXE_VALUE);
+  dsiHostConfig.enableCRCReception = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsECCRXEBitInPCRRegisterAccordingToEnableECCReceptionConfigParam)
+{
+  constexpr uint32_t DSIHOST_PCR_ECCRXE_POSITION = 3u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCR_ECCRXE_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ECCRXE_POSITION, EXPECTED_DSIHOST_PCR_ECCRXE_VALUE);
+  dsiHostConfig.enableECCReception = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsBTAEBitInPCRRegisterAccordingToEnableBusTurnAroundConfigParam)
+{
+  constexpr uint32_t DSIHOST_PCR_BTAE_POSITION = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCR_BTAE_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_PCR_BTAE_POSITION, EXPECTED_DSIHOST_PCR_BTAE_VALUE);
+  dsiHostConfig.enableBusTurnAround = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsETRXEBitInPCRRegisterAccordingToEnableEoTpReceptionConfigParam)
+{
+  constexpr uint32_t DSIHOST_PCR_ETRXE_POSITION = 1u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCR_ETRXE_VALUE = 0u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ETRXE_POSITION, EXPECTED_DSIHOST_PCR_ETRXE_VALUE);
+  dsiHostConfig.enableEoTpReception = false;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsETTXEBitInPCRRegisterAccordingToEnableEoTpTransmissionConfigParam)
+{
+  constexpr uint32_t DSIHOST_PCR_ETTXE_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_PCR_ETTXE_VALUE = 0u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ETTXE_POSITION, EXPECTED_DSIHOST_PCR_ETTXE_VALUE);
+  dsiHostConfig.enableEoTpTransmission = false;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.PCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsMRDPSBitInCMCRRegisterAccordingToMaximumReadPacketSizeTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_MRDPS_POSITION = 24u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_MRDPS_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_MRDPS_POSITION, EXPECTED_DSIHOST_CMCR_MRDPS_VALUE);
+  dsiHostConfig.transmissionTypeMaximumReadPacketSize = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDLWTXBitInCMCRRegisterAccordingToDCSLongWriteTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_DLWTX_POSITION = 19u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_DLWTX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DLWTX_POSITION, EXPECTED_DSIHOST_CMCR_DLWTX_VALUE);
+  dsiHostConfig.transmissionTypeDCSLongWrite = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDSR0TXBitInCMCRRegisterAccordingToDCSShortReadZeroParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_DSR0TX_POSITION = 18u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_DSR0TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DSR0TX_POSITION, EXPECTED_DSIHOST_CMCR_DSR0TX_VALUE);
+  dsiHostConfig.transmissionTypeDCSShortReadZeroParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDSW1TXBitInCMCRRegisterAccordingToDCSShortReadOneParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_DSW1TX_POSITION = 17u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_DSW1TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DSW1TX_POSITION, EXPECTED_DSIHOST_CMCR_DSW1TX_VALUE);
+  dsiHostConfig.transmissionTypeDCSShortReadOneParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
 }
