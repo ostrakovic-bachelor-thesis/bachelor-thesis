@@ -805,7 +805,7 @@ TEST_F(ADSIHost, InitSetsCRCRXEBitInPCRRegisterAccordingToEnableCRCReceptionConf
   constexpr uint32_t DSIHOST_PCR_CRCRXE_POSITION = 4u;
   constexpr uint32_t EXPECTED_DSIHOST_PCR_CRCRXE_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_PCR_CRCRXE_POSITION, EXPECTED_DSIHOST_PCR_CRCRXE_VALUE);
-  dsiHostConfig.enableCRCReception = true;
+  dsiHostConfig.flowControlConfig.enableCRCReception = true;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -819,7 +819,7 @@ TEST_F(ADSIHost, InitSetsECCRXEBitInPCRRegisterAccordingToEnableECCReceptionConf
   constexpr uint32_t DSIHOST_PCR_ECCRXE_POSITION = 3u;
   constexpr uint32_t EXPECTED_DSIHOST_PCR_ECCRXE_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ECCRXE_POSITION, EXPECTED_DSIHOST_PCR_ECCRXE_VALUE);
-  dsiHostConfig.enableECCReception = true;
+  dsiHostConfig.flowControlConfig.enableECCReception = true;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -833,7 +833,7 @@ TEST_F(ADSIHost, InitSetsBTAEBitInPCRRegisterAccordingToEnableBusTurnAroundConfi
   constexpr uint32_t DSIHOST_PCR_BTAE_POSITION = 2u;
   constexpr uint32_t EXPECTED_DSIHOST_PCR_BTAE_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_PCR_BTAE_POSITION, EXPECTED_DSIHOST_PCR_BTAE_VALUE);
-  dsiHostConfig.enableBusTurnAround = true;
+  dsiHostConfig.flowControlConfig.enableBusTurnAround = true;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -847,7 +847,7 @@ TEST_F(ADSIHost, InitSetsETRXEBitInPCRRegisterAccordingToEnableEoTpReceptionConf
   constexpr uint32_t DSIHOST_PCR_ETRXE_POSITION = 1u;
   constexpr uint32_t EXPECTED_DSIHOST_PCR_ETRXE_VALUE = 0u;
   auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ETRXE_POSITION, EXPECTED_DSIHOST_PCR_ETRXE_VALUE);
-  dsiHostConfig.enableEoTpReception = false;
+  dsiHostConfig.flowControlConfig.enableEoTpReception = false;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -861,7 +861,7 @@ TEST_F(ADSIHost, InitSetsETTXEBitInPCRRegisterAccordingToEnableEoTpTransmissionC
   constexpr uint32_t DSIHOST_PCR_ETTXE_POSITION = 0u;
   constexpr uint32_t EXPECTED_DSIHOST_PCR_ETTXE_VALUE = 0u;
   auto bitValueMatcher = BitHasValue(DSIHOST_PCR_ETTXE_POSITION, EXPECTED_DSIHOST_PCR_ETTXE_VALUE);
-  dsiHostConfig.enableEoTpTransmission = false;
+  dsiHostConfig.flowControlConfig.enableEoTpTransmission = false;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.PCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -875,7 +875,7 @@ TEST_F(ADSIHost, InitSetsMRDPSBitInCMCRRegisterAccordingToMaximumReadPacketSizeT
   constexpr uint32_t DSIHOST_CMCR_MRDPS_POSITION = 24u;
   constexpr uint32_t EXPECTED_DSIHOST_CMCR_MRDPS_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_MRDPS_POSITION, EXPECTED_DSIHOST_CMCR_MRDPS_VALUE);
-  dsiHostConfig.transmissionTypeMaximumReadPacketSize = DSIHost::TransmissionType::LOW_POWER;
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeMaximumReadPacketSize = DSIHost::TransmissionType::LOW_POWER;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -889,7 +889,7 @@ TEST_F(ADSIHost, InitSetsDLWTXBitInCMCRRegisterAccordingToDCSLongWriteTransmissi
   constexpr uint32_t DSIHOST_CMCR_DLWTX_POSITION = 19u;
   constexpr uint32_t EXPECTED_DSIHOST_CMCR_DLWTX_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DLWTX_POSITION, EXPECTED_DSIHOST_CMCR_DLWTX_VALUE);
-  dsiHostConfig.transmissionTypeDCSLongWrite = DSIHost::TransmissionType::LOW_POWER;
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeDCSLongWrite = DSIHost::TransmissionType::LOW_POWER;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -903,7 +903,7 @@ TEST_F(ADSIHost, InitSetsDSR0TXBitInCMCRRegisterAccordingToDCSShortReadZeroParam
   constexpr uint32_t DSIHOST_CMCR_DSR0TX_POSITION = 18u;
   constexpr uint32_t EXPECTED_DSIHOST_CMCR_DSR0TX_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DSR0TX_POSITION, EXPECTED_DSIHOST_CMCR_DSR0TX_VALUE);
-  dsiHostConfig.transmissionTypeDCSShortReadZeroParam = DSIHost::TransmissionType::LOW_POWER;
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeDCSShortReadZeroParam = DSIHost::TransmissionType::LOW_POWER;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
@@ -917,11 +917,402 @@ TEST_F(ADSIHost, InitSetsDSW1TXBitInCMCRRegisterAccordingToDCSShortReadOneParamT
   constexpr uint32_t DSIHOST_CMCR_DSW1TX_POSITION = 17u;
   constexpr uint32_t EXPECTED_DSIHOST_CMCR_DSW1TX_VALUE = 1u;
   auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DSW1TX_POSITION, EXPECTED_DSIHOST_CMCR_DSW1TX_VALUE);
-  dsiHostConfig.transmissionTypeDCSShortReadOneParam = DSIHost::TransmissionType::LOW_POWER;
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeDCSShortReadOneParam = DSIHost::TransmissionType::LOW_POWER;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDSW0TXBitInCMCRRegisterAccordingToDCSShortWriteZeroParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_DSW0TX_POSITION = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_DSW0TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_DSW0TX_POSITION, EXPECTED_DSIHOST_CMCR_DSW0TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeDCSShortWriteZeroParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGLWTXBitInCMCRRegisterAccordingToGenericLongWriteTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GLWTX_POSITION = 14u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GLWTX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GLWTX_POSITION, EXPECTED_DSIHOST_CMCR_GLWTX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericLongWrite = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSR2TXBitInCMCRRegisterAccordingToGenericShortReadTwoParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR2TX_POSITION = 13u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSR2TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSR2TX_POSITION, EXPECTED_DSIHOST_CMCR_GSR2TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortReadTwoParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSR1TXBitInCMCRRegisterAccordingToGenericShortReadOneParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR1TX_POSITION = 12u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSR1TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSR1TX_POSITION, EXPECTED_DSIHOST_CMCR_GSR1TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortReadOneParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSR0TXBitInCMCRRegisterAccordingToGenericShortReadZeroParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR0TX_POSITION = 11u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSR0TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSR0TX_POSITION, EXPECTED_DSIHOST_CMCR_GSR0TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortReadZeroParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSW2TXBitInCMCRRegisterAccordingToGenericShortWriteTwoParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW2TX_POSITION = 10u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSW2TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSW2TX_POSITION, EXPECTED_DSIHOST_CMCR_GSW2TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortWriteTwoParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSW1TXBitInCMCRRegisterAccordingTGenericShortWriteOneParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW1TX_POSITION = 9u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSW1TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSW1TX_POSITION, EXPECTED_DSIHOST_CMCR_GSW1TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortWriteOneParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsGSW0TXBitInCMCRRegisterAccordingTGenericShortWriteZeroParamTransmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW0TX_POSITION = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_GSW0TX_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_GSW0TX_POSITION, EXPECTED_DSIHOST_CMCR_GSW0TX_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.transmissionTypeGenericShortWriteZeroParam = DSIHost::TransmissionType::LOW_POWER;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsAREBitInCMCRRegisterAccordingToEnableAcknowledgeRequestConfigParam)
+{
+  constexpr uint32_t DSIHOST_CMCR_ARE_POSITION = 1u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_ARE_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_ARE_POSITION, EXPECTED_DSIHOST_CMCR_ARE_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.enableAcknowledgeRequest = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsTEAREBitInCMCRRegisterAccordingToEnableTearingEffectAcknowledgeRequestConfigParam)
+{
+  constexpr uint32_t DSIHOST_CMCR_TEARE_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_CMCR_TEARE_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CMCR_TEARE_POSITION, EXPECTED_DSIHOST_CMCR_TEARE_VALUE);
+  dsiHostConfig.dbiInterfaceConfig.enableTearingEffectAcknowledgeRequest = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CMCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CMCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsVirtualChannelIdBySettingVCIDBitsInLCVCIDRRegister)
+{
+  constexpr uint8_t VIRTUAL_CHANNEL_ID = 2u;
+  constexpr uint32_t DSIHOST_LCVCIDR_VCID_POSITION = 0u;
+  constexpr uint32_t DSIHOST_LCVCIDR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_LCVCIDR_VCID_VALUE = VIRTUAL_CHANNEL_ID;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_LCVCIDR_VCID_POSITION, DSIHOST_LCVCIDR_VCID_SIZE, EXPECTED_DSIHOST_LCVCIDR_VCID_VALUE);
+  dsiHostConfig.virtualChannelId = VIRTUAL_CHANNEL_ID;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LCVCIDR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LCVCIDR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsLTDCColorCodingBySettingCOLCBitsInLCOLCRRegisterAccordingToLTDCColorCodingConfigParam)
+{
+  constexpr uint32_t DSIHOST_LCOLCR_COLC_POSITION = 0u;
+  constexpr uint32_t DSIHOST_LCOLCR_COLC_SIZE     = 4u;
+  constexpr uint32_t EXPECTED_DSIHOST_LCOLCR_COLC_VALUE = 0b0101;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_LCOLCR_COLC_POSITION, DSIHOST_LCOLCR_COLC_SIZE, EXPECTED_DSIHOST_LCOLCR_COLC_VALUE);
+  dsiHostConfig.ltdcColorCoding = DSIHost::LTDCColorCoding::RGB888;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LCOLCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LCOLCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitEnablesLooselyPacketVariantBySettingLPEBitInLCOLCRRegisterIfLTDCColorCodingIsRGB666)
+{
+  constexpr uint32_t DSIHOST_LCOLCR_LPE_POSITION = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_LCOLCR_LPE_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_LCOLCR_LPE_POSITION, EXPECTED_DSIHOST_LCOLCR_LPE_VALUE);
+  dsiHostConfig.ltdcColorCoding = DSIHost::LTDCColorCoding::RGB666_IN_BLOCK;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LCOLCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LCOLCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsColorMultiplexingBySettingCOLMUXBitsInWCFGRRegisterAccordingToLTDCColorCodingConfigParam)
+{
+  constexpr uint32_t DSIHOST_WCFGR_COLMUX_POSITION = 1u;
+  constexpr uint32_t DSIHOST_WCFGR_COLMUX_SIZE     = 3u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_COLMUX_VALUE = 0b101;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_WCFGR_COLMUX_POSITION, DSIHOST_WCFGR_COLMUX_SIZE, EXPECTED_DSIHOST_WCFGR_COLMUX_VALUE);
+  dsiHostConfig.ltdcColorCoding = DSIHost::LTDCColorCoding::RGB888;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsVSyncPolarityBySettingVSPOLBitInWCFGRRegisterAccordingToVSyncPolarityConfigParam)
+{
+  constexpr uint32_t DSIHOST_WCFGR_VSPOL_POSITION = 7u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_VSPOL_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_VSPOL_POSITION, EXPECTED_DSIHOST_WCFGR_VSPOL_VALUE);
+  dsiHostConfig.vsyncLtdcHaltPolarity = DSIHost::VSyncLTDCHaltPolarity::FALLING_EDGE;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsHSPBitInLPCRRegisterAccordingToHSYNCPolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_HSP_POSITION = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_LPCR_HSP_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_LPCR_HSP_POSITION, EXPECTED_DSIHOST_LPCR_HSP_VALUE);
+  dsiHostConfig.hsyncPolarity = DSIHost::SignalPolarity::ACTIVE_LOW;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LPCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LPCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDEPBitInLPCRRegisterAccordingToDataEnablePolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_DEP_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_LPCR_DEP_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_LPCR_DEP_POSITION, EXPECTED_DSIHOST_LPCR_DEP_VALUE);
+  dsiHostConfig.dataEnablePolarity = DSIHost::SignalPolarity::ACTIVE_LOW;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LPCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LPCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsVSPBitInLPCRRegisterAccordingToVSYNCPolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_VSP_POSITION = 1u;
+  constexpr uint32_t EXPECTED_DSIHOST_LPCR_VSP_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_LPCR_VSP_POSITION, EXPECTED_DSIHOST_LPCR_VSP_VALUE);
+  dsiHostConfig.vsyncPolarity = DSIHost::SignalPolarity::ACTIVE_LOW;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LPCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LPCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsDSIModeToAdaptedCommandModeBySettingToOneDSIMBitInWCFGRRegister)
+{
+  constexpr uint32_t DSIHOST_WCFGR_DSIM_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_DSIM_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_DSIM_POSITION, EXPECTED_DSIHOST_WCFGR_DSIM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsCommandModeToAdaptedCommandModeBySettingToOneCMDMBitInMCRRRegister)
+{
+  constexpr uint32_t DSIHOST_MCR_CMDM_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_MCR_CMDM_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_MCR_CMDM_POSITION, EXPECTED_DSIHOST_MCR_CMDM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.MCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.MCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsCMDSIZEBitsInLCCRRegisterAccordingToMaximumLTDCWriteMemoryCommandSize)
+{
+  constexpr uint32_t DSIHOST_LCCR_CMDSIZE_POSITION = 0u;
+  constexpr uint32_t DSIHOST_LCCR_CMDSIZE_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_LCCR_CMDSIZE_VALUE = 390u;
+  auto bitValueMatcher =
+    BitsHaveValue(DSIHOST_LCCR_CMDSIZE_POSITION, DSIHOST_LCCR_CMDSIZE_SIZE, EXPECTED_DSIHOST_LCCR_CMDSIZE_VALUE);
+  dsiHostConfig.maxLTDCWriteMemoryCmdSize = 390u;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.LCCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.LCCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsTearingEffectSourceBySettingTESRCBitInWCFGRRegister)
+{
+  constexpr uint32_t DSIHOST_WCFGR_TESRC_POSITION = 4u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_TESRC_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_TESRC_POSITION, EXPECTED_DSIHOST_WCFGR_TESRC_VALUE);
+  dsiHostConfig.tearingEffectSource = DSIHost::TearingEffectSource::EXTERNAL_PIN;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitSetsTearingEffectPolarityBySettingTEBitInWCFGRRegisterAccordingToTearingEffectPolarityConfigParam)
+{
+  constexpr uint32_t DSIHOST_WCFGR_TE_POSITION = 5u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_TE_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_TE_POSITION, EXPECTED_DSIHOST_WCFGR_TE_VALUE);
+  dsiHostConfig.tearingEffectPolarity = DSIHost::TearingEffectPolarity::FALLING_EDGE;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitEnablesAutoRefreshModeBySettingARBitInWCFGRRegisterAccordingToEnableAutoRefreshModeConfigParam)
+{
+  constexpr uint32_t DSIHOST_WCFGR_AR_POSITION = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCFGR_AR_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_AR_POSITION, EXPECTED_DSIHOST_WCFGR_AR_VALUE);
+  dsiHostConfig.enableAutoRefreshMode = true;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCFGR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitDisablesAllDSIHostInterruptsBySettingToZeroIER0Register)
+{
+  constexpr uint32_t ALL_INTERRUPTS_DISABLED = 0x00000000u;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.IER[0]), ALL_INTERRUPTS_DISABLED);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.IER[0], Eq(ALL_INTERRUPTS_DISABLED));
+}
+
+TEST_F(ADSIHost, InitDisablesAllDSIHostInterruptsBySettingToZeroIER1Register)
+{
+  constexpr uint32_t ALL_INTERRUPTS_DISABLED = 0x00000000u;
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.IER[1]), ALL_INTERRUPTS_DISABLED);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.IER[1], Eq(ALL_INTERRUPTS_DISABLED));
+}
+
+TEST_F(ADSIHost, InitEnablesDSIHostBySettingENBitInCRRegister)
+{
+  constexpr uint32_t DSIHOST_CR_EN_POSITION = 0u;
+  constexpr uint32_t EXPECTED_DSIHOST_CR_EN_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_CR_EN_POSITION, EXPECTED_DSIHOST_CR_EN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.CR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.CR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, InitEnablesDSIWrapperBySettingDSIENBitInWCRRegister)
+{
+  constexpr uint32_t DSIHOST_WCR_DSIEN_POSITION = 3u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCR_DSIEN_VALUE = 0x1;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCR_DSIEN_POSITION, EXPECTED_DSIHOST_WCR_DSIEN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.WCR, bitValueMatcher);
 }

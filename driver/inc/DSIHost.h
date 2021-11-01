@@ -27,6 +27,40 @@ public:
     LOW_POWER  = 1u
   };
 
+  enum class LTDCColorCoding : uint8_t
+  {
+    RGB565_IN_BLOCK      = 0b0000,
+    RGB565_BYTE_ALIGNED  = 0b0001,
+    RGB565_MIDDLE_PLACED = 0b0010,
+    RGB666_IN_BLOCK      = 0b0011,
+    RGB666_BYTE_ALIGNED  = 0b0100,
+    RGB888               = 0b0101
+  };
+
+  enum class TearingEffectSource : uint8_t
+  {
+    DSI_LINK     = 0b0,
+    EXTERNAL_PIN = 0b1
+  };
+
+  enum class TearingEffectPolarity : uint8_t
+  {
+    RISING_EDGE  = 0b0,
+    FALLING_EDGE = 0b1
+  };
+
+  enum class VSyncLTDCHaltPolarity : uint8_t
+  {
+    RISING_EDGE  = 0b0,
+    FALLING_EDGE = 0b1
+  };
+
+  enum class SignalPolarity : uint8_t
+  {
+    ACTIVE_HIGH = 0b0,
+    ACTIVE_LOW  = 0b1
+  };
+
   struct PLLConfig
   {
     uint8_t inputClockDivider;
@@ -43,22 +77,52 @@ public:
     uint16_t stopWaitTime;                     //!< [ns]
   };
 
-  struct DSIHostConfig
+  struct FlowControlConfig
   {
-    PLLConfig pllConfig;
-    uint8_t numberOfDataLanes;
-    DSIPHYTiming dsiPhyTiming;
-
     bool enableCRCReception;
     bool enableECCReception;
     bool enableBusTurnAround;
     bool enableEoTpReception;
     bool enableEoTpTransmission;
+  };
 
+  struct DBIInterfaceConfig
+  {
     TransmissionType transmissionTypeMaximumReadPacketSize;
     TransmissionType transmissionTypeDCSLongWrite;
     TransmissionType transmissionTypeDCSShortReadZeroParam;
     TransmissionType transmissionTypeDCSShortReadOneParam;
+    TransmissionType transmissionTypeDCSShortWriteZeroParam;
+    TransmissionType transmissionTypeGenericLongWrite;
+    TransmissionType transmissionTypeGenericShortReadTwoParam;
+    TransmissionType transmissionTypeGenericShortReadOneParam;
+    TransmissionType transmissionTypeGenericShortReadZeroParam;
+    TransmissionType transmissionTypeGenericShortWriteTwoParam;
+    TransmissionType transmissionTypeGenericShortWriteOneParam;
+    TransmissionType transmissionTypeGenericShortWriteZeroParam;
+    bool enableAcknowledgeRequest;
+    bool enableTearingEffectAcknowledgeRequest;
+  };
+
+  struct DSIHostConfig
+  {
+    PLLConfig pllConfig;
+    uint8_t numberOfDataLanes;
+    DSIPHYTiming dsiPhyTiming;
+    FlowControlConfig flowControlConfig;
+    DBIInterfaceConfig dbiInterfaceConfig;
+
+    uint8_t virtualChannelId;
+    LTDCColorCoding ltdcColorCoding;
+    VSyncLTDCHaltPolarity vsyncLtdcHaltPolarity;
+    SignalPolarity hsyncPolarity;
+    SignalPolarity vsyncPolarity;
+    SignalPolarity dataEnablePolarity;
+
+    uint16_t maxLTDCWriteMemoryCmdSize;
+    TearingEffectSource tearingEffectSource;
+    TearingEffectPolarity tearingEffectPolarity;
+    bool enableAutoRefreshMode;
   };
 
 #ifdef UNIT_TEST
@@ -91,6 +155,11 @@ private:
   ErrorCode configureClocks(void);
   ErrorCode configureDSIPHYTiming(const DSIPHYTiming &dsiPhyTiming);
   ErrorCode configureDSIHostTimeouts(void);
+  ErrorCode configureFlowControl(const FlowControlConfig &flowControlConfig);
+  ErrorCode configureDBIInterface(const DBIInterfaceConfig &dbiInterfaceConfig);
+  ErrorCode configureDSIHostLTDCInterface(const DSIHostConfig &dsiHostConfig);
+  ErrorCode configureAdaptedCommandMode(const DSIHostConfig &dsiHostConfig);
+  void enableAdaptedCommandMode(void);
 
   void enableDPHYRegulator(void);
   void requestTurningOnDPHYRegulator(void);
@@ -153,6 +222,44 @@ private:
   void setDCSLongWriteTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
   void setDCSShortReadZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
   void setDCSShortReadOneParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setDCSShortWriteZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericLongWriteTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortReadTwoParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortReadOneParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortReadZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortWriteTwoParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortWriteOneParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+  void setGenericShortWriteZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType);
+
+  void enableAcknowledgeRequest(uint32_t &registerValueCMCR);
+  void disableAcknowledgeRequest(uint32_t &registerValueCMCR);
+
+  void enableTearingEffectAcknowledgeRequest(uint32_t &registerValueCMCR);
+  void disableTearingEffectAcknowledgeRequest(uint32_t &registerValueCMCR);
+
+  void setVirtualChannelID(uint8_t virtualChannelId);
+  void setLTDCColorCoding(LTDCColorCoding ltdcColorCoding);
+
+  void setColorMultiplexing(uint32_t &registerValueWCFGR, LTDCColorCoding ltdcColorCoding);
+  void setTearingEffectSource(uint32_t &registerValueWCFGR, TearingEffectSource tearingEffectSource);
+  void enableAutoRefreshMode(uint32_t &registerValueWCFGR);
+  void disableAutoRefreshMode(uint32_t &registerValueWCFGR);
+  void setVSyncLTDCHaltPolarity(uint32_t &registerValueWCFGR, VSyncLTDCHaltPolarity vsyncLtdcHaltPolarity);
+  void setTearingEffectPolarity(uint32_t &registerValueWCFGR, TearingEffectPolarity tearingEffectPolarity);
+
+  void setDSIModeToAdaptedCommandMode(void);
+  void setCommandModeToAdaptedCommandMode(void);
+
+  void setMaximumLTDCWriteMemoryCommandSize(uint16_t maximumLTDCWriteMemoryCommandSize);
+
+  void setHSyncPolarity(uint32_t &registerValueLPCR, SignalPolarity hsyncPolarity);
+  void setVSyncPolarity(uint32_t &registerValueLPCR, SignalPolarity vsyncPolarity);
+  void setDataEnablePolarity(uint32_t &registerValueLPCR, SignalPolarity dataEnablePolarity);
+
+  void disableAllDSIHostInterrupts(void);
+
+  void enableDSIHost(void);
+  void enableDSIWrapper(void);
 
   //! Pointer to DSI Host peripheral
   DSI_TypeDef *m_DSIHostPeripheralPtr;

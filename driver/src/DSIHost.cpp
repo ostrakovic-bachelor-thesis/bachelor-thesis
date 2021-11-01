@@ -41,66 +41,30 @@ DSIHost::ErrorCode DSIHost::init(const DSIHostConfig &dsiHostConfig)
 
   if (ErrorCode::OK == errorCode)
   {
-    uint32_t registerValuePCR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->PCR));
-
-    if (dsiHostConfig.enableCRCReception)
-    {
-      enableCRCReception(registerValuePCR);
-    }
-    else
-    {
-      disableCRCReception(registerValuePCR);
-    }
-
-    if (dsiHostConfig.enableECCReception)
-    {
-      enableECCReception(registerValuePCR);
-    }
-    else
-    {
-      disableECCReception(registerValuePCR);
-    }
-
-    if (dsiHostConfig.enableBusTurnAround)
-    {
-      enableBusTurnAround(registerValuePCR);
-    }
-    else
-    {
-      disableBusTurnAround(registerValuePCR);
-    }
-
-    if (dsiHostConfig.enableEoTpReception)
-    {
-      enableEoTpReception(registerValuePCR);
-    }
-    else
-    {
-      disableEoTpReception(registerValuePCR);
-    }
-
-    if (dsiHostConfig.enableEoTpTransmission)
-    {
-      enableEoTpTransmission(registerValuePCR);
-    }
-    else
-    {
-      disableEoTpTransmission(registerValuePCR);
-    }
-
-    MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->PCR), registerValuePCR);
+    errorCode = configureFlowControl(dsiHostConfig.flowControlConfig);
   }
 
   if (ErrorCode::OK == errorCode)
   {
-    uint32_t registerValueCMCR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->CMCR));
+    errorCode = configureDBIInterface(dsiHostConfig.dbiInterfaceConfig);
+  }
 
-    setMaximumReadPacketSizeTransmissionType(registerValueCMCR, dsiHostConfig.transmissionTypeMaximumReadPacketSize);
-    setDCSLongWriteTransmissionType(registerValueCMCR, dsiHostConfig.transmissionTypeDCSLongWrite);
-    setDCSShortReadZeroParamTransmissionType(registerValueCMCR, dsiHostConfig.transmissionTypeDCSShortReadZeroParam);
-    setDCSShortReadOneParamTransmissionType(registerValueCMCR, dsiHostConfig.transmissionTypeDCSShortReadOneParam);
+  if (ErrorCode::OK == errorCode)
+  {
+    errorCode = configureDSIHostLTDCInterface(dsiHostConfig);
+  }
 
-    MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->CMCR), registerValueCMCR);
+  if (ErrorCode::OK == errorCode)
+  {
+    enableAdaptedCommandMode();
+    errorCode = configureAdaptedCommandMode(dsiHostConfig);
+  }
+
+  if (ErrorCode::OK == errorCode)
+  {
+    disableAllDSIHostInterrupts();
+    enableDSIHost();
+    enableDSIWrapper();
   }
 
   return errorCode;
@@ -180,6 +144,152 @@ DSIHost::ErrorCode DSIHost::configureDSIHostTimeouts(void)
 
   setLowPowerWriteTimeout(0u);
   setBusTurnAroundTimeout(0u);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::configureFlowControl(const FlowControlConfig &flowControlConfig)
+{
+  uint32_t registerValuePCR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->PCR));
+
+  if (flowControlConfig.enableCRCReception)
+  {
+    enableCRCReception(registerValuePCR);
+  }
+  else
+  {
+    disableCRCReception(registerValuePCR);
+  }
+
+  if (flowControlConfig.enableECCReception)
+  {
+    enableECCReception(registerValuePCR);
+  }
+  else
+  {
+    disableECCReception(registerValuePCR);
+  }
+
+  if (flowControlConfig.enableBusTurnAround)
+  {
+    enableBusTurnAround(registerValuePCR);
+  }
+  else
+  {
+    disableBusTurnAround(registerValuePCR);
+  }
+
+  if (flowControlConfig.enableEoTpReception)
+  {
+    enableEoTpReception(registerValuePCR);
+  }
+  else
+  {
+    disableEoTpReception(registerValuePCR);
+  }
+
+  if (flowControlConfig.enableEoTpTransmission)
+  {
+    enableEoTpTransmission(registerValuePCR);
+  }
+  else
+  {
+    disableEoTpTransmission(registerValuePCR);
+  }
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->PCR), registerValuePCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::configureDBIInterface(const DBIInterfaceConfig &dbiInterfaceConfig)
+{
+  uint32_t registerValueCMCR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->CMCR));
+
+  setMaximumReadPacketSizeTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeMaximumReadPacketSize);
+  setDCSLongWriteTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeDCSLongWrite);
+  setDCSShortReadZeroParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeDCSShortReadZeroParam);
+  setDCSShortReadOneParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeDCSShortReadOneParam);
+  setDCSShortWriteZeroParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeDCSShortWriteZeroParam);
+  setGenericLongWriteTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericLongWrite);
+  setGenericShortReadTwoParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortReadTwoParam);
+  setGenericShortReadOneParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortReadOneParam);
+  setGenericShortReadZeroParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortReadZeroParam);
+  setGenericShortWriteTwoParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortWriteTwoParam);
+  setGenericShortWriteOneParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortWriteOneParam);
+  setGenericShortWriteZeroParamTransmissionType(registerValueCMCR, dbiInterfaceConfig.transmissionTypeGenericShortWriteZeroParam);
+
+  if (dbiInterfaceConfig.enableAcknowledgeRequest)
+  {
+    enableAcknowledgeRequest(registerValueCMCR);
+  }
+  else
+  {
+    disableAcknowledgeRequest(registerValueCMCR);
+  }
+
+  if (dbiInterfaceConfig.enableTearingEffectAcknowledgeRequest)
+  {
+    enableTearingEffectAcknowledgeRequest(registerValueCMCR);
+  }
+  else
+  {
+    disableTearingEffectAcknowledgeRequest(registerValueCMCR);
+  }
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->CMCR), registerValueCMCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::configureDSIHostLTDCInterface(const DSIHostConfig &dsiHostConfig)
+{
+  setVirtualChannelID(dsiHostConfig.virtualChannelId);
+  setLTDCColorCoding(dsiHostConfig.ltdcColorCoding);
+
+  uint32_t registerValueWCFGR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->WCFGR));
+
+  setColorMultiplexing(registerValueWCFGR, dsiHostConfig.ltdcColorCoding);
+  setVSyncLTDCHaltPolarity(registerValueWCFGR, dsiHostConfig.vsyncLtdcHaltPolarity);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->WCFGR), registerValueWCFGR);
+
+  uint32_t registerValueLPCR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->LPCR));
+
+  setHSyncPolarity(registerValueLPCR, dsiHostConfig.hsyncPolarity);
+  setVSyncPolarity(registerValueLPCR, dsiHostConfig.vsyncPolarity);
+  setDataEnablePolarity(registerValueLPCR, dsiHostConfig.dataEnablePolarity);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->LPCR), registerValueLPCR);
+
+  return ErrorCode::OK;
+}
+
+void DSIHost::enableAdaptedCommandMode(void)
+{
+  setDSIModeToAdaptedCommandMode();
+  setCommandModeToAdaptedCommandMode();
+}
+
+DSIHost::ErrorCode DSIHost::configureAdaptedCommandMode(const DSIHostConfig &dsiHostConfig)
+{
+  setMaximumLTDCWriteMemoryCommandSize(dsiHostConfig.maxLTDCWriteMemoryCmdSize);
+
+  uint32_t registerValueWCFGR = MemoryAccess::getRegisterValue(&(m_DSIHostPeripheralPtr->WCFGR));
+
+  setTearingEffectSource(registerValueWCFGR, dsiHostConfig.tearingEffectSource);
+  setTearingEffectPolarity(registerValueWCFGR, dsiHostConfig.tearingEffectPolarity);
+
+  if (dsiHostConfig.enableAutoRefreshMode)
+  {
+    enableAutoRefreshMode(registerValueWCFGR);
+  }
+  else
+  {
+    disableAutoRefreshMode(registerValueWCFGR);
+  }
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->WCFGR), registerValueWCFGR);
 
   return ErrorCode::OK;
 }
@@ -638,4 +748,304 @@ void DSIHost::setDCSShortReadOneParamTransmissionType(uint32_t &registerValueCMC
     DSIHOST_CMCR_DSW1TX_POSITION,
     DSIHOST_CMCR_DSW1TX_NUM_OF_BITS,
     static_cast<uint32_t>(transmissionType));
+}
+
+void DSIHost::setDCSShortWriteZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_DSW0TX_POSITION = 16u;
+  constexpr uint32_t DSIHOST_CMCR_DSW0TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_DSW0TX_POSITION,
+    DSIHOST_CMCR_DSW0TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void DSIHost::setGenericLongWriteTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GLWTX_POSITION = 14u;
+  constexpr uint32_t DSIHOST_CMCR_GLWTX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GLWTX_POSITION,
+    DSIHOST_CMCR_GLWTX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortReadTwoParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR2TX_POSITION = 13u;
+  constexpr uint32_t DSIHOST_CMCR_GSR2TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSR2TX_POSITION,
+    DSIHOST_CMCR_GSR2TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortReadOneParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR1TX_POSITION = 12u;
+  constexpr uint32_t DSIHOST_CMCR_GSR1TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSR1TX_POSITION,
+    DSIHOST_CMCR_GSR1TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortReadZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSR0TX_POSITION = 11u;
+  constexpr uint32_t DSIHOST_CMCR_GSR0TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSR0TX_POSITION,
+    DSIHOST_CMCR_GSR0TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortWriteTwoParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW2TX_POSITION = 10u;
+  constexpr uint32_t DSIHOST_CMCR_GSW2TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSW2TX_POSITION,
+    DSIHOST_CMCR_GSW2TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortWriteOneParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW1TX_POSITION = 9u;
+  constexpr uint32_t DSIHOST_CMCR_GSW1TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSW1TX_POSITION,
+    DSIHOST_CMCR_GSW1TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+void
+DSIHost::setGenericShortWriteZeroParamTransmissionType(uint32_t &registerValueCMCR, TransmissionType transmissionType)
+{
+  constexpr uint32_t DSIHOST_CMCR_GSW0TX_POSITION = 8u;
+  constexpr uint32_t DSIHOST_CMCR_GSW0TX_NUM_OF_BITS = 1u;
+
+  registerValueCMCR = MemoryUtility<uint32_t>::setBits(
+    registerValueCMCR,
+    DSIHOST_CMCR_GSW0TX_POSITION,
+    DSIHOST_CMCR_GSW0TX_NUM_OF_BITS,
+    static_cast<uint32_t>(transmissionType));
+}
+
+inline void DSIHost::enableAcknowledgeRequest(uint32_t &registerValueCMCR)
+{
+  constexpr uint32_t DSIHOST_CMCR_ARE_POSITION = 1u;
+  registerValueCMCR = MemoryUtility<uint32_t>::setBit(registerValueCMCR, DSIHOST_CMCR_ARE_POSITION);
+}
+
+inline void DSIHost::disableAcknowledgeRequest(uint32_t &registerValueCMCR)
+{
+  constexpr uint32_t DSIHOST_CMCR_ARE_POSITION = 1u;
+  registerValueCMCR = MemoryUtility<uint32_t>::resetBit(registerValueCMCR, DSIHOST_CMCR_ARE_POSITION);
+}
+
+inline void DSIHost::enableTearingEffectAcknowledgeRequest(uint32_t &registerValueCMCR)
+{
+  constexpr uint32_t DSIHOST_CMCR_TEARE_POSITION = 0u;
+  registerValueCMCR = MemoryUtility<uint32_t>::setBit(registerValueCMCR, DSIHOST_CMCR_TEARE_POSITION);
+}
+
+inline void DSIHost::disableTearingEffectAcknowledgeRequest(uint32_t &registerValueCMCR)
+{
+  constexpr uint32_t DSIHOST_CMCR_TEARE_POSITION = 0u;
+  registerValueCMCR = MemoryUtility<uint32_t>::resetBit(registerValueCMCR, DSIHOST_CMCR_TEARE_POSITION);
+}
+
+void DSIHost::setVirtualChannelID(uint8_t virtualChannelId)
+{
+  constexpr uint32_t DSIHOST_LCVCIDR_VCID_POSITION = 0u;
+  constexpr uint32_t DSIHOST_LCVCIDR_VCID_NUM_OF_BITS = 2u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_DSIHostPeripheralPtr->LCVCIDR),
+    DSIHOST_LCVCIDR_VCID_POSITION,
+    DSIHOST_LCVCIDR_VCID_NUM_OF_BITS,
+    virtualChannelId);
+}
+
+void DSIHost::setLTDCColorCoding(LTDCColorCoding ltdcColorCoding)
+{
+  constexpr uint32_t DSIHOST_LCOLCR_LPE_POSITION     = 8u;
+  constexpr uint32_t DSIHOST_LCOLCR_COLC_POSITION    = 0u;
+  constexpr uint32_t DSIHOST_LCOLCR_COLC_NUM_OF_BITS = 4u;
+
+  uint32_t registerValueLCOLCR = 0u;
+
+  registerValueLCOLCR = MemoryUtility<uint32_t>::setBits(
+    registerValueLCOLCR,
+    DSIHOST_LCOLCR_COLC_POSITION,
+    DSIHOST_LCOLCR_COLC_NUM_OF_BITS,
+    static_cast<uint32_t>(ltdcColorCoding));
+
+  if ((LTDCColorCoding::RGB666_IN_BLOCK     == ltdcColorCoding) ||
+      (LTDCColorCoding::RGB666_BYTE_ALIGNED == ltdcColorCoding))
+  {
+    registerValueLCOLCR = MemoryUtility<uint32_t>::setBit(registerValueLCOLCR, DSIHOST_LCOLCR_LPE_POSITION);
+  }
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->LCOLCR), registerValueLCOLCR);
+}
+
+void DSIHost::setColorMultiplexing(uint32_t &registerValueWCFGR, LTDCColorCoding ltdcColorCoding)
+{
+  constexpr uint32_t DSIHOST_WCFGR_COLMUX_POSITION    = 1u;
+  constexpr uint32_t DSIHOST_WCFGR_COLMUX_NUM_OF_BITS = 3u;
+
+  registerValueWCFGR = MemoryUtility<uint32_t>::setBits(
+    registerValueWCFGR,
+    DSIHOST_WCFGR_COLMUX_POSITION,
+    DSIHOST_WCFGR_COLMUX_NUM_OF_BITS,
+    static_cast<uint32_t>(ltdcColorCoding));
+}
+
+void DSIHost::setTearingEffectSource(uint32_t &registerValueWCFGR, TearingEffectSource tearingEffectSource)
+{
+  constexpr uint32_t DSIHOST_WCFGR_TESRC_POSITION    = 4u;
+  constexpr uint32_t DSIHOST_WCFGR_TESRC_NUM_OF_BITS = 1u;
+
+  registerValueWCFGR = MemoryUtility<uint32_t>::setBits(
+    registerValueWCFGR,
+    DSIHOST_WCFGR_TESRC_POSITION,
+    DSIHOST_WCFGR_TESRC_NUM_OF_BITS,
+    static_cast<uint32_t>(tearingEffectSource));
+}
+
+void DSIHost::enableAutoRefreshMode(uint32_t &registerValueWCFGR)
+{
+  constexpr uint32_t DSIHOST_WCFGR_AR_POSITION = 6u;
+  registerValueWCFGR = MemoryUtility<uint32_t>::setBit(registerValueWCFGR, DSIHOST_WCFGR_AR_POSITION);
+}
+
+void DSIHost::disableAutoRefreshMode(uint32_t &registerValueWCFGR)
+{
+  constexpr uint32_t DSIHOST_WCFGR_AR_POSITION = 6u;
+  registerValueWCFGR = MemoryUtility<uint32_t>::resetBit(registerValueWCFGR, DSIHOST_WCFGR_AR_POSITION);
+}
+
+void DSIHost::setVSyncLTDCHaltPolarity(uint32_t &registerValueWCFGR, VSyncLTDCHaltPolarity vsyncLtdcHaltPolarity)
+{
+  constexpr uint32_t DSIHOST_WCFGR_VSPOL_POSITION    = 7u;
+  constexpr uint32_t DSIHOST_WCFGR_VSPOL_NUM_OF_BITS = 1u;
+
+  registerValueWCFGR = MemoryUtility<uint32_t>::setBits(
+    registerValueWCFGR,
+    DSIHOST_WCFGR_VSPOL_POSITION,
+    DSIHOST_WCFGR_VSPOL_NUM_OF_BITS,
+    static_cast<uint32_t>(vsyncLtdcHaltPolarity));
+}
+
+void DSIHost::setTearingEffectPolarity(uint32_t &registerValueWCFGR, TearingEffectPolarity tearingEffectPolarity)
+{
+  constexpr uint32_t DSIHOST_WCFGR_TE_POSITION = 5u;
+  constexpr uint32_t DSIHOST_WCFGR_TE_NUM_OF_BITS = 1u;
+
+  registerValueWCFGR = MemoryUtility<uint32_t>::setBits(
+    registerValueWCFGR,
+    DSIHOST_WCFGR_TE_POSITION,
+    DSIHOST_WCFGR_TE_NUM_OF_BITS,
+    static_cast<uint32_t>(tearingEffectPolarity));
+}
+
+void DSIHost::setHSyncPolarity(uint32_t &registerValueLPCR, SignalPolarity hsyncPolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_HSP_POSITION    = 2u;
+  constexpr uint32_t DSIHOST_LPCR_HSP_NUM_OF_BITS = 1u;
+
+  registerValueLPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueLPCR,
+    DSIHOST_LPCR_HSP_POSITION,
+    DSIHOST_LPCR_HSP_NUM_OF_BITS,
+    static_cast<uint32_t>(hsyncPolarity));
+}
+
+void DSIHost::setVSyncPolarity(uint32_t &registerValueLPCR, SignalPolarity vsyncPolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_VSP_POSITION    = 1u;
+  constexpr uint32_t DSIHOST_LPCR_VSP_NUM_OF_BITS = 1u;
+
+  registerValueLPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueLPCR,
+    DSIHOST_LPCR_VSP_POSITION,
+    DSIHOST_LPCR_VSP_NUM_OF_BITS,
+    static_cast<uint32_t>(vsyncPolarity));
+}
+
+void DSIHost::setDataEnablePolarity(uint32_t &registerValueLPCR, SignalPolarity dataEnablePolarity)
+{
+  constexpr uint32_t DSIHOST_LPCR_DEP_POSITION    = 0u;
+  constexpr uint32_t DSIHOST_LPCR_DEP_NUM_OF_BITS = 1u;
+
+  registerValueLPCR = MemoryUtility<uint32_t>::setBits(
+    registerValueLPCR,
+    DSIHOST_LPCR_DEP_POSITION,
+    DSIHOST_LPCR_DEP_NUM_OF_BITS,
+    static_cast<uint32_t>(dataEnablePolarity));
+}
+
+void DSIHost::setMaximumLTDCWriteMemoryCommandSize(uint16_t maximumLTDCWriteMemoryCommandSize)
+{
+  constexpr uint32_t DSIHOST_LCCR_CMDSIZE_POSITION = 0u;
+  constexpr uint32_t DSIHOST_LCCR_CMDSIZE_SIZE     = 16u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_DSIHostPeripheralPtr->LCCR),
+    DSIHOST_LCCR_CMDSIZE_POSITION,
+    DSIHOST_LCCR_CMDSIZE_SIZE,
+    maximumLTDCWriteMemoryCommandSize);
+}
+
+void DSIHost::setDSIModeToAdaptedCommandMode(void)
+{
+  constexpr uint32_t DSIHOST_WCFGR_DSIM_POSITION = 0u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DSIHostPeripheralPtr->WCFGR), DSIHOST_WCFGR_DSIM_POSITION);
+}
+
+void DSIHost::setCommandModeToAdaptedCommandMode(void)
+{
+  constexpr uint32_t DSIHOST_MCR_CMDM_POSITION = 0u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DSIHostPeripheralPtr->MCR), DSIHOST_MCR_CMDM_POSITION);
+}
+
+void DSIHost::enableDSIHost(void)
+{
+  constexpr uint32_t DSIHOST_CR_EN_POSITION = 0u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DSIHostPeripheralPtr->CR), DSIHOST_CR_EN_POSITION);
+}
+
+void DSIHost::enableDSIWrapper(void)
+{
+  constexpr uint32_t DSIHOST_WCR_DSIEN_POSITION = 3u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DSIHostPeripheralPtr->WCR), DSIHOST_WCR_DSIEN_POSITION);
+}
+
+void DSIHost::disableAllDSIHostInterrupts(void)
+{
+  constexpr uint32_t ALL_INTERRUPTS_DISABLED = 0x00000000u;
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->IER[0]), ALL_INTERRUPTS_DISABLED);
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->IER[1]), ALL_INTERRUPTS_DISABLED);
 }
