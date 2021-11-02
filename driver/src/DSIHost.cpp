@@ -70,6 +70,77 @@ DSIHost::ErrorCode DSIHost::init(const DSIHostConfig &dsiHostConfig)
   return errorCode;
 }
 
+DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId)
+{
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x3);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setShortPacketData0(registerValueGHCR, 0x0);
+  setShortPacketData1(registerValueGHCR, 0x0);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter)
+{
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x13);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setShortPacketData0(registerValueGHCR, parameter);
+  setShortPacketData1(registerValueGHCR, 0x0);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode
+DSIHost::genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter1, uint8_t parameter2)
+{
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x23);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setShortPacketData0(registerValueGHCR, parameter1);
+  setShortPacketData1(registerValueGHCR, parameter2);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand)
+{
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x05);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setShortPacketData0(registerValueGHCR, dcsCommand);
+  setShortPacketData1(registerValueGHCR, 0x0);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand, uint8_t parameter)
+{
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x15);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setShortPacketData0(registerValueGHCR, dcsCommand);
+  setShortPacketData1(registerValueGHCR, parameter);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
 DSIHost::ErrorCode DSIHost::configureDPHYPLL(const PLLConfig &pllConfig)
 {
   ErrorCode errorCode = calculateDSIPHYClockFrequency(pllConfig, m_dsiPhyClockFreq);
@@ -90,7 +161,6 @@ DSIHost::ErrorCode DSIHost::configureDPHYPLL(const PLLConfig &pllConfig)
 
   return errorCode;
 }
-
 
 DSIHost::ErrorCode DSIHost::configureDPHY(const DSIHostConfig &dsiHostConfig)
 {
@@ -1048,4 +1118,52 @@ void DSIHost::disableAllDSIHostInterrupts(void)
   constexpr uint32_t ALL_INTERRUPTS_DISABLED = 0x00000000u;
   MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->IER[0]), ALL_INTERRUPTS_DISABLED);
   MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->IER[1]), ALL_INTERRUPTS_DISABLED);
+}
+
+void DSIHost::setPacketDataType(uint32_t &registerValueGHCR, uint8_t packetDataType)
+{
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION    = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_NUM_OF_BITS = 6u;
+
+  registerValueGHCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGHCR,
+    DSIHOST_GHCR_DT_POSITION,
+    DSIHOST_GHCR_DT_NUM_OF_BITS,
+    packetDataType);
+}
+
+void DSIHost::setVirtualChannelID(uint32_t &registerValueGHCR, VirtualChannelID virtualChannelId)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION    = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_NUM_OF_BITS = 2u;
+
+  registerValueGHCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGHCR,
+    DSIHOST_GHCR_VCID_POSITION,
+    DSIHOST_GHCR_VCID_NUM_OF_BITS,
+    static_cast<uint8_t>(virtualChannelId));
+}
+
+void DSIHost::setShortPacketData0(uint32_t &registerValueGHCR, uint8_t data)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION    = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_NUM_OF_BITS = 8u;
+
+  registerValueGHCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGHCR,
+    DSIHOST_GHCR_WCLSB_POSITION,
+    DSIHOST_GHCR_WCLSB_NUM_OF_BITS,
+    data);
+}
+
+void DSIHost::setShortPacketData1(uint32_t &registerValueGHCR, uint8_t data)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION    = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_NUM_OF_BITS = 8u;
+
+  registerValueGHCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGHCR,
+    DSIHOST_GHCR_WCMSB_POSITION,
+    DSIHOST_GHCR_WCMSB_NUM_OF_BITS,
+    data);
 }

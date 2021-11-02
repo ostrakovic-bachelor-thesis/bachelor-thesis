@@ -82,6 +82,10 @@ public:
   static constexpr uint32_t BITS_IN_BYTE               = 8u;
   static constexpr uint32_t FREQ_HZ_TO_MHZ_DIVIDER     = 1000000u;
 
+  static constexpr DSIHost::VirtualChannelID RANDOM_VIRTUAL_CHANNEL_ID = DSIHost::VirtualChannelID::CHANNEL_3;
+  static constexpr uint8_t RANDOM_PARAM_VALUE_1 = 0x8F;
+  static constexpr uint8_t RANDOM_PARAM_VALUE_2 = 0x3A;
+  static constexpr uint8_t RANDOM_DCS_COMMAND   = 0x11;
 
   DSI_TypeDef virtualDSIHostPeripheral;
   NiceMock<ClockControlMock> clockControlMock;
@@ -1315,4 +1319,328 @@ TEST_F(ADSIHost, InitEnablesDSIWrapperBySettingDSIENBitInWCRRegister)
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.WCR, bitValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t GENERIC_SHORT_WRITE_ZERO_PARAM_DATA_TYPE = 0x3;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = GENERIC_SHORT_WRITE_ZERO_PARAM_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 2u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.genericShortWrite(DSIHost::VirtualChannelID::CHANNEL_2);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsWCLSBBitsInGHCRRegisterToZero)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCLSB_VALUE = 0u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCLSB_POSITION, DSIHOST_GHCR_WCLSB_SIZE, EXPECTED_DSIHOST_GHCR_WCLSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsWCMSBBitsInGHCRRegisterToZero)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCMSB_VALUE = 0u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCMSB_POSITION, DSIHOST_GHCR_WCMSB_SIZE, EXPECTED_DSIHOST_GHCR_WCMSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t GENERIC_SHORT_WRITE_ONE_PARAM_DATA_TYPE = 0x13;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = GENERIC_SHORT_WRITE_ONE_PARAM_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 3u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(DSIHost::VirtualChannelID::CHANNEL_3, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsWCLSBBitsInGHCRRegisterAccordingToParameterValue)
+{
+  constexpr uint8_t PARAMETER_VALUE = 0xC2;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCLSB_VALUE = PARAMETER_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCLSB_POSITION, DSIHOST_GHCR_WCLSB_SIZE, EXPECTED_DSIHOST_GHCR_WCLSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, PARAMETER_VALUE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsWCMSBBitsInGHCRRegisterToZero)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCMSB_VALUE = 0u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCMSB_POSITION, DSIHOST_GHCR_WCMSB_SIZE, EXPECTED_DSIHOST_GHCR_WCMSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t GENERIC_SHORT_WRITE_TWO_PARAMS_DATA_TYPE = 0x23;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = GENERIC_SHORT_WRITE_TWO_PARAMS_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1, RANDOM_PARAM_VALUE_2);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 1u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(DSIHost::VirtualChannelID::CHANNEL_1, RANDOM_PARAM_VALUE_1, RANDOM_PARAM_VALUE_2);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsWCLSBBitsInGHCRRegisterAccordingToParameter1Value)
+{
+  constexpr uint8_t PARAMETER1_VALUE = 0xAF;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCLSB_VALUE = PARAMETER1_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCLSB_POSITION, DSIHOST_GHCR_WCLSB_SIZE, EXPECTED_DSIHOST_GHCR_WCLSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, PARAMETER1_VALUE, RANDOM_PARAM_VALUE_2);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsWCMSBBitsInGHCRRegisterAccordingToParameter2Value)
+{
+  constexpr uint8_t PARAMETER2_VALUE = 0x63;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCMSB_VALUE = PARAMETER2_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCMSB_POSITION, DSIHOST_GHCR_WCMSB_SIZE, EXPECTED_DSIHOST_GHCR_WCMSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1, PARAMETER2_VALUE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t DCS_SHORT_WRITE_ZERO_PARAM_DATA_TYPE = 0x05;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = DCS_SHORT_WRITE_ZERO_PARAM_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 2u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(DSIHost::VirtualChannelID::CHANNEL_2, RANDOM_DCS_COMMAND);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsWCLSBBitsInGHCRRegisterAccordingToDCSCommand)
+{
+  constexpr uint8_t DCS_COMMAND_VALUE = 0x18;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCLSB_VALUE = DCS_COMMAND_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCLSB_POSITION, DSIHOST_GHCR_WCLSB_SIZE, EXPECTED_DSIHOST_GHCR_WCLSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, DCS_COMMAND_VALUE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsWCMSBBitsInGHCRRegisterToZero)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCMSB_VALUE = 0u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCMSB_POSITION, DSIHOST_GHCR_WCMSB_SIZE, EXPECTED_DSIHOST_GHCR_WCMSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t DCS_SHORT_WRITE_ONE_PARAM_DATA_TYPE = 0x15;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = DCS_SHORT_WRITE_ONE_PARAM_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 3u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(DSIHost::VirtualChannelID::CHANNEL_3, RANDOM_DCS_COMMAND, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsWCLSBBitsInGHCRRegisterAccordingToDCSCommand)
+{
+  constexpr uint8_t DCS_COMMAND_VALUE = 0x3E;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCLSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCLSB_VALUE = DCS_COMMAND_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCLSB_POSITION, DSIHOST_GHCR_WCLSB_SIZE, EXPECTED_DSIHOST_GHCR_WCLSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, DCS_COMMAND_VALUE, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsWCMSBBitsInGHCRRegisterAccordingToParameterValue)
+{
+  constexpr uint8_t PARAMETER_VALUE = 0x2C;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_POSITION = 16u;
+  constexpr uint32_t DSIHOST_GHCR_WCMSB_SIZE     = 8u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCMSB_VALUE = PARAMETER_VALUE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCMSB_POSITION, DSIHOST_GHCR_WCMSB_SIZE, EXPECTED_DSIHOST_GHCR_WCMSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, PARAMETER_VALUE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
 }

@@ -21,6 +21,14 @@ public:
     CAN_NOT_GET_HSE_CLOCK_FREQUENCY  = 2u
   };
 
+  enum class VirtualChannelID : uint8_t
+  {
+    CHANNEL_0 = 0u,
+    CHANNEL_1 = 1u,
+    CHANNEL_2 = 2u,
+    CHANNEL_3 = 3u
+  };
+
   enum class TransmissionType : uint8_t
   {
     HIGH_SPEED = 0u,
@@ -129,6 +137,31 @@ public:
   virtual
 #endif // #ifdef UNIT_TEST
   ErrorCode init(const DSIHostConfig &dsiHostConfig);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode genericShortWrite(VirtualChannelID virtualChannelId);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter1, uint8_t parameter2);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand, uint8_t parameter);
 
 #ifdef UNIT_TEST
   virtual
@@ -260,6 +293,11 @@ private:
 
   void enableDSIHost(void);
   void enableDSIWrapper(void);
+
+  void setPacketDataType(uint32_t &registerValueGHCR, uint8_t packetDataType);
+  void setVirtualChannelID(uint32_t &registerValueGHCR, VirtualChannelID virtualChannelId);
+  void setShortPacketData0(uint32_t &registerValueGHCR, uint8_t data);
+  void setShortPacketData1(uint32_t &registerValueGHCR, uint8_t data);
 
   //! Pointer to DSI Host peripheral
   DSI_TypeDef *m_DSIHostPeripheralPtr;
