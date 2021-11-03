@@ -87,6 +87,9 @@ public:
   static constexpr uint8_t RANDOM_PARAM_VALUE_2 = 0x3A;
   static constexpr uint8_t RANDOM_DCS_COMMAND   = 0x11;
 
+  static const uint8_t RANDOM_DATA[];
+  static const uint16_t RANDOM_DATA_SIZE;
+
   DSI_TypeDef virtualDSIHostPeripheral;
   NiceMock<ClockControlMock> clockControlMock;
   NiceMock<ResetControlMock> resetControlMock;
@@ -95,6 +98,8 @@ public:
 
   uint32_t m_isDPHYRegulatorReadyCounter;
   uint32_t m_isDPHYPLLReadyCounter;
+  uint32_t m_isCommandFIFOEmptyCounter;
+  uint16_t m_dataIdx;
 
   void setHSEClockFrequency(uint32_t clockFrequency);
   void setGetHSEClockFrequencyErrorCode(ClockControl::ErrorCode errorCode);
@@ -103,10 +108,16 @@ public:
   void setupWISRRegisterReadings(void);
   void expectDPHYRegulatorToBeReadyBeforeWrittingToAnyBitOfDSIHostPeripheralOtherThanREGENInWRPCR(void);
   void expectDPHYPLLToBeReadyBeforeWrittingToAnyBitOfDSIHostPeripheralOtherThanREGENInWRPCR(void);
+  void setupGPSRRegisterReadings(void);
+  void expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral(void);
+  void expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize);
 
   void SetUp() override;
   void TearDown() override;
 };
+
+const uint8_t ADSIHost::RANDOM_DATA[]     = "Random message.";
+const uint16_t ADSIHost::RANDOM_DATA_SIZE = sizeof(ADSIHost::RANDOM_DATA);
 
 void ADSIHost::SetUp()
 {
@@ -114,6 +125,8 @@ void ADSIHost::SetUp()
 
   m_isDPHYRegulatorReadyCounter = 0u;
   m_isDPHYPLLReadyCounter       = 0u;
+  m_isCommandFIFOEmptyCounter   = 0u;
+  m_dataIdx                     = 0u;
 
   // based on real reset values of DSI Host registers (source STM32L4R9 reference manual)
   virtualDSIHostPeripheral.VR      = DSIHOST_VR_RESET_VALUE;
@@ -194,6 +207,7 @@ void ADSIHost::SetUp()
   dsiHostConfig.pllConfig.outputClockDivider   = 1u;
 
   setupWISRRegisterReadings();
+  setupGPSRRegisterReadings();
 }
 
 void ADSIHost::TearDown()
@@ -292,6 +306,74 @@ void ADSIHost::expectDPHYPLLToBeReadyBeforeWrittingToAnyBitOfDSIHostPeripheralOt
         auto bitValueMatcher = BitHasValue(DSIHOST_WISR_PLLLS_POSITION, EXPECTED_DSIHOST_WISR_PLLLS_VALUE);
 
         ASSERT_THAT(virtualDSIHostPeripheral.WISR, bitValueMatcher);
+      }
+    });
+}
+
+void ADSIHost::setupGPSRRegisterReadings(void)
+{
+  // set value to zero so that no flag is set
+  virtualDSIHostPeripheral.GPSR = 0u;
+
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualDSIHostPeripheral.GPSR)))
+    .WillByDefault([&](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t DSIHOST_GPSR_CMDFE_POSITION = 0u;
+      const bool isCommandFIFOEmpty = (10u < m_isCommandFIFOEmptyCounter);
+
+      ++m_isCommandFIFOEmptyCounter;
+
+      virtualDSIHostPeripheral.GPSR =
+        expectedRegVal(virtualDSIHostPeripheral.GPSR, DSIHOST_GPSR_CMDFE_POSITION, 1u, isCommandFIFOEmpty ? 1u : 0u);
+
+      return virtualDSIHostPeripheral.GPSR;
+    });
+}
+
+void ADSIHost::expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral(void)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, Matcher<uint32_t>(_)))
+    .WillRepeatedly([&](volatile void *registerPtr, uint32_t registerValue)
+    {
+      constexpr uint32_t DSIHOST_GPSR_CMDFE_POSITION = 0u;
+      constexpr uint32_t EXPECTED_DSIHOST_GPSR_CMDFE_VALUE = 0x1;
+
+      auto bitValueMatcher = BitHasValue(DSIHOST_GPSR_CMDFE_POSITION, EXPECTED_DSIHOST_GPSR_CMDFE_VALUE);
+
+      ASSERT_THAT(virtualDSIHostPeripheral.GPSR, bitValueMatcher);
+    });
+}
+
+void ADSIHost::expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualDSIHostPeripheral.GHCR), _))
+    .Times((dataSize + sizeof(uint32_t) - 1u) / sizeof(uint32_t))
+    .WillRepeatedly([=](volatile void *registerPtr, uint32_t registerValue)
+    {
+      uint32_t expectedRegisterValue = 0u;
+
+      for (uint8_t i = 0u; i < sizeof(uint32_t); ++i)
+      {
+        if (m_dataIdx < dataSize)
+        {
+          expectedRegisterValue = MemoryUtility<uint32_t>::setBits(
+            expectedRegisterValue,
+            ((m_dataIdx % sizeof(uint32_t)) * BITS_IN_BYTE),
+            BITS_IN_BYTE,
+            reinterpret_cast<const uint8_t*>(data)[m_dataIdx]);
+
+          ++m_dataIdx;
+        }
+      }
+
+      if (m_dataIdx < dataSize)
+      {
+        ASSERT_THAT(registerValue, expectedRegisterValue);
+      }
+      else if (m_dataIdx == dataSize)
+      {
+        ASSERT_THAT(registerValue, expectedRegisterValue);
+        ++m_dataIdx;
       }
     });
 }
@@ -1321,6 +1403,15 @@ TEST_F(ADSIHost, InitEnablesDSIWrapperBySettingDSIENBitInWCRRegister)
   ASSERT_THAT(virtualDSIHostPeripheral.WCR, bitValueMatcher);
 }
 
+TEST_F(ADSIHost, GenericShortWriteWithZeroParamsWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
 TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
 {
   constexpr uint8_t GENERIC_SHORT_WRITE_ZERO_PARAM_DATA_TYPE = 0x3;
@@ -1380,6 +1471,16 @@ TEST_F(ADSIHost, GenericShortWriteWithZeroParamsSetsWCMSBBitsInGHCRRegisterToZer
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithOneParamWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }
 
 TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsDTBitsInGHCRRegisterToAppropriateValue)
@@ -1446,6 +1547,16 @@ TEST_F(ADSIHost, GenericShortWriteWithOneParamSetsWCMSBBitsInGHCRRegisterToZero)
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericShortWriteWithTwoParamsWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_PARAM_VALUE_1, RANDOM_PARAM_VALUE_2);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }
 
 TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
@@ -1515,6 +1626,15 @@ TEST_F(ADSIHost, GenericShortWriteWithTwoParamsSetsWCMSBBitsInGHCRRegisterAccord
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
 }
 
+TEST_F(ADSIHost, DCSShortWriteWithZeroParamsWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
 TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsDTBitsInGHCRRegisterToAppropriateValue)
 {
   constexpr uint8_t DCS_SHORT_WRITE_ZERO_PARAM_DATA_TYPE = 0x05;
@@ -1576,6 +1696,16 @@ TEST_F(ADSIHost, DCSShortWriteWithZeroParamsSetsWCMSBBitsInGHCRRegisterToZero)
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSShortWriteWithOneParamWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsShortWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, RANDOM_PARAM_VALUE_1);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }
 
 TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsDTBitsInGHCRRegisterToAppropriateValue)
@@ -1643,4 +1773,73 @@ TEST_F(ADSIHost, DCSShortWriteWithOneParamSetsWCMSBBitsInGHCRRegisterAccordingTo
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericLongWriteWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
+TEST_F(ADSIHost, GenericLongWriteSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t GENERIC_LONG_WRITE_DATA_TYPE = 0x29;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = GENERIC_LONG_WRITE_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericLongWriteSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 2u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(DSIHost::VirtualChannelID::CHANNEL_2, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericLongWriteSetsWCxSBBitsInGHCRRegisterAccordingToDataSize)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCXSB_VALUE = RANDOM_DATA_SIZE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCXSB_POSITION, DSIHOST_GHCR_WCXSB_SIZE, EXPECTED_DSIHOST_GHCR_WCXSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, GenericLongWriteWritesDataToTransmitInGPDRRegister)
+{
+  expectDataToBeWrittenInGPDR(RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }

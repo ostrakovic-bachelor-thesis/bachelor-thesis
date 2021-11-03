@@ -166,6 +166,11 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
+  ErrorCode genericLongWrite(VirtualChannelID virtualChannelId, const void *dataPtr, uint16_t dataSize);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getDSIPHYClockFrequency(uint32_t &dsiPhyClockFreq);
 
   inline Peripheral getPeripheralTag(void) const
@@ -298,6 +303,9 @@ private:
   void setVirtualChannelID(uint32_t &registerValueGHCR, VirtualChannelID virtualChannelId);
   void setShortPacketData0(uint32_t &registerValueGHCR, uint8_t data);
   void setShortPacketData1(uint32_t &registerValueGHCR, uint8_t data);
+  void setLongPacketDataSize(uint32_t &registerValueGHCR, uint16_t dataSize);
+
+  bool isCommandFIFOEmpty(void) const;
 
   //! Pointer to DSI Host peripheral
   DSI_TypeDef *m_DSIHostPeripheralPtr;

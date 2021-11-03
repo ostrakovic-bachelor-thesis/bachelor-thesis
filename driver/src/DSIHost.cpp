@@ -72,6 +72,8 @@ DSIHost::ErrorCode DSIHost::init(const DSIHostConfig &dsiHostConfig)
 
 DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId)
 {
+  while (not isCommandFIFOEmpty());
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x3);
@@ -86,6 +88,8 @@ DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId)
 
 DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter)
 {
+  while (not isCommandFIFOEmpty());
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x13);
@@ -101,6 +105,8 @@ DSIHost::ErrorCode DSIHost::genericShortWrite(VirtualChannelID virtualChannelId,
 DSIHost::ErrorCode
 DSIHost::genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter1, uint8_t parameter2)
 {
+  while (not isCommandFIFOEmpty());
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x23);
@@ -115,6 +121,8 @@ DSIHost::genericShortWrite(VirtualChannelID virtualChannelId, uint8_t parameter1
 
 DSIHost::ErrorCode DSIHost::dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand)
 {
+  while (not isCommandFIFOEmpty());
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x05);
@@ -129,12 +137,29 @@ DSIHost::ErrorCode DSIHost::dcsShortWrite(VirtualChannelID virtualChannelId, uin
 
 DSIHost::ErrorCode DSIHost::dcsShortWrite(VirtualChannelID virtualChannelId, uint8_t dcsCommand, uint8_t parameter)
 {
+  while (not isCommandFIFOEmpty());
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x15);
   setVirtualChannelID(registerValueGHCR, virtualChannelId);
   setShortPacketData0(registerValueGHCR, dcsCommand);
   setShortPacketData1(registerValueGHCR, parameter);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::genericLongWrite(VirtualChannelID virtualChannelId, const void *dataPtr, uint16_t dataSize)
+{
+  while (not isCommandFIFOEmpty());
+
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x29);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setLongPacketDataSize(registerValueGHCR, dataSize);
 
   MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
 
@@ -1166,4 +1191,22 @@ void DSIHost::setShortPacketData1(uint32_t &registerValueGHCR, uint8_t data)
     DSIHOST_GHCR_WCMSB_POSITION,
     DSIHOST_GHCR_WCMSB_NUM_OF_BITS,
     data);
+}
+
+void DSIHost::setLongPacketDataSize(uint32_t &registerValueGHCR, uint16_t dataSize)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_POSITION    = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_NUM_OF_BITS = 16u;
+
+  registerValueGHCR = MemoryUtility<uint32_t>::setBits(
+    registerValueGHCR,
+    DSIHOST_GHCR_WCXSB_POSITION,
+    DSIHOST_GHCR_WCXSB_NUM_OF_BITS,
+    dataSize);
+}
+
+bool DSIHost::isCommandFIFOEmpty(void) const
+{
+  constexpr uint32_t DSIHOST_GPSR_CMDFE_POSITION = 0u;
+  return RegisterUtility<uint32_t>::isBitSetInRegister(&(m_DSIHostPeripheralPtr->GPSR), DSIHOST_GPSR_CMDFE_POSITION);
 }
