@@ -171,6 +171,11 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
+  ErrorCode dcsLongWrite(void);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getDSIPHYClockFrequency(uint32_t &dsiPhyClockFreq);
 
   inline Peripheral getPeripheralTag(void) const
@@ -304,6 +309,9 @@ private:
   void setShortPacketData0(uint32_t &registerValueGHCR, uint8_t data);
   void setShortPacketData1(uint32_t &registerValueGHCR, uint8_t data);
   void setLongPacketDataSize(uint32_t &registerValueGHCR, uint16_t dataSize);
+
+  void writeDataToTransmitInFIFO(uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4);
+  void writeDataToTransmitInFIFO(const uint8_t *dataPtr, uint16_t dataSize);
 
   bool isCommandFIFOEmpty(void) const;
 

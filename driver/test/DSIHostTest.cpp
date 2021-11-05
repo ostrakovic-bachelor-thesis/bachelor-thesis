@@ -116,7 +116,7 @@ public:
   void TearDown() override;
 };
 
-const uint8_t ADSIHost::RANDOM_DATA[]     = "Random message.";
+const uint8_t ADSIHost::RANDOM_DATA[]     = "Random message 10.";
 const uint16_t ADSIHost::RANDOM_DATA_SIZE = sizeof(ADSIHost::RANDOM_DATA);
 
 void ADSIHost::SetUp()
@@ -346,7 +346,7 @@ void ADSIHost::expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPer
 
 void ADSIHost::expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize)
 {
-  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualDSIHostPeripheral.GHCR), _))
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualDSIHostPeripheral.GPDR), _))
     .Times((dataSize + sizeof(uint32_t) - 1u) / sizeof(uint32_t))
     .WillRepeatedly([=](volatile void *registerPtr, uint32_t registerValue)
     {
@@ -366,16 +366,11 @@ void ADSIHost::expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize)
         }
       }
 
-      if (m_dataIdx < dataSize)
-      {
-        ASSERT_THAT(registerValue, expectedRegisterValue);
-      }
-      else if (m_dataIdx == dataSize)
-      {
-        ASSERT_THAT(registerValue, expectedRegisterValue);
-        ++m_dataIdx;
-      }
+      ASSERT_THAT(registerValue, expectedRegisterValue);
     });
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(&(virtualDSIHostPeripheral.GPDR)), Matcher<uint32_t>(_)))
+    .Times(AnyNumber());
 }
 
 
@@ -1842,4 +1837,20 @@ TEST_F(ADSIHost, GenericLongWriteWritesDataToTransmitInGPDRRegister)
     virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DATA, RANDOM_DATA_SIZE);
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
+TEST_F(ADSIHost, DCSLongWriteSetsDTBitsInGHCRRegisterToAppropriateValue)
+{
+  constexpr uint8_t DCS_LONG_WRITE_DATA_TYPE = 0x39;
+  constexpr uint32_t DSIHOST_GHCR_DT_POSITION = 0u;
+  constexpr uint32_t DSIHOST_GHCR_DT_SIZE     = 6u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_DT_VALUE = DCS_LONG_WRITE_DATA_TYPE;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsLongWrite();
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
 }

@@ -155,6 +155,8 @@ DSIHost::ErrorCode DSIHost::genericLongWrite(VirtualChannelID virtualChannelId, 
 {
   while (not isCommandFIFOEmpty());
 
+  writeDataToTransmitInFIFO(reinterpret_cast<const uint8_t*>(dataPtr), dataSize);
+
   uint32_t registerValueGHCR = 0u;
 
   setPacketDataType(registerValueGHCR, 0x29);
@@ -163,6 +165,11 @@ DSIHost::ErrorCode DSIHost::genericLongWrite(VirtualChannelID virtualChannelId, 
 
   MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
 
+  return ErrorCode::OK;
+}
+
+DSIHost::ErrorCode DSIHost::dcsLongWrite(void)
+{
   return ErrorCode::OK;
 }
 
@@ -1209,4 +1216,39 @@ bool DSIHost::isCommandFIFOEmpty(void) const
 {
   constexpr uint32_t DSIHOST_GPSR_CMDFE_POSITION = 0u;
   return RegisterUtility<uint32_t>::isBitSetInRegister(&(m_DSIHostPeripheralPtr->GPSR), DSIHOST_GPSR_CMDFE_POSITION);
+}
+
+void DSIHost::writeDataToTransmitInFIFO(uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4)
+{
+  uint32_t registerValueGPDR = 0u;
+
+  registerValueGPDR = MemoryUtility<uint32_t>::setBits(registerValueGPDR, (0u * BITS_IN_BYTE), BITS_IN_BYTE, data1);
+  registerValueGPDR = MemoryUtility<uint32_t>::setBits(registerValueGPDR, (1u * BITS_IN_BYTE), BITS_IN_BYTE, data2);
+  registerValueGPDR = MemoryUtility<uint32_t>::setBits(registerValueGPDR, (2u * BITS_IN_BYTE), BITS_IN_BYTE, data3);
+  registerValueGPDR = MemoryUtility<uint32_t>::setBits(registerValueGPDR, (3u * BITS_IN_BYTE), BITS_IN_BYTE, data4);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GPDR), registerValueGPDR);
+}
+
+void DSIHost::writeDataToTransmitInFIFO(const uint8_t *dataPtr, uint16_t dataSize)
+{
+  const uint16_t alignedBytesCount    = (dataSize / sizeof(uint32_t)) * sizeof(uint32_t);
+  const uint16_t notAlignedBytesCount = dataSize % sizeof(uint32_t);
+
+  for (uint16_t i = 0u; i < alignedBytesCount; i += 4u)
+  {
+    writeDataToTransmitInFIFO(dataPtr[i], dataPtr[i + 1], dataPtr[i + 2], dataPtr[i + 3]);
+  }
+
+  if (0u != notAlignedBytesCount)
+  {
+    uint8_t remainOfData[sizeof(uint32_t)] = {0u, 0u, 0u, 0u};
+
+    for (uint16_t i = 0u; i < notAlignedBytesCount; ++i)
+    {
+      remainOfData[i] = dataPtr[alignedBytesCount + i];
+    }
+
+    writeDataToTransmitInFIFO(remainOfData[0], remainOfData[1], remainOfData[2], remainOfData[3]);
+  }
 }
