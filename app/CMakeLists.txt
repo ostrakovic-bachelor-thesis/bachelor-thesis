@@ -17,6 +17,8 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/PowerControl.cpp
     ../driver/src/EXTI.cpp
     ../driver/src/SystemConfig.cpp
+    ../driver/src/LTDC.cpp
+    ../driver/src/DSIHost.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_bsp_component_cpp_sources

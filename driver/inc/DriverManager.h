@@ -13,6 +13,8 @@
 #include "InterruptController.h"
 #include "EXTI.h"
 #include "SystemConfig.h"
+#include "LTDC.h"
+#include "DSIHost.h"
 #include <cstdint>
 
 
@@ -90,6 +92,15 @@ public:
     GENERIC = 0u
   };
 
+  enum class LTDCInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
+  enum class DSIHostInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
 
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
@@ -146,6 +157,16 @@ public:
     return s_systemConfigDriverInstance;
   }
 
+  inline static LTDC& getInstance(LTDCInstance ltdcInstance)
+  {
+    return s_ltdcDriverInstance;
+  }
+
+  inline static DSIHost& getInstance(DSIHostInstance dsiHostInstance)
+  {
+    return s_dsiHostDriverInstance;
+  }
+
 private:
 
   //! TODO
@@ -180,6 +201,12 @@ private:
 
   //! TODO
   static SystemConfig s_systemConfigDriverInstance;
+
+  //! TODO
+  static LTDC s_ltdcDriverInstance;
+
+  //! TODO
+  static DSIHost s_dsiHostDriverInstance;
 
 };
 

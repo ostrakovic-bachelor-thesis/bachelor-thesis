@@ -171,7 +171,10 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
-  ErrorCode dcsLongWrite(void);
+  ErrorCode dcsLongWrite(VirtualChannelID virtualChannelId,
+    uint8_t dcsCommand,
+    const void *dataPtr,
+    uint16_t dataSize);
 
 #ifdef UNIT_TEST
   virtual
@@ -312,6 +315,7 @@ private:
 
   void writeDataToTransmitInFIFO(uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4);
   void writeDataToTransmitInFIFO(const uint8_t *dataPtr, uint16_t dataSize);
+  void writeDCSCommandAndDataToTransmitInFIFO(uint8_t dcsCommand, const uint8_t *dataPtr, uint16_t dataSize);
 
   bool isCommandFIFOEmpty(void) const;
 

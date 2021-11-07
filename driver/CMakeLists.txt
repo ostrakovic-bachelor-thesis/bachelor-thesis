@@ -28,6 +28,7 @@ set(BachelorThesis_driver_component_cpp_sources
     src/SystemConfig.cpp
     src/EXTI.cpp
     src/InterruptController.cpp
+    src/DSIHost.cpp
     src/DriverManager.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources

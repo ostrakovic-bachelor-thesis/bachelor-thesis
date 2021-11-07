@@ -101,6 +101,10 @@
 #undef SYSCFG
 #endif // #ifdef SYSCFG
 
+#ifdef LTDC
+#undef LTDC
+#endif // #ifdef LTDC
+
 
 enum class Peripheral : uintptr_t
 {
@@ -127,6 +131,8 @@ enum class Peripheral : uintptr_t
   PWR     = PWR_BASE,
   EXTI    = EXTI_BASE,
   SYSCFG  = SYSCFG_BASE,
+  LTDC    = LTDC_BASE,
+  DSIHOST = DSI_BASE,
 
 #ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,

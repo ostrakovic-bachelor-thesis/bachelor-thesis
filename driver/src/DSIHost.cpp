@@ -168,8 +168,23 @@ DSIHost::ErrorCode DSIHost::genericLongWrite(VirtualChannelID virtualChannelId, 
   return ErrorCode::OK;
 }
 
-DSIHost::ErrorCode DSIHost::dcsLongWrite(void)
+DSIHost::ErrorCode DSIHost::dcsLongWrite(VirtualChannelID virtualChannelId,
+  uint8_t dcsCommand,
+  const void *dataPtr,
+  uint16_t dataSize)
 {
+  while (not isCommandFIFOEmpty());
+
+  writeDCSCommandAndDataToTransmitInFIFO(dcsCommand, reinterpret_cast<const uint8_t*>(dataPtr), dataSize);
+
+  uint32_t registerValueGHCR = 0u;
+
+  setPacketDataType(registerValueGHCR, 0x39);
+  setVirtualChannelID(registerValueGHCR, virtualChannelId);
+  setLongPacketDataSize(registerValueGHCR, dataSize + 1u);
+
+  MemoryAccess::setRegisterValue(&(m_DSIHostPeripheralPtr->GHCR), registerValueGHCR);
+
   return ErrorCode::OK;
 }
 
@@ -1247,6 +1262,39 @@ void DSIHost::writeDataToTransmitInFIFO(const uint8_t *dataPtr, uint16_t dataSiz
     for (uint16_t i = 0u; i < notAlignedBytesCount; ++i)
     {
       remainOfData[i] = dataPtr[alignedBytesCount + i];
+    }
+
+    writeDataToTransmitInFIFO(remainOfData[0], remainOfData[1], remainOfData[2], remainOfData[3]);
+  }
+}
+
+void DSIHost::writeDCSCommandAndDataToTransmitInFIFO(uint8_t dcsCommand, const uint8_t *dataPtr, uint16_t dataSize)
+{
+  const uint16_t alignedBytesCount    = ((dataSize + sizeof(uint8_t)) / sizeof(uint32_t)) * sizeof(uint32_t);
+  const uint16_t notAlignedBytesCount = (dataSize + sizeof(uint8_t)) % sizeof(uint32_t);
+
+  if (0u != alignedBytesCount)
+  {
+    writeDataToTransmitInFIFO(dcsCommand, dataPtr[0], dataPtr[1], dataPtr[2]);
+  }
+
+  for (uint16_t i = sizeof(uint32_t); i < alignedBytesCount; i += 4u)
+  {
+    writeDataToTransmitInFIFO(dataPtr[i - 1], dataPtr[i], dataPtr[i + 1], dataPtr[i + 2]);
+  }
+
+  if (0u != notAlignedBytesCount)
+  {
+    uint8_t remainOfData[sizeof(uint32_t)] = {0u, 0u, 0u, 0u};
+
+    if (0u == alignedBytesCount)
+    {
+      remainOfData[0] = dcsCommand;
+    }
+
+    for (uint16_t i = (0u == alignedBytesCount) ? 1u : 0u; i < notAlignedBytesCount; ++i)
+    {
+      remainOfData[i] = dataPtr[alignedBytesCount + i - 1];
     }
 
     writeDataToTransmitInFIFO(remainOfData[0], remainOfData[1], remainOfData[2], remainOfData[3]);

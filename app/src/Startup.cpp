@@ -5,13 +5,24 @@
 #include "USART.h"
 #include "DMA2D.h"
 #include "PowerControl.h"
+#include "LTDC.h"
+#include "DSIHost.h"
 #include "DriverManager.h"
 #include "GPIOManager.h"
 #include "MFXSTM32L152.h"
-#include "GPIOConfiguration.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
+
+#include "GPIOConfig.h"
+#include "USARTConfig.h"
+#include "I2CConfig.h"
+#include "SysTickConfig.h"
+#include "LTDCConfig.h"
+#include "DSIHostConfig.h"
+#include "MFXSTM32L152Config.h"
+
+
 
 const uint32_t g_fgBitmap[20][20] =
 {
@@ -113,24 +124,41 @@ void startup(void)
 {
   PowerControl &powerControl = DriverManager::getInstance(DriverManager::PowerControlInstance::GENERIC);
   SystemConfig &systemConfig = DriverManager::getInstance(DriverManager::SystemConfigInstance::GENERIC);
+  ClockControl &clockControl = DriverManager::getInstance(DriverManager::ClockControlInstance::GENERIC);
   EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
   USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
   InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
   DMA2D &dma2D = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
   I2C &i2c1 = DriverManager::getInstance(DriverManager::I2CInstance::I2C1);
+  LTDC &ltdc = DriverManager::getInstance(DriverManager::LTDCInstance::GENERIC);
+  DSIHost &dsiHost = DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC);
 
   initSYSCLOCK();
 
   {
-    SysTick::SysTickConfig sysTickConfig =
+    ClockControl::PLLSAI2Configuration pllSai2Config =
     {
-      .ticksPerSecond  = 1000u,
-      .enableInterrupt = true,
-      .enableOnInit    = true
+      .inputClockDivider    = 4u,
+      .inputClockMultiplier = 30u,
+      .outputClockPDivider  = 1u,
+      .outputClockQDivider  = 1u,
+      .outputClockRDivider  = 2u,
+      .ltdcClockDivider     = 2u,
+      .enableOutputClockP   = false,
+      .enableOutputClockQ   = false,
+      .enableOutputClockR   = true
     };
 
-    SysTick::ErrorCode error = sysTick.init(sysTickConfig);
+    ClockControl::ErrorCode errorCode = clockControl.configurePLL(pllSai2Config);
+    if (ClockControl::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  {
+    SysTick::ErrorCode error = sysTick.init(g_sysTickConfig);
     if (SysTick::ErrorCode::OK != error)
     {
       panic();
@@ -152,15 +180,7 @@ void startup(void)
   }
 
   {
-    USART::USARTConfig usartConfig =
-    {
-      .frameFormat  = USART::FrameFormat::BITS_8_WITHOUT_PARITY,
-      .oversampling = USART::Oversampling::OVERSAMPLING_16,
-      .stopBits     = USART::StopBits::BIT_1_0,
-      .baudrate     = USART::Baudrate::BAUDRATE_115200
-    };
-
-    USART::ErrorCode error = usart2.init(usartConfig);
+    USART::ErrorCode error = usart2.init(g_usart2Config);
     if (USART::ErrorCode::OK != error)
     {
       panic();
@@ -168,13 +188,7 @@ void startup(void)
   }
 
   {
-    I2C::I2CConfig i2cConfig =
-    {
-      .addressingMode    = I2C::AddressingMode::ADDRESS_7_BITS,
-      .clockFrequencySCL = 100000u // 100 kHzs
-    };
-
-    I2C::ErrorCode error = i2c1.init(i2cConfig);
+    I2C::ErrorCode error = i2c1.init(g_i2c1Config);
     if (I2C::ErrorCode::OK != error)
     {
       panic();
@@ -189,10 +203,28 @@ void startup(void)
     }
   }
 
-  GPIOManager::ErrorCode errorCode = GPIOManager::configureGPIOPins(gpioPinsConfiguration);
-  if (GPIOManager::ErrorCode::OK != errorCode)
   {
-    panic();
+    GPIOManager::ErrorCode errorCode = GPIOManager::configureGPIOPins(g_gpioPinsConfig);
+    if (GPIOManager::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  {
+    LTDC::ErrorCode errorCode = ltdc.init(g_ltdcConfig, g_ltdcLayer1Config);
+    if (LTDC::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  {
+    DSIHost::ErrorCode errorCode = dsiHost.init(g_dsiHostConfig);
+    if (DSIHost::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
   }
 
 /*
@@ -200,7 +232,7 @@ void startup(void)
   {
     .blendRectangleDimension =
     {
-      .width  = 10,
+      .width  = 10,+
       .height = 10
     },
 
@@ -286,14 +318,14 @@ void startup(void)
   }
 
   {
-    EXTI::EXTIConfig extiLineConfig =
+    EXTI::EXTIConfig extiLine1Config =
     {
       .isInterruptMasked = false,
       .interruptTrigger  = EXTI::InterruptTrigger::RISING_EDGE,
       .interruptCallback = mfxIrqCallback
     };
 
-    EXTI::ErrorCode errorCode = exti.configureEXTILine(EXTI::EXTILine::LINE1, extiLineConfig);
+    EXTI::ErrorCode errorCode = exti.configureEXTILine(EXTI::EXTILine::LINE1, extiLine1Config);
     if (EXTI::ErrorCode::OK != errorCode)
     {
       panic();
@@ -327,14 +359,7 @@ void startup(void)
   }
 
   {
-    MFXSTM32L152::MFXSTM32L152Config mfxConfig =
-    {
-      .peripheralAddress    = 0x42,
-      .wakeUpPinGPIOPortPtr = &DriverManager::getInstance(DriverManager::GPIOInstance::GPIOB),
-      .wakeUpPin            = GPIO::Pin::PIN2,
-    };
-
-    MFXSTM32L152::ErrorCode error = g_mfx.init(mfxConfig);
+    MFXSTM32L152::ErrorCode error = g_mfx.init(g_mfxConfig);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
@@ -358,55 +383,37 @@ void startup(void)
       panic();
     }
 
-    MFXSTM32L152::IRQPinConfiguration irqPinConfiguration =
-    {
-      .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
-      .polarity   = MFXSTM32L152::IRQPinPolarity::HIGH
-    };
-
-    error = g_mfx.configureIRQPin(irqPinConfiguration);
+    error = g_mfx.configureIRQPin(g_mfxIrqPinConfiguration);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    MFXSTM32L152::GPIOPinConfiguration mfxGPIOPinConfig =
-    {
-      .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
-      .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
-      .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
-    };
-
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN0, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN0, g_mfxGPIOPin0Config);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    mfxGPIOPinConfig.mode             = MFXSTM32L152::GPIOPinMode::INTERRUPT;
-    mfxGPIOPinConfig.outputType       = MFXSTM32L152::GPIOOutputType::PUSH_PULL;
-    mfxGPIOPinConfig.pullConfig       = MFXSTM32L152::GPIOPullConfig::PULL_DOWN;
-    mfxGPIOPinConfig.interruptTrigger = MFXSTM32L152::GPIOInterruptTrigger::HIGH_LEVEL;
-
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN1, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN1, g_mfxGPIOPin1Config);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN2, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN2, g_mfxGPIOPin2Config);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN3, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN3, g_mfxGPIOPin3Config);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
     }
 
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN4, mfxGPIOPinConfig);
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN4, g_mfxGPIOPin4Config);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();

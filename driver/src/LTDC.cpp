@@ -573,7 +573,7 @@ LTDC::setSubjacentLayerBlendingFactor(uint32_t &registerValueBFCR, BlendingFacto
     registerValueBFCR,
     LTDC_BFCR_BF2_POSITION,
     LTDC_BFCR_BF2_SIZE,
-    static_cast<uint32_t>(subjacentLayerBlendingFactor));
+    (static_cast<uint32_t>(subjacentLayerBlendingFactor) + 1u));
 }
 
 void LTDC::setFrameBufferLineLength(

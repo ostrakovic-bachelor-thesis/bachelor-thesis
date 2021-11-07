@@ -14,6 +14,11 @@ public:
 
   MFXSTM32L152(I2C *I2CPtr, SysTick *sysTickPtr);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ~MFXSTM32L152() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -155,12 +160,24 @@ public:
     IRQPinPolarity polarity;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode init(MFXSTM32L152Config &mfxstm32l152Config);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode wakeUp(void);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode configureGPIOPin(GPIOPin pin, const GPIOPinConfiguration &pinConfiguration);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode configureIRQPin(const IRQPinConfiguration &irqPinConfiguration);
 
   /**
@@ -171,6 +188,9 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode setGPIOPinState(GPIOPin pin, GPIOPinState state);
 
   /**
@@ -181,16 +201,34 @@ public:
    * @return ::ErrorCode::OK is returned in the case of success. In the case of failure,
    *         it returns corresponding error code from ::ErrorCode.
    */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getGPIOPinState(GPIOPin pin, GPIOPinState &state);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode enableGPIO(void);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode enableInterrupt(Interrupt interrupt);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode getID(uint8_t &id);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode registerGPIOInterruptCallback(GPIOPin pin, CallbackFunc callback, void *callbackArgument);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode runtimeTask(void);
 
 private:

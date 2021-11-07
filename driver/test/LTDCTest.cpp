@@ -602,7 +602,7 @@ TEST_F(ALTDC, InitSetsValueOfDCALPHAInInLayer1DCCRRegisterAccordingToLayer1Defau
   ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->DCCR, bitValueMatcher);
 }
 
-TEST_F(ALTDC, InitSetsValueOfBF1InInLayer1BFCRRegisterAccordingToLayer1CurrentLayerBlendingFactor)
+TEST_F(ALTDC, InitSetsValueOfBF1InLayer1BFCRRegisterAccordingToLayer1CurrentLayerBlendingFactor)
 {
   constexpr uint32_t LTDC_BFCR_BF1_POSITION = 8u;
   constexpr uint32_t LTDC_BFCR_BF1_SIZE     = 3u;
@@ -618,11 +618,11 @@ TEST_F(ALTDC, InitSetsValueOfBF1InInLayer1BFCRRegisterAccordingToLayer1CurrentLa
   ASSERT_THAT(virtualLTDCPeripheralLayer1Ptr->BFCR, bitValueMatcher);
 }
 
-TEST_F(ALTDC, InitSetsValueOfBF2InInLayer1BFCRRegisterAccordingToLayer1SubjacentLayerBlendingFactor)
+TEST_F(ALTDC, InitSetsValueOfBF2InLayer1BFCRRegisterAccordingToLayer1SubjacentLayerBlendingFactor)
 {
   constexpr uint32_t LTDC_BFCR_BF2_POSITION = 0u;
   constexpr uint32_t LTDC_BFCR_BF2_SIZE     = 3u;
-  constexpr uint32_t EXPECTED_LTDC_BFCR_BF2_VALUE = 0b100;
+  constexpr uint32_t EXPECTED_LTDC_BFCR_BF2_VALUE = 0b100 + 1u;
   auto bitValueMatcher =
     BitsHaveValue(LTDC_BFCR_BF2_POSITION, LTDC_BFCR_BF2_SIZE, EXPECTED_LTDC_BFCR_BF2_VALUE);
   ltdcLayer1Config.subjacentLayerBlendingFactor = LTDC::BlendingFactor::CONST_ALPHA;

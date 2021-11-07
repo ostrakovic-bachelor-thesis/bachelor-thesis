@@ -25,6 +25,12 @@ EXTI DriverManager::s_extiDriverInstance =
 SystemConfig DriverManager::s_systemConfigDriverInstance =
   SystemConfig(reinterpret_cast<SYSCFG_TypeDef*>(Peripheral::SYSCFG), &s_resetControlDriverInstance);
 
+LTDC DriverManager::s_ltdcDriverInstance =
+  LTDC(reinterpret_cast<LTDC_TypeDef*>(Peripheral::LTDC), &s_resetControlDriverInstance);
+
+DSIHost DriverManager::s_dsiHostDriverInstance =
+  DSIHost(reinterpret_cast<DSI_TypeDef*>(Peripheral::DSIHOST), &s_clockControlDriverInstance, &s_resetControlDriverInstance);
+
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
   [static_cast<uint8_t>(GPIOInstance::GPIOA)] =

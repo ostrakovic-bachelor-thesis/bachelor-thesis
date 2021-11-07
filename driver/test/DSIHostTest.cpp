@@ -111,6 +111,7 @@ public:
   void setupGPSRRegisterReadings(void);
   void expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral(void);
   void expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize);
+  void expectDCSCommandAndDataToBeWrittenInGPDR(uint8_t dcsCommand, const void *data, uint16_t dataSize);
 
   void SetUp() override;
   void TearDown() override;
@@ -364,6 +365,46 @@ void ADSIHost::expectDataToBeWrittenInGPDR(const void *data, uint16_t dataSize)
 
           ++m_dataIdx;
         }
+      }
+
+      ASSERT_THAT(registerValue, expectedRegisterValue);
+    });
+
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(Not(&(virtualDSIHostPeripheral.GPDR)), Matcher<uint32_t>(_)))
+    .Times(AnyNumber());
+}
+
+void ADSIHost::expectDCSCommandAndDataToBeWrittenInGPDR(uint8_t dcsCommand, const void *data, uint16_t dataSize)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(&(virtualDSIHostPeripheral.GPDR), _))
+    .Times((dataSize + sizeof(uint32_t)) / sizeof(uint32_t))
+    .WillRepeatedly([=](volatile void *registerPtr, uint32_t registerValue)
+    {
+      uint32_t expectedRegisterValue = 0u;
+      uint8_t expectedData;
+
+      for (uint8_t i = 0u; i < sizeof(uint32_t); ++i)
+      {
+        if (0u == m_dataIdx)
+        {
+          expectedData = dcsCommand;
+        }
+        else if (dataSize >= m_dataIdx)
+        {
+          expectedData = reinterpret_cast<const uint8_t*>(data)[m_dataIdx - 1];
+        }
+        else
+        {
+          expectedData = 0x0u;
+        }
+
+        expectedRegisterValue = MemoryUtility<uint32_t>::setBits(
+          expectedRegisterValue,
+          ((m_dataIdx % sizeof(uint32_t)) * BITS_IN_BYTE),
+          BITS_IN_BYTE,
+          expectedData);
+
+        ++m_dataIdx;
       }
 
       ASSERT_THAT(registerValue, expectedRegisterValue);
@@ -1839,6 +1880,26 @@ TEST_F(ADSIHost, GenericLongWriteWritesDataToTransmitInGPDRRegister)
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }
 
+TEST_F(ADSIHost, GenericLongWriteDoesNotWriteToGPDRRegisterIfDataSizeIsZero)
+{
+  expectRegisterNotToChange(&(virtualDSIHostPeripheral.GPDR));
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.genericLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, nullptr, 0u);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
+TEST_F(ADSIHost, DCSLongWriteWaitsForCMDFEBitToBecomeSetBeforeProceedingFurther)
+{
+  expectCommandFifoToBeEmptyBeforeWrittingToAnyRegisterOfDSIHostPeripheral();
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
 TEST_F(ADSIHost, DCSLongWriteSetsDTBitsInGHCRRegisterToAppropriateValue)
 {
   constexpr uint8_t DCS_LONG_WRITE_DATA_TYPE = 0x39;
@@ -1849,8 +1910,63 @@ TEST_F(ADSIHost, DCSLongWriteSetsDTBitsInGHCRRegisterToAppropriateValue)
     BitsHaveValue(DSIHOST_GHCR_DT_POSITION, DSIHOST_GHCR_DT_SIZE, EXPECTED_DSIHOST_GHCR_DT_VALUE);
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
 
-  const DSIHost::ErrorCode errorCode = virtualDSIHost.dcsLongWrite();
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
   ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSLongWriteSetsVCIDBitsInGHCRRegisterAccordingToVirtualChannelID)
+{
+  constexpr uint32_t DSIHOST_GHCR_VCID_POSITION = 6u;
+  constexpr uint32_t DSIHOST_GHCR_VCID_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_VCID_VALUE = 2u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_VCID_POSITION, DSIHOST_GHCR_VCID_SIZE, EXPECTED_DSIHOST_GHCR_VCID_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(DSIHost::VirtualChannelID::CHANNEL_2, RANDOM_DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSLongWriteSetsWCxSBBitsInGHCRRegisterAccordingToDataSize)
+{
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_POSITION = 8u;
+  constexpr uint32_t DSIHOST_GHCR_WCXSB_SIZE     = 16u;
+  constexpr uint32_t EXPECTED_DSIHOST_GHCR_WCXSB_VALUE = RANDOM_DATA_SIZE + 1u;
+  auto bitsValueMatcher =
+    BitsHaveValue(DSIHOST_GHCR_WCXSB_POSITION, DSIHOST_GHCR_WCXSB_SIZE, EXPECTED_DSIHOST_GHCR_WCXSB_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.GHCR), bitsValueMatcher);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, RANDOM_DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+  ASSERT_THAT(virtualDSIHostPeripheral.GHCR, bitsValueMatcher);
+}
+
+TEST_F(ADSIHost, DCSLongWriteWritesDCSCommandAndDataToTransmitInGPDRRegister)
+{
+  constexpr uint8_t DCS_COMMAND = 0x88;
+  expectDCSCommandAndDataToBeWrittenInGPDR(DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, DCS_COMMAND, RANDOM_DATA, RANDOM_DATA_SIZE);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}
+
+TEST_F(ADSIHost, DCSLongWriteWritesOnlyDCSCommandInGPDRRegisterIfDataSizeIsZero)
+{
+  constexpr uint8_t DCS_COMMAND = 0xFA;
+  expectDCSCommandAndDataToBeWrittenInGPDR(DCS_COMMAND, nullptr, 0u);
+
+  const DSIHost::ErrorCode errorCode =
+    virtualDSIHost.dcsLongWrite(RANDOM_VIRTUAL_CHANNEL_ID, DCS_COMMAND, nullptr, 0u);
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }

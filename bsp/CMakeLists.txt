@@ -5,6 +5,7 @@ set(GOOGLETEST_HOME ../googletest/)
 
 include_directories(${GOOGLETEST_HOME}/googletest/include ${GOOGLETEST_HOME}/googlemock/include)
 include_directories(inc)
+include_directories(mock)
 include_directories(test)
 include_directories(../utility/inc)
 include_directories(../driver/sdk)
@@ -28,14 +29,18 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/PowerControl.cpp
     ../driver/src/SystemConfig.cpp
     ../driver/src/EXTI.cpp
+    ../driver/src/LTDC.cpp
+    ../driver/src/DSIHost.cpp
     ../driver/src/InterruptController.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_bsp_component_cpp_sources
-    src/MFXSTM32L152.cpp)
+    src/MFXSTM32L152.cpp
+    src/RaydiumRM67160.cpp)
 
 set(BachelorThesis_bsp_test_cpp_sources
-    test/MFXSTM32L152Test.cpp)
+    #test/MFXSTM32L152Test.cpp
+    test/RaydiumRM67160Test.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}

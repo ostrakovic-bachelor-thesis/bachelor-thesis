@@ -1,12 +1,12 @@
-#ifndef GPIO_CONFIGURATION_H
-#define GPIO_CONFIGURATION_H
+#ifndef GPIO_CONFIG_H
+#define GPIO_CONFIG_H
 
 #include "GPIO.h"
 #include "GPIOManager.h"
 #include "DriverManager.h"
 
 
-GPIOManager::GPIOPinConfiguration gpioPinsConfiguration[7] =
+GPIOManager::GPIOPinConfiguration g_gpioPinsConfig[7] =
 {
   // LED LD2
   [0] =
@@ -110,4 +110,4 @@ GPIOManager::GPIOPinConfiguration gpioPinsConfiguration[7] =
 
 };
 
-#endif // #ifndef GPIO_CONFIGURATION_H
+#endif // #ifndef GPIO_CONFIG_H

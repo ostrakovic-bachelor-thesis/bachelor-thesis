@@ -7,6 +7,8 @@
 #include "I2C.h"
 #include "USART.h"
 #include "ClockControl.h"
+#include "LTDC.h"
+#include "DSIHost.h"
 #include "ResetControl.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -95,4 +97,18 @@ TEST(TheDriverManager, GetsSystemConfigInstance)
   const SystemConfig &systemConfig = DriverManager::getInstance(DriverManager::SystemConfigInstance::GENERIC);
 
   ASSERT_THAT(systemConfig.getPeripheralTag(), Eq(Peripheral::SYSCFG));
+}
+
+TEST(TheDriverManager, GetsLTDCInstance)
+{
+  const LTDC &ltdc = DriverManager::getInstance(DriverManager::LTDCInstance::GENERIC);
+
+  ASSERT_THAT(ltdc.getPeripheralTag(), Eq(Peripheral::LTDC));
+}
+
+TEST(TheDriverManager, GetsDSIHostInstance)
+{
+  const DSIHost &dsiHost = DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC);
+
+  ASSERT_THAT(dsiHost.getPeripheralTag(), Eq(Peripheral::DSIHOST));
 }
