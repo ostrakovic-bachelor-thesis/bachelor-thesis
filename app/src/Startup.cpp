@@ -10,6 +10,8 @@
 #include "DriverManager.h"
 #include "GPIOManager.h"
 #include "MFXSTM32L152.h"
+#include "RaydiumRM67160.h"
+#include "FrameBuffer.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -81,11 +83,12 @@ const uint32_t g_bgBitmap[9][9] =
   {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}
 };
 
-
-uint16_t g_frameBuffer[100][100] = { 0u };
-
 MFXSTM32L152 g_mfx = MFXSTM32L152(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
+  &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
+
+RaydiumRM67160 g_displayRM67160 = RaydiumRM67160(
+  &DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC),
   &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
 
 extern "C" void initSYSCLOCK(void);
@@ -120,6 +123,26 @@ void turnOffGreenLed(void *argumentPtr)
   gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
 }
 
+void enableDSI3V3Callback(void)
+{
+  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::LOW);
+}
+
+void enableDSI1V8Callback(void)
+{
+  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::LOW);
+}
+
+void setDSIResetLineToLowCallback(void)
+{
+  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
+}
+
+void setDSIResetLineToHighCallback(void)
+{
+  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+}
+
 void startup(void)
 {
   PowerControl &powerControl = DriverManager::getInstance(DriverManager::PowerControlInstance::GENERIC);
@@ -136,15 +159,20 @@ void startup(void)
 
   initSYSCLOCK();
 
+  for (uint32_t i = 0u; i < FRAME_BUFFER_SIZE; ++i)
+  {
+    g_frameBuffer[i] = 0xFF;
+  }
+
   {
     ClockControl::PLLSAI2Configuration pllSai2Config =
     {
-      .inputClockDivider    = 4u,
+      .inputClockDivider    = 2u,
       .inputClockMultiplier = 30u,
       .outputClockPDivider  = 1u,
       .outputClockQDivider  = 1u,
-      .outputClockRDivider  = 2u,
-      .ltdcClockDivider     = 2u,
+      .outputClockRDivider  = 4u,
+      .ltdcClockDivider     = 4u,
       .enableOutputClockP   = false,
       .enableOutputClockQ   = false,
       .enableOutputClockR   = true
@@ -419,6 +447,28 @@ void startup(void)
       panic();
     }
 
+    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::HIGH);
+    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::HIGH);
+
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN8, g_mfxGPIOPin8Config);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN18, g_mfxGPIOPin18Config);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
     error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN1, turnOnGreenLed, nullptr);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
@@ -427,6 +477,27 @@ void startup(void)
 
     error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN2, turnOffGreenLed, nullptr);
     if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    RaydiumRM67160::RaydiumRM67160Config rm67160Config =
+    {
+      .enableDSI3V3Callback          = enableDSI3V3Callback,
+      .enableDSI1V8Callback          = enableDSI1V8Callback,
+      .setDSIResetLineToLowCallback  = setDSIResetLineToLowCallback,
+      .setDSIResetLineToHighCallback = setDSIResetLineToHighCallback,
+      .startColumnAddress            = 4u,
+      .endColumnAddress              = 393u,
+      .startRowAddress               = 0u,
+      .endRowAddress                 = 389u,
+      .defaultBrightness             = 120u,
+    };
+
+    RaydiumRM67160::ErrorCode errorCode = g_displayRM67160.init(rm67160Config);
+    if (RaydiumRM67160::ErrorCode::OK != errorCode)
     {
       panic();
     }
@@ -441,8 +512,14 @@ void startup(void)
     }
   }
 
+  dsiHost.startTransferFromLTDC();
+
   uint8_t message[2000];
   uint32_t messageLen;
+
+  uint8_t brightness = 120u;
+  bool ledState      = false;
+  uint32_t timestamp = sysTick.getTicks();
 
   while (true)
   {
@@ -483,13 +560,23 @@ void startup(void)
       panic();
     }
 
-    if ((ticks % 10000u) < 5000u)
+    if (sysTick.getElapsedTimeInMs(timestamp) > 5000u)
     {
-      g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
-    }
-    else
-    {
-      g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
+      timestamp = sysTick.getTicks();
+
+      if (ledState)
+      {
+        g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
+      }
+      else
+      {
+        g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
+      }
+
+      ledState = !ledState;
+
+      brightness += 10u;
+      g_displayRM67160.setDisplayBrightness(brightness);
     }
   }
 }

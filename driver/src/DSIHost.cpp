@@ -188,6 +188,14 @@ DSIHost::ErrorCode DSIHost::dcsLongWrite(VirtualChannelID virtualChannelId,
   return ErrorCode::OK;
 }
 
+DSIHost::ErrorCode DSIHost::startTransferFromLTDC(void)
+{
+  constexpr uint32_t DSIHOST_WCR_LTDCEN_POSITION = 2u;
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DSIHostPeripheralPtr->WCR), DSIHOST_WCR_LTDCEN_POSITION);
+
+  return ErrorCode::OK;
+}
+
 DSIHost::ErrorCode DSIHost::configureDPHYPLL(const PLLConfig &pllConfig)
 {
   ErrorCode errorCode = calculateDSIPHYClockFrequency(pllConfig, m_dsiPhyClockFreq);

@@ -22,11 +22,13 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_bsp_component_cpp_sources
-    ../bsp/src/MFXSTM32L152.cpp)
+    ../bsp/src/MFXSTM32L152.cpp
+    ../bsp/src/RaydiumRM67160.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp
-    src/Startup.cpp)
+    src/Startup.cpp
+    src/FrameBuffer.cpp)
 
 add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    ${BachelorThesis_bsp_component_cpp_sources}

@@ -1970,3 +1970,15 @@ TEST_F(ADSIHost, DCSLongWriteWritesOnlyDCSCommandInGPDRRegisterIfDataSizeIsZero)
 
   ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
 }
+
+TEST_F(ADSIHost, StartsTransferFromLTDCBySettingLTDCENBitInWCRRegister)
+{
+  constexpr uint32_t DSIHOST_WCR_LTDCEN_POSITION       = 2u;
+  constexpr uint32_t EXPECTED_DSIHOST_WCR_LTDCEN_VALUE = 1u;
+  auto bitValueMatcher = BitHasValue(DSIHOST_WCR_LTDCEN_POSITION, EXPECTED_DSIHOST_WCR_LTDCEN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCR), bitValueMatcher);
+
+  const DSIHost::ErrorCode errorCode = virtualDSIHost.startTransferFromLTDC();
+
+  ASSERT_THAT(errorCode, Eq(DSIHost::ErrorCode::OK));
+}

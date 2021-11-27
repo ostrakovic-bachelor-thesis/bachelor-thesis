@@ -2,6 +2,7 @@
 #define LTDC_CONFIG_H
 
 #include "LTDC.h"
+#include "FrameBuffer.h"
 
 
 LTDC::LTDCConfig g_ltdcConfig =
@@ -32,7 +33,7 @@ LTDC::LTDCLayerConfig g_ltdcLayer1Config =
   .alpha        = 255u,
   .defaultColor =
   {
-    .alpha = 255u,
+    .alpha = 0u,
     .red   = 0u,
     .green = 0u,
     .blue  = 0u
@@ -47,7 +48,7 @@ LTDC::LTDCLayerConfig g_ltdcLayer1Config =
       .width  = 390u,
       .height = 390u
     },
-    .bufferPtr = nullptr
+    .bufferPtr = g_frameBuffer
   }
 };
 

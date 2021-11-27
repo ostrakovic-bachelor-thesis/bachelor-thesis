@@ -59,8 +59,8 @@ public:
 
   enum class VSyncLTDCHaltPolarity : uint8_t
   {
-    RISING_EDGE  = 0b0,
-    FALLING_EDGE = 0b1
+    FALLING_EDGE = 0b0,
+    RISING_EDGE  = 0b1
   };
 
   enum class SignalPolarity : uint8_t
@@ -175,6 +175,11 @@ public:
     uint8_t dcsCommand,
     const void *dataPtr,
     uint16_t dataSize);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode startTransferFromLTDC(void);
 
 #ifdef UNIT_TEST
   virtual

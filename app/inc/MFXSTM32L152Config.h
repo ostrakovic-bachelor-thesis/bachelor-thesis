@@ -56,4 +56,25 @@ MFXSTM32L152::GPIOPinConfiguration g_mfxGPIOPin4Config =
   .interruptTrigger = MFXSTM32L152::GPIOInterruptTrigger::HIGH_LEVEL
 };
 
+MFXSTM32L152::GPIOPinConfiguration g_mfxGPIOPin8Config =
+{
+  .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
+  .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
+  .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
+};
+
+MFXSTM32L152::GPIOPinConfiguration g_mfxGPIOPin10Config =
+{
+  .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
+  .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
+  .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
+};
+
+MFXSTM32L152::GPIOPinConfiguration g_mfxGPIOPin18Config =
+{
+  .mode       = MFXSTM32L152::GPIOPinMode::OUTPUT,
+  .outputType = MFXSTM32L152::GPIOOutputType::PUSH_PULL,
+  .pullConfig = MFXSTM32L152::GPIOPullConfig::NO_PULL
+};
+
 #endif // #ifndef MFXSTM32L152_CONFIG_H
