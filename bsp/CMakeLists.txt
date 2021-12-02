@@ -36,11 +36,13 @@ set(BachelorThesis_driver_component_cpp_sources
 
 set(BachelorThesis_bsp_component_cpp_sources
     src/MFXSTM32L152.cpp
-    src/RaydiumRM67160.cpp)
+    src/RaydiumRM67160.cpp
+    src/FT3267.cpp)
 
 set(BachelorThesis_bsp_test_cpp_sources
-    #test/MFXSTM32L152Test.cpp
-    test/RaydiumRM67160Test.cpp)
+    test/MFXSTM32L152Test.cpp
+    test/RaydiumRM67160Test.cpp
+    test/FT3267Test.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}

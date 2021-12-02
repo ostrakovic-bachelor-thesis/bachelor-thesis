@@ -23,7 +23,8 @@ set(BachelorThesis_driver_component_cpp_sources
 
 set(BachelorThesis_bsp_component_cpp_sources
     ../bsp/src/MFXSTM32L152.cpp
-    ../bsp/src/RaydiumRM67160.cpp)
+    ../bsp/src/RaydiumRM67160.cpp
+    ../bsp/src/FT3267.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp

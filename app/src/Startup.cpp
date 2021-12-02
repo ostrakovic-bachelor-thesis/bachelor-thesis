@@ -11,6 +11,7 @@
 #include "GPIOManager.h"
 #include "MFXSTM32L152.h"
 #include "RaydiumRM67160.h"
+#include "FT3267.h"
 #include "FrameBuffer.h"
 #include <cstdint>
 #include <cstdio>
@@ -23,7 +24,7 @@
 #include "LTDCConfig.h"
 #include "DSIHostConfig.h"
 #include "MFXSTM32L152Config.h"
-
+#include "FT3267Config.h"
 
 
 const uint32_t g_fgBitmap[20][20] =
@@ -91,6 +92,10 @@ RaydiumRM67160 g_displayRM67160 = RaydiumRM67160(
   &DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC),
   &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
 
+FT3267 g_ft3267 = FT3267(
+  &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
+  &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
+
 extern "C" void initSYSCLOCK(void);
 
 void panic(void)
@@ -125,22 +130,52 @@ void turnOffGreenLed(void *argumentPtr)
 
 void enableDSI3V3Callback(void)
 {
-  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::LOW);
+  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN8, g_mfxGPIOPin8Config);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
+
+  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::LOW);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
 }
 
 void enableDSI1V8Callback(void)
 {
-  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::LOW);
+  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN18, g_mfxGPIOPin18Config);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
+
+  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::LOW);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
 }
 
 void setDSIResetLineToLowCallback(void)
 {
-  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
+  //g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
 }
 
 void setDSIResetLineToHighCallback(void)
 {
-  g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
+
+  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
 }
 
 void startup(void)
@@ -379,7 +414,7 @@ void startup(void)
       panic();
     }
 
-    error = interruptController.enableInterrupt(I2C1_EV_IRQn);
+    error = interruptController.enableInterrupt(I2C1_ER_IRQn);
     if (InterruptController::ErrorCode::OK != error)
     {
       panic();
@@ -447,28 +482,6 @@ void startup(void)
       panic();
     }
 
-    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::HIGH);
-    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
-    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::HIGH);
-
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN8, g_mfxGPIOPin8Config);
-    if (MFXSTM32L152::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
-    if (MFXSTM32L152::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
-    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN18, g_mfxGPIOPin18Config);
-    if (MFXSTM32L152::ErrorCode::OK != error)
-    {
-      panic();
-    }
-
     error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN1, turnOnGreenLed, nullptr);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
@@ -503,10 +516,28 @@ void startup(void)
     }
   }
 
-  uint8_t mfxId = 0u;
+  {
+    FT3267::ErrorCode errorCode = g_ft3267.init(g_ft3267Config);
+    if (FT3267::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
+  }
+
+  uint8_t mfxId    = 0u;
+  uint8_t ft3267Id = 0u;
+
   {
     MFXSTM32L152::ErrorCode error = g_mfx.getID(mfxId);
     if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+  }
+
+  {
+    FT3267::ErrorCode errorCode = g_ft3267.getID(ft3267Id);
+    if (FT3267::ErrorCode::OK == errorCode)
     {
       panic();
     }
@@ -549,7 +580,7 @@ void startup(void)
       */
 
       messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-        "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+        "systick: %" PRIu32 " %x\r\n", static_cast<uint32_t>(ticks), ft3267Id);
 
       usart2.write(message, messageLen);
     }

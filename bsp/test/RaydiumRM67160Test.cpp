@@ -426,7 +426,7 @@ void ARaydiumRM67160::dummyCallback(void)
 }
 
 
-TEST_F(ARaydiumRM67160, InitAtTheBegginingSetDSIResetLineToLow)
+TEST_F(ARaydiumRM67160, InitAtTheBegginingSetsDSIResetLineToLow)
 {
   raydiumRM67160Config.setDSIResetLineToLowCallback = setDSIResetLineToLowCallback;
   const uint64_t timestamp = sysTickMock.getTicks();
