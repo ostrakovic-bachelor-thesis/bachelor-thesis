@@ -84,6 +84,9 @@ const uint32_t g_bgBitmap[9][9] =
   {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}
 };
 
+bool g_isTouchEventInfoRefreshed = false;
+FT3267::TouchEventInfo g_touchEventInfo;
+
 MFXSTM32L152 g_mfx = MFXSTM32L152(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
   &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
@@ -128,6 +131,11 @@ void turnOffGreenLed(void *argumentPtr)
   gpioH.setPinState(GPIO::Pin::PIN4, GPIO::PinState::LOW);
 }
 
+void ft3267InterruptHandler(void *argumentPtr)
+{
+  g_ft3267.runtimeTask();
+}
+
 void enableDSI3V3Callback(void)
 {
   MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN8, g_mfxGPIOPin8Config);
@@ -160,22 +168,39 @@ void enableDSI1V8Callback(void)
 
 void setDSIResetLineToLowCallback(void)
 {
-  //g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
-}
-
-void setDSIResetLineToHighCallback(void)
-{
   MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
   if (MFXSTM32L152::ErrorCode::OK != errorCode)
   {
     panic();
   }
 
-  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
   if (MFXSTM32L152::ErrorCode::OK != errorCode)
   {
     panic();
   }
+}
+
+void setDSIResetLineToHighCallback(void)
+{
+  //MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
+  //if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  //{
+  //  panic();
+  //}
+
+  MFXSTM32L152::ErrorCode errorCode =
+    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
+  if (MFXSTM32L152::ErrorCode::OK != errorCode)
+  {
+    panic();
+  }
+}
+
+void touchEventHandler(void *argumentPtr, FT3267::TouchEventInfo touchEventInfo)
+{
+  g_isTouchEventInfoRefreshed = true;
+  g_touchEventInfo = touchEventInfo;
 }
 
 void startup(void)
@@ -482,6 +507,12 @@ void startup(void)
       panic();
     }
 
+    error = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN9, g_mfxGPIOPin9Config);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
     error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN1, turnOnGreenLed, nullptr);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
@@ -489,6 +520,12 @@ void startup(void)
     }
 
     error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN2, turnOffGreenLed, nullptr);
+    if (MFXSTM32L152::ErrorCode::OK != error)
+    {
+      panic();
+    }
+
+    error = g_mfx.registerGPIOInterruptCallback(MFXSTM32L152::GPIOPin::PIN9, ft3267InterruptHandler, nullptr);
     if (MFXSTM32L152::ErrorCode::OK != error)
     {
       panic();
@@ -522,6 +559,12 @@ void startup(void)
     {
       panic();
     }
+
+    g_ft3267.registerTouchEventCallback(touchEventHandler, nullptr);
+    if (FT3267::ErrorCode::OK != errorCode)
+    {
+      panic();
+    }
   }
 
   uint8_t mfxId    = 0u;
@@ -537,7 +580,7 @@ void startup(void)
 
   {
     FT3267::ErrorCode errorCode = g_ft3267.getID(ft3267Id);
-    if (FT3267::ErrorCode::OK == errorCode)
+    if (FT3267::ErrorCode::OK != errorCode)
     {
       panic();
     }
@@ -579,17 +622,57 @@ void startup(void)
       }
       */
 
-      messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-        "systick: %" PRIu32 " %x\r\n", static_cast<uint32_t>(ticks), ft3267Id);
+      if(g_isTouchEventInfoRefreshed)
+      {
 
-      usart2.write(message, messageLen);
+        g_isTouchEventInfoRefreshed = false;
+
+        switch (g_touchEventInfo.touchCount)
+        {
+          case 1u:
+            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+              "systick: %" PRIu32 " touch count: %d point 1 x: %d y: %d\r\n",
+              static_cast<uint32_t>(ticks),
+              g_touchEventInfo.touchCount,
+              g_touchEventInfo.touchPoints[0].position.x,
+              g_touchEventInfo.touchPoints[0].position.y);
+            break;
+
+          case 2u:
+            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+              "systick: %" PRIu32 " touch count: %d point 1 x: %d y: %d point 2 x: %d y: %d\r\n",
+              static_cast<uint32_t>(ticks),
+              g_touchEventInfo.touchCount,
+              g_touchEventInfo.touchPoints[0].position.x,
+              g_touchEventInfo.touchPoints[0].position.y,
+              g_touchEventInfo.touchPoints[1].position.x,
+              g_touchEventInfo.touchPoints[1].position.y);
+            break;
+
+          case 0u:
+          default:
+            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+              "systick: %" PRIu32 " touch count: %d\r\n",
+              static_cast<uint32_t>(ticks),
+              g_touchEventInfo.touchCount);
+            break;
+        }
+
+
+          usart2.write(message, messageLen);
+      }
+      //else
+      //{
+      //  messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
+      //    "systick: %" PRIu32 " no touch\r\n", static_cast<uint32_t>(ticks));
+      //}
     }
 
-    MFXSTM32L152::ErrorCode error = g_mfx.runtimeTask();
-    if (MFXSTM32L152::ErrorCode::OK != error)
-    {
-      panic();
-    }
+    //MFXSTM32L152::ErrorCode error = g_mfx.runtimeTask();
+    //if (MFXSTM32L152::ErrorCode::OK != error)
+    //{
+    //  panic();
+    //}
 
     if (sysTick.getElapsedTimeInMs(timestamp) > 5000u)
     {

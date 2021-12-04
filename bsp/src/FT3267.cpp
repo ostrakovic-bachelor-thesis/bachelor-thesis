@@ -41,6 +41,118 @@ FT3267::ErrorCode FT3267::getFirmwareID(uint8_t &firmwareId)
   return readRegister(RegisterAddress::FIRMWARE_ID, &firmwareId, sizeof(uint8_t));
 }
 
+FT3267::ErrorCode FT3267::registerTouchEventCallback(TouchEventCallbackFunc callback, void *callbackArgument)
+{
+  m_callback = callback;
+  m_callbackArgument = callbackArgument;
+
+  return ErrorCode::OK;
+}
+
+FT3267::ErrorCode FT3267::runtimeTask(void)
+{
+  TouchEventInfo touchEventInfo;
+  ErrorCode errorCode = getTouchCount(touchEventInfo.touchCount);
+
+  if ((ErrorCode::OK == errorCode) && (0u != touchEventInfo.touchCount))
+  {
+    errorCode = getTouchPoint1(touchEventInfo.touchPoints[0]);
+  }
+
+  if ((ErrorCode::OK == errorCode) && (1u < touchEventInfo.touchCount))
+  {
+    errorCode = getTouchPoint2(touchEventInfo.touchPoints[1]);
+  }
+
+  if (nullptr != m_callback)
+  {
+    m_callback(m_callbackArgument, touchEventInfo);
+  }
+
+  return errorCode;
+}
+
+FT3267::ErrorCode FT3267::getTouchCount(uint8_t &touchCount)
+{
+  uint8_t touchDataStatusRegisterVal;
+  ErrorCode errorCode = readRegister(RegisterAddress::TOUCH_DATA_STATUS, &touchDataStatusRegisterVal, sizeof(uint8_t));
+
+  touchCount = touchDataStatusRegisterVal;
+
+  return errorCode;
+}
+
+FT3267::ErrorCode FT3267::getTouchPoint1(TouchPoint &touchPoint)
+{
+  uint8_t touchPoint1InfoRegisterVal[4];
+  ErrorCode errorCode = readRegister(
+      RegisterAddress::TOUCH_POINT_1_INFO,
+      &touchPoint1InfoRegisterVal,
+      sizeof(touchPoint1InfoRegisterVal));
+
+  touchPoint.position.x = getTouchPositionXCoordinate(touchPoint1InfoRegisterVal);
+  touchPoint.position.y = getTouchPositionYCoordinate(touchPoint1InfoRegisterVal);
+  touchPoint.event      = getTouchEvent(touchPoint1InfoRegisterVal);
+
+  return errorCode;
+}
+
+FT3267::ErrorCode FT3267::getTouchPoint2(TouchPoint &touchPoint)
+{
+  uint8_t touchPoint2InfoRegisterVal[4];
+  ErrorCode errorCode = readRegister(
+      RegisterAddress::TOUCH_POINT_2_INFO,
+      &touchPoint2InfoRegisterVal,
+      sizeof(touchPoint2InfoRegisterVal));
+
+  touchPoint.position.x = getTouchPositionXCoordinate(touchPoint2InfoRegisterVal);
+  touchPoint.position.y = getTouchPositionYCoordinate(touchPoint2InfoRegisterVal);
+  touchPoint.event      = getTouchEvent(touchPoint2InfoRegisterVal);
+
+  return errorCode;
+}
+
+uint16_t FT3267::getTouchPositionXCoordinate(uint8_t touchPointXInfoRegisterVal[4])
+{
+  constexpr uint8_t FT3267_TOUCH_POINT_X_INFO_X_POS_SIZE = 12u;
+
+  uint16_t xPos = MemoryUtility<uint16_t>::setBits(
+      0u,
+      BITS_IN_BYTE,
+      FT3267_TOUCH_POINT_X_INFO_X_POS_SIZE - BITS_IN_BYTE,
+      touchPointXInfoRegisterVal[0]);
+
+  xPos = MemoryUtility<uint16_t>::setBits(xPos, 0u, BITS_IN_BYTE, touchPointXInfoRegisterVal[1]);
+
+  return xPos;
+}
+
+uint16_t FT3267::getTouchPositionYCoordinate(uint8_t touchPointXInfoRegisterVal[4])
+{
+  constexpr uint8_t FT3267_TOUCH_POINT_X_INFO_Y_POS_SIZE = 12u;
+
+  uint16_t yPos = MemoryUtility<uint16_t>::setBits(
+      0u,
+      BITS_IN_BYTE,
+      FT3267_TOUCH_POINT_X_INFO_Y_POS_SIZE - BITS_IN_BYTE,
+      touchPointXInfoRegisterVal[2]);
+
+  yPos = MemoryUtility<uint16_t>::setBits(yPos, 0u, BITS_IN_BYTE, touchPointXInfoRegisterVal[3]);
+
+  return yPos;
+}
+
+FT3267::TouchEvent FT3267::getTouchEvent(uint8_t touchPointXInfoRegisterVal[4])
+{
+  constexpr uint8_t FT3267_TOUCH_POINT_X_INFO_TOUCH_EVENT_POSITION = 6u;
+  constexpr uint8_t FT3267_TOUCH_POINT_X_INFO_TOUCH_EVENT_SIZE     = 2u;
+
+  return static_cast<TouchEvent>(MemoryUtility<uint16_t>::getBits(
+    touchPointXInfoRegisterVal[0],
+    FT3267_TOUCH_POINT_X_INFO_TOUCH_EVENT_POSITION,
+    FT3267_TOUCH_POINT_X_INFO_TOUCH_EVENT_SIZE));
+}
+
 FT3267::ErrorCode FT3267::setOperationMode(OperationMode operationMode)
 {
   return writeRegister(
