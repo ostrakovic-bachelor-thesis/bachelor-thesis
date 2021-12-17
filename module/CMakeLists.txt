@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 set(GOOGLETEST_HOME ../googletest/)
 
 include_directories(${GOOGLETEST_HOME}/googletest/include ${GOOGLETEST_HOME}/googlemock/include)
+include_directories(interface)
 include_directories(inc)
 include_directories(test)
 include_directories(../driver/sdk)
@@ -20,12 +21,18 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/GPIO.cpp
     ../driver/src/ClockControl.cpp
     ../driver/src/ResetControl.cpp
-    ../driver/src/USART.cpp)
+    ../driver/src/USART.cpp
+    ../driver/src/DMA2D.cpp)
 
-set(BachelorThesis_module_component_cpp_sources)
+set(BachelorThesis_module_component_cpp_sources
+    src/GUIRectangle.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
-    test/GPIOManagerTest.cpp)
+    test/GPIOManagerTest.cpp
+    test/IFrameBufferTest.cpp
+    test/FrameBufferTest.cpp
+    test/IGUIObjectTest.cpp
+    test/GUIRectangleTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}

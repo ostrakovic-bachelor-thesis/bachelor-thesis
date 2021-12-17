@@ -13,6 +13,11 @@ public:
 
   DMA2D(DMA2D_TypeDef *DMA2DPeripheralPtr, ResetControl *resetControlPtr);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ~DMA2D() = default;
+
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
@@ -118,16 +123,34 @@ public:
     OutputBufferConfiguration destinationBufferConfig;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode init(void);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode fillRectangle(const FillRectangleConfig &fillRectangleConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode copyBitmap(const CopyBitmapConfig &copyBitmapConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode blendBitmap(const BlendBitmapConfig &blendBitmapConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   bool isTransferOngoing(void) const;
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   void IRQHandler(void);
 
   inline Peripheral getPeripheralTag(void) const

@@ -2,7 +2,7 @@
 #define LTDC_CONFIG_H
 
 #include "LTDC.h"
-#include "FrameBuffer.h"
+#include "AppFrameBuffer.h"
 
 
 LTDC::LTDCConfig g_ltdcConfig =
@@ -24,8 +24,8 @@ LTDC::LTDCConfig g_ltdcConfig =
     .alpha = 0u,
     .red   = 0u,
     .green = 0u,
-    .blue  = 0u
-  }
+    .blue  = 0u,
+  },
 };
 
 LTDC::LTDCLayerConfig g_ltdcLayer1Config =
@@ -36,7 +36,7 @@ LTDC::LTDCLayerConfig g_ltdcLayer1Config =
     .alpha = 0u,
     .red   = 0u,
     .green = 0u,
-    .blue  = 0u
+    .blue  = 0u,
   },
   .currentLayerBlendingFactor   = LTDC::BlendingFactor::PIXEL_ALPHA_X_CONST_ALPHA,
   .subjacentLayerBlendingFactor = LTDC::BlendingFactor::PIXEL_ALPHA_X_CONST_ALPHA,
@@ -46,10 +46,10 @@ LTDC::LTDCLayerConfig g_ltdcLayer1Config =
     .bufferDimension =
     {
       .width  = 390u,
-      .height = 390u
+      .height = 390u,
     },
-    .bufferPtr = g_frameBuffer
-  }
+    .bufferPtr = g_frameBuffer.getPointer(),
+  },
 };
 
 #endif // #ifndef LTDC_CONFIG_H

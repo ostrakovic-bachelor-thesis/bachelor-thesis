@@ -26,13 +26,17 @@ set(BachelorThesis_bsp_component_cpp_sources
     ../bsp/src/RaydiumRM67160.cpp
     ../bsp/src/FT3267.cpp)
 
+set(BachelorThesis_module_component_cpp_sources
+    ../module/src/GUIRectangle.cpp)
+
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp
     src/Startup.cpp
-    src/FrameBuffer.cpp)
+    src/AppFrameBuffer.cpp)
 
 add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    ${BachelorThesis_bsp_component_cpp_sources}
+                   ${BachelorThesis_module_component_cpp_sources}
                    ${BachelorThesis_app_component_cpp_sources}
                    src/startup_stm32l4r9xx.s
                    src/system_stm32l4xx.c
@@ -43,6 +47,7 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
 target_include_directories(app PRIVATE
                            inc
                            ../module/inc
+                           ../module/interface
                            ../driver/inc
                            ../driver/sdk
                            ../bsp/inc
