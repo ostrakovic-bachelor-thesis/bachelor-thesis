@@ -343,8 +343,9 @@ void startup(void)
     },
     .position =
     {
-      .x = 0,
-      .y = 0
+      .x   = 0,
+      .y   = 0,
+      .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
     }
   };
 
@@ -360,8 +361,9 @@ void startup(void)
     },
     .position =
     {
-      .x = 120,
-      .y = 120
+      .x   = 120,
+      .y   = 120,
+      .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
     }
   };
 
@@ -581,6 +583,9 @@ void startup(void)
   bool ledState      = false;
   uint32_t timestamp = sysTick.getTicks();
 
+  int16_t x = -100;
+  int16_t direction = 1;
+
   while (true)
   {
     const uint64_t ticks = sysTick.getTicks();
@@ -660,7 +665,7 @@ void startup(void)
     //  panic();
     //}
 
-    if (sysTick.getElapsedTimeInMs(timestamp) > 5000u)
+    if (sysTick.getElapsedTimeInMs(timestamp) > 50u)
     {
       timestamp = sysTick.getTicks();
 
@@ -675,13 +680,26 @@ void startup(void)
 
       ledState = !ledState;
 
-      guiRectangle1.draw(IGUIObject::DrawHardware::DMA2D);
-      guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
+      if (x >= g_frameBuffer.getWidth() - 100)
+      {
+        direction = -1;
+      }
+      else if (-100 >= x)
+      {
+        direction = 1;
+      }
+
+      x = x + direction * 10;
+
+      guiRectangle2.moveToPosition({x, guiRectangle2.getPosition().y});
+
+      guiRectangle1.draw(IGUIObject::DrawHardware::CPU);
+      guiRectangle2.draw(IGUIObject::DrawHardware::DMA2D);
 
       dsiHost.startTransferFromLTDC();
 
-      brightness += 10u;
-      g_displayRM67160.setDisplayBrightness(brightness);
+      //brightness += 10u;
+      //g_displayRM67160.setDisplayBrightness(brightness);
     }
   }
 }

@@ -1,10 +1,13 @@
-#include "IGUIObject.h"
+#ifndef GUI_RECTANGLE_H
+#define GUI_RECTANGLE_H
+
+#include "GUIRectangleBase.h"
 #include "IFrameBuffer.h"
 #include "DMA2D.h"
 #include <cstdint>
 
 
-class GUIRectangle : public IGUIObject
+class GUIRectangle : public GUIRectangleBase
 {
 public:
 
@@ -21,35 +24,17 @@ public:
 
   struct RectangleDescription
   {
-    uint16_t width;
-    uint16_t height;
-    Color    color;
-    Position position;
+    GUIRectangleBaseDescription baseDescription;
+    Color                       color;
   };
 
   void init(const RectangleDescription &rectangleDescription);
 
-  uint16_t getWidth(void) const override;
-
-  uint16_t getHeight(void) const override;
-
-  Position getPosition(Position::Tag positionTag = Position::Tag::TOP_LEFT_CORNER) const override;
+  void moveToPosition(const Position &position) override;
 
   void draw(DrawHardware drawHardware) override;
 
-  IFrameBuffer& getFrameBuffer(void)
-  {
-    return m_frameBuffer;
-  }
-
-  const IFrameBuffer& getFrameBuffer(void) const
-  {
-    return m_frameBuffer;
-  }
-
   Color getColor(void) const;
-
-  void moveToPosition(const Position &position);
 
 private:
 
@@ -59,25 +44,31 @@ private:
   void drawCPU(void);
   void drawDMA2D(void);
 
-  Position getPositionTopLeftCorner(void) const;
-  Position getPositionTopRightCorner(void) const;
-  Position getPositionBottomLeftCorner(void) const;
-  Position getPositionBottomRightCorner(void) const;
-  Position getPositionCenter(void) const;
-
   static DMA2D::OutputColorFormat mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat);
 
-  static DMA2D::FillRectangleConfig
-  buildFillRectangleConfig(const RectangleDescription &rectangleDescription, IFrameBuffer &frameBuffer);
+  static DMA2D::FillRectangleConfig buildFillRectangleConfig(
+    const GUIRectangleBaseDescription &rectangleBaseDescription,
+    Color rectangleColor,
+    IFrameBuffer &frameBuffer);
 
-  static void recalculatePositionToBeTopLeftCorner(GUIRectangle::RectangleDescription &rectangleDescription);
 
-  RectangleDescription m_rectangleDescription;
+  static uint16_t
+  getVisiblePartPositionX(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
+  static uint16_t
+  getVisiblePartPositionY(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
+  static uint16_t
+  getVisiblePartWidth(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
+  static uint16_t
+  getVisiblePartHeight(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
+
+  //RectangleDescription m_rectangleDescription;
+
+  Color m_color;
 
   DMA2D::FillRectangleConfig m_fillRectangleConfig;
-
-  IFrameBuffer &m_frameBuffer;
 
   //! Reference to DMA2D
   DMA2D &m_dma2d;
 };
+
+#endif // #ifndef GUI_RECTANGLE_H

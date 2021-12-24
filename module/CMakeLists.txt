@@ -25,6 +25,7 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/DMA2D.cpp)
 
 set(BachelorThesis_module_component_cpp_sources
+    src/GUIRectangleBase.cpp
     src/GUIRectangle.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
@@ -32,6 +33,7 @@ set(BachelorThesis_module_test_cpp_sources
     test/IFrameBufferTest.cpp
     test/FrameBufferTest.cpp
     test/IGUIObjectTest.cpp
+    test/GUIRectangleBaseTest.cpp
     test/GUIRectangleTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

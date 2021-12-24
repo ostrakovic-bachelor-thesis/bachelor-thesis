@@ -28,7 +28,7 @@ public:
 
     inline bool operator==(const Position &position) const
     {
-      return (position.x == x) && (position.y == y);
+      return (position.x == x) && (position.y == y) && (position.tag == tag);
     }
 
     inline bool operator!=(const Position &position) const
@@ -44,6 +44,7 @@ public:
   virtual uint16_t getWidth(void) const = 0;
   virtual uint16_t getHeight(void) const = 0;
   virtual Position getPosition(Position::Tag positionTag) const = 0;
+  virtual void moveToPosition(const Position &position) = 0;
   virtual void draw(DrawHardware drawHardware) = 0;
 };
 

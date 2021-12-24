@@ -2,57 +2,30 @@
 
 
 GUIRectangle::GUIRectangle(DMA2D &dma2d, IFrameBuffer &frameBuffer):
-  m_frameBuffer(frameBuffer),
+  GUIRectangleBase(frameBuffer),
   m_dma2d(dma2d)
 {}
 
 void GUIRectangle::init(const RectangleDescription &rectangleDescription)
 {
-  m_rectangleDescription = rectangleDescription;
-  recalculatePositionToBeTopLeftCorner(m_rectangleDescription);
-  m_fillRectangleConfig = buildFillRectangleConfig(m_rectangleDescription, m_frameBuffer);
-}
-
-uint16_t GUIRectangle::getWidth(void) const
-{
-  return m_rectangleDescription.width;
-}
-
-uint16_t GUIRectangle::getHeight(void) const
-{
-  return m_rectangleDescription.height;
+  GUIRectangleBase::init(rectangleDescription.baseDescription);
+  m_color = rectangleDescription.color;
+  m_fillRectangleConfig = buildFillRectangleConfig(m_rectangleBaseDescription, m_color, m_frameBuffer);
 }
 
 GUIRectangle::Color GUIRectangle::getColor(void) const
 {
-  return m_rectangleDescription.color;
-}
-
-GUIRectangle::Position GUIRectangle::getPosition(Position::Tag positionTag) const
-{
-  switch (positionTag)
-  {
-    case Position::Tag::TOP_LEFT_CORNER:
-      return getPositionTopLeftCorner();
-
-    case Position::Tag::TOP_RIGHT_CORNER:
-      return getPositionTopRightCorner();
-
-    case Position::Tag::BOTTOM_LEFT_CORNER:
-      return getPositionBottomLeftCorner();
-
-    case Position::Tag::BOTTOM_RIGHT_CORNER:
-      return getPositionBottomRightCorner();
-
-    case Position::Tag::CENTER:
-    default:
-      return getPositionCenter();
-  }
+  return m_color;
 }
 
 void GUIRectangle::moveToPosition(const Position &position)
 {
-  m_rectangleDescription.position = position;
+  GUIRectangleBase::moveToPosition(position);
+
+  m_fillRectangleConfig.position.x = getVisiblePartPositionX(m_rectangleBaseDescription, m_frameBuffer);
+  m_fillRectangleConfig.position.y = getVisiblePartPositionY(m_rectangleBaseDescription, m_frameBuffer);
+  m_fillRectangleConfig.dimension.width  = getVisiblePartWidth(m_rectangleBaseDescription, m_frameBuffer);
+  m_fillRectangleConfig.dimension.height = getVisiblePartHeight(m_rectangleBaseDescription, m_frameBuffer);
 }
 
 void GUIRectangle::draw(DrawHardware drawHardware)
@@ -77,22 +50,19 @@ bool GUIRectangle::Color::operator==(const Color &color) const
 
 inline GUIRectangle::Position GUIRectangle::getDrawingStartPosition(void) const
 {
-  return getPosition(Position::Tag::TOP_LEFT_CORNER);
+  return
+  {
+    .x = static_cast<int16_t>(getVisiblePartPositionX(m_rectangleBaseDescription, m_frameBuffer)),
+    .y = static_cast<int16_t>(getVisiblePartPositionY(m_rectangleBaseDescription, m_frameBuffer))
+  };
 }
 
 GUIRectangle::Position GUIRectangle::getDrawingEndPosition(void) const
 {
-  Position endPosition = getPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
+  Position endPosition = getDrawingStartPosition();
 
-  if (getFrameBuffer().getWidth() <= endPosition.x)
-  {
-    endPosition.x = getFrameBuffer().getWidth() - 1u;
-  }
-
-  if (getFrameBuffer().getHeight() <= endPosition.y)
-  {
-    endPosition.y = getFrameBuffer().getHeight() - 1u;
-  }
+  endPosition.x += getVisiblePartWidth(m_rectangleBaseDescription, m_frameBuffer) - 1u;
+  endPosition.y += getVisiblePartHeight(m_rectangleBaseDescription, m_frameBuffer) - 1u;
 
   return endPosition;
 }
@@ -114,9 +84,9 @@ void GUIRectangle::drawCPU(void)
     const uint32_t columnEndIdx   = rowIdx * rowWidth + columnEndOffset;
     for (uint32_t columnIdx = columnStartIdx; columnIdx <= columnEndIdx;)
     {
-      frameBufferPtr[columnIdx++] = m_rectangleDescription.color.blue;
-      frameBufferPtr[columnIdx++] = m_rectangleDescription.color.green;
-      frameBufferPtr[columnIdx++] = m_rectangleDescription.color.red;
+      frameBufferPtr[columnIdx++] = m_color.blue;
+      frameBufferPtr[columnIdx++] = m_color.green;
+      frameBufferPtr[columnIdx++] = m_color.red;
     }
   }
 }
@@ -124,43 +94,6 @@ void GUIRectangle::drawCPU(void)
 void GUIRectangle::drawDMA2D(void)
 {
   m_dma2d.fillRectangle(m_fillRectangleConfig);
-}
-
-GUIRectangle::Position GUIRectangle::getPositionTopLeftCorner(void) const
-{
-  return m_rectangleDescription.position;
-}
-
-GUIRectangle::Position GUIRectangle::getPositionTopRightCorner(void) const
-{
-  const int16_t x = m_rectangleDescription.position.x + static_cast<int16_t>(m_rectangleDescription.width) - 1;
-  const int16_t y = m_rectangleDescription.position.y;
-
-  return { .x = x, .y = y, .tag = Position::Tag::TOP_RIGHT_CORNER };
-}
-
-GUIRectangle::Position GUIRectangle::getPositionBottomLeftCorner(void) const
-{
-  const int16_t x = m_rectangleDescription.position.x;
-  const int16_t y = m_rectangleDescription.position.y + static_cast<int16_t>(m_rectangleDescription.height) - 1;
-
-  return { .x = x, .y = y, .tag = Position::Tag::BOTTOM_LEFT_CORNER };
-}
-
-GUIRectangle::Position GUIRectangle::getPositionBottomRightCorner(void) const
-{
-  const int16_t x = m_rectangleDescription.position.x + static_cast<int16_t>(m_rectangleDescription.width) - 1;
-  const int16_t y = m_rectangleDescription.position.y + static_cast<int16_t>(m_rectangleDescription.height) - 1;
-
-  return { .x = x, .y = y, .tag = Position::Tag::BOTTOM_RIGHT_CORNER };
-}
-
-GUIRectangle::Position GUIRectangle::getPositionCenter(void) const
-{
-  const int16_t x = m_rectangleDescription.position.x + static_cast<int16_t>(m_rectangleDescription.width / 2);
-  const int16_t y = m_rectangleDescription.position.y + static_cast<int16_t>(m_rectangleDescription.height / 2);
-
-  return { .x = x, .y = y, .tag = Position::Tag::CENTER };
 }
 
 DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat)
@@ -176,17 +109,19 @@ DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer:
   }
 }
 
-DMA2D::FillRectangleConfig
-GUIRectangle::buildFillRectangleConfig(const RectangleDescription &rectangleDescription, IFrameBuffer &frameBuffer)
+DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  Color rectangleColor,
+  IFrameBuffer &frameBuffer)
 {
   DMA2D::FillRectangleConfig fillRectangleConfig =
   {
     .color =
     {
       .alpha = 0u,
-      .red   = rectangleDescription.color.red,
-      .green = rectangleDescription.color.green,
-      .blue  = rectangleDescription.color.blue,
+      .red   = rectangleColor.red,
+      .green = rectangleColor.green,
+      .blue  = rectangleColor.blue,
     },
     .destinationBufferConfig =
     {
@@ -200,44 +135,92 @@ GUIRectangle::buildFillRectangleConfig(const RectangleDescription &rectangleDesc
     },
   };
 
-  fillRectangleConfig.position.x = static_cast<uint16_t>(rectangleDescription.position.x);
-  fillRectangleConfig.position.y = static_cast<uint16_t>(rectangleDescription.position.y);
-  fillRectangleConfig.dimension.width  = rectangleDescription.width;
-  fillRectangleConfig.dimension.height = rectangleDescription.height;
+  fillRectangleConfig.position.x = getVisiblePartPositionX(rectangleBaseDescription, frameBuffer);
+  fillRectangleConfig.position.y = getVisiblePartPositionY(rectangleBaseDescription, frameBuffer);
+  fillRectangleConfig.dimension.width  = getVisiblePartWidth(rectangleBaseDescription, frameBuffer);
+  fillRectangleConfig.dimension.height = getVisiblePartHeight(rectangleBaseDescription, frameBuffer);
 
   return fillRectangleConfig;
 }
 
-void GUIRectangle::recalculatePositionToBeTopLeftCorner(GUIRectangle::RectangleDescription &rectangleDescription)
+uint16_t GUIRectangle::getVisiblePartPositionX(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  const IFrameBuffer &frameBuffer)
 {
-  switch (rectangleDescription.position.tag)
+  if (0 > rectangleBaseDescription.position.x)
   {
-    case Position::Tag::CENTER:
-      rectangleDescription.position.x -= (rectangleDescription.width / 2u);
-      rectangleDescription.position.y -= (rectangleDescription.height / 2u);
-      break;
+    return 0u;
+  }
+  else if (frameBuffer.getWidth() <= rectangleBaseDescription.position.x)
+  {
+    return frameBuffer.getWidth() - 1u;
+  }
+  else
+  {
+    return static_cast<uint16_t>(rectangleBaseDescription.position.x);
+  }
+}
 
-    case Position::Tag::TOP_LEFT_CORNER:
-      // leave it as it is
-      break;
+uint16_t GUIRectangle::getVisiblePartPositionY(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  const IFrameBuffer &frameBuffer)
+{
+  if (0 > rectangleBaseDescription.position.y)
+  {
+    return 0u;
+  }
+  else if (frameBuffer.getHeight() <= rectangleBaseDescription.position.y)
+  {
+    return frameBuffer.getHeight() - 1u;
+  }
+  else
+  {
+    return static_cast<uint16_t>(rectangleBaseDescription.position.y);
+  }
+}
 
-    case Position::Tag::TOP_RIGHT_CORNER:
-      rectangleDescription.position.x -= (rectangleDescription.width - 1u);
-      break;
+uint16_t GUIRectangle::getVisiblePartWidth(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  const IFrameBuffer &frameBuffer)
+{
+  int16_t width = static_cast<int16_t>(rectangleBaseDescription.width);
 
-    case Position::Tag::BOTTOM_LEFT_CORNER:
-      rectangleDescription.position.y -= (rectangleDescription.height - 1u);
-      break;
-
-    case Position::Tag::BOTTOM_RIGHT_CORNER:
-      rectangleDescription.position.x -= (rectangleDescription.width - 1u);
-      rectangleDescription.position.y -= (rectangleDescription.height - 1u);
-      break;
-
-    default:
-      // leave it as it is
-      break;
+  if (0 > rectangleBaseDescription.position.x)
+  {
+    width += rectangleBaseDescription.position.x;
+  }
+  else if ((rectangleBaseDescription.position.x + width) > frameBuffer.getWidth())
+  {
+    width = frameBuffer.getWidth() - rectangleBaseDescription.position.x;
   }
 
-  rectangleDescription.position.tag = Position::Tag::TOP_LEFT_CORNER;
+  if (width < 0)
+  {
+    width = 0;
+  }
+
+  return static_cast<uint16_t>(width);
+}
+
+uint16_t GUIRectangle::getVisiblePartHeight(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  const IFrameBuffer &frameBuffer)
+{
+  int16_t height = static_cast<int16_t>(rectangleBaseDescription.height);
+
+  if (0 > rectangleBaseDescription.position.y)
+  {
+    height += rectangleBaseDescription.position.y;
+  }
+  else if ((rectangleBaseDescription.position.y + height) > frameBuffer.getHeight())
+  {
+    height = frameBuffer.getHeight() - rectangleBaseDescription.position.y;
+  }
+
+  if (height < 0)
+  {
+    height = 0;
+  }
+
+  return static_cast<uint16_t>(height);
 }
