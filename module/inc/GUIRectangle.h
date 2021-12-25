@@ -38,30 +38,15 @@ public:
 
 private:
 
-  Position getDrawingStartPosition(void) const;
-  Position getDrawingEndPosition(void) const;
-
   void drawCPU(void);
   void drawDMA2D(void);
 
   static DMA2D::OutputColorFormat mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat);
 
-  static DMA2D::FillRectangleConfig buildFillRectangleConfig(
+  DMA2D::FillRectangleConfig buildFillRectangleConfig(
     const GUIRectangleBaseDescription &rectangleBaseDescription,
     Color rectangleColor,
     IFrameBuffer &frameBuffer);
-
-
-  static uint16_t
-  getVisiblePartPositionX(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
-  static uint16_t
-  getVisiblePartPositionY(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
-  static uint16_t
-  getVisiblePartWidth(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
-  static uint16_t
-  getVisiblePartHeight(const GUIRectangleBaseDescription &rectangleBaseDescription, const IFrameBuffer &frameBuffer);
-
-  //RectangleDescription m_rectangleDescription;
 
   Color m_color;
 

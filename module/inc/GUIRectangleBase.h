@@ -48,6 +48,10 @@ public:
 
   uint16_t getVisiblePartWidth(void) const;
 
+  uint16_t getVisiblePartHeight(void) const;
+
+  Position getVisiblePartPosition(Position::Tag positionTag) const;
+
 protected:
 
   Position getPositionTopLeftCorner(void) const;
@@ -58,11 +62,29 @@ protected:
 
   static void recalculatePositionToBeTopLeftCorner(GUIRectangleBaseDescription &rectangleDescription);
 
+  template <typename T>
+  static T saturateValue(T value, T valueLowerLimit, T valueUpperLimit);
+
   IFrameBuffer &m_frameBuffer;
 
   GUIRectangleBaseDescription m_rectangleBaseDescription;
-
-
 };
+
+template <typename T>
+T GUIRectangleBase::saturateValue(T value, T valueLowerLimit, T valueUpperLimit)
+{
+  if (value < valueLowerLimit)
+  {
+    return valueLowerLimit;
+  }
+  else if (value > valueUpperLimit)
+  {
+    return valueUpperLimit;
+  }
+  else
+  {
+    return value;
+  }
+}
 
 #endif // #ifndef GUI_RECTANGLE_BASE_H

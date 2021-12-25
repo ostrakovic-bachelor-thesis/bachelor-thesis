@@ -54,6 +54,7 @@ void GUIRectangleBase::draw(DrawHardware drawHardware)
 
 uint16_t GUIRectangleBase::getVisiblePartWidth(void) const
 {
+  const int16_t frameBufferWidth = static_cast<int16_t>(m_frameBuffer.getWidth());
   const Position topLeftCornerPosition = getPosition(Position::Tag::TOP_LEFT_CORNER);
   const Position bottomRightCornerPosition = getPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
   int16_t visiblePartWidth = static_cast<int16_t>(m_rectangleBaseDescription.width);
@@ -62,21 +63,45 @@ uint16_t GUIRectangleBase::getVisiblePartWidth(void) const
   {
     visiblePartWidth += topLeftCornerPosition.x;
   }
-  else if (m_frameBuffer.getWidth() <= bottomRightCornerPosition.x)
+  else if (frameBufferWidth <= bottomRightCornerPosition.x)
   {
-    visiblePartWidth = m_frameBuffer.getWidth() - topLeftCornerPosition.x;
+    visiblePartWidth = frameBufferWidth - topLeftCornerPosition.x;
   }
 
-  if (0 > visiblePartWidth)
+  visiblePartWidth = saturateValue(visiblePartWidth, static_cast<int16_t>(0), frameBufferWidth);
+
+  return static_cast<uint16_t>(visiblePartWidth);
+}
+
+uint16_t GUIRectangleBase::getVisiblePartHeight(void) const
+{
+  const int16_t frameBufferHeight = static_cast<int16_t>(m_frameBuffer.getHeight());
+  const Position topLeftCornerPosition = getPosition(Position::Tag::TOP_LEFT_CORNER);
+  const Position bottomRightCornerPosition = getPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
+  int16_t visiblePartHeight = static_cast<int16_t>(m_rectangleBaseDescription.height);
+
+  if (0 > topLeftCornerPosition.y)
   {
-    visiblePartWidth = 0;
+    visiblePartHeight += topLeftCornerPosition.y;
   }
-  else if (m_frameBuffer.getWidth() < visiblePartWidth)
+  else if (frameBufferHeight <= bottomRightCornerPosition.y)
   {
-    visiblePartWidth = m_frameBuffer.getWidth();
+    visiblePartHeight = frameBufferHeight - topLeftCornerPosition.y;
   }
 
-  return visiblePartWidth;
+  visiblePartHeight = saturateValue(visiblePartHeight, static_cast<int16_t>(0), frameBufferHeight);
+
+  return static_cast<uint16_t>(visiblePartHeight);
+}
+
+GUIRectangleBase::Position GUIRectangleBase::getVisiblePartPosition(Position::Tag positionTag) const
+{
+  Position position = getPosition(positionTag);
+
+  position.x = saturateValue(position.x, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getWidth()));
+  position.y = saturateValue(position.y, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getHeight()));
+
+  return position;
 }
 
 inline GUIRectangleBase::Position GUIRectangleBase::getPositionTopLeftCorner(void) const
