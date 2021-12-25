@@ -25,6 +25,7 @@ public:
   void expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUIRectangle &guiRectangle);
   void expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUIRectangle &guiRectangle);
   void assertThatDMA2DFillRectangleConfigParamsWereOk(void);
+  void expectThatDMA2DFillRectangleWillNotBeCalled(void);
 
   void setDefaultFrameBufferColor(GUIRectangle::Color color);
 
@@ -166,6 +167,12 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectan
 
       return DMA2D::ErrorCode::OK;
     });
+}
+
+void AGUIRectangle::expectThatDMA2DFillRectangleWillNotBeCalled(void)
+{
+  EXPECT_CALL(dma2dMock, fillRectangle(_))
+    .Times(0u);
 }
 
 void AGUIRectangle::assertThatDMA2DFillRectangleConfigParamsWereOk(void)
@@ -381,4 +388,18 @@ TEST_F(AGUIRectangle, DrawWithCPUDisplaysOnlyVisiblePartOfRectangleIfItIsMovedTo
   guiRectangle.draw(IGUIObject::DrawHardware::CPU);
 
   assertThatGUIRectangleIsDrawnInFrameBuffer(guiRectangle);
+}
+
+TEST_F(AGUIRectangle, DrawWithDMA2DDoesNotTriggerDMA2DFillRectangleOperationIfGUIRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleDescription.baseDescription.position =
+  {
+    .x   = -400,
+    .y   = 40,
+    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiRectangle.init(guiRectangleDescription);
+  expectThatDMA2DFillRectangleWillNotBeCalled();
+
+  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
 }

@@ -76,7 +76,10 @@ void GUIRectangle::drawCPU(void)
 
 void GUIRectangle::drawDMA2D(void)
 {
-  m_dma2d.fillRectangle(m_fillRectangleConfig);
+  if ((0u != m_fillRectangleConfig.dimension.width) && (0u != m_fillRectangleConfig.dimension.height))
+  {
+    m_dma2d.fillRectangle(m_fillRectangleConfig);
+  }
 }
 
 DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat)
@@ -90,6 +93,15 @@ DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer:
     default:
       return DMA2D::OutputColorFormat::RGB888;
   }
+}
+
+DMA2D::Position GUIRectangle::mapToDMA2DPosition(Position position)
+{
+  return
+  {
+    .x = static_cast<uint16_t>(position.x),
+    .y = static_cast<uint16_t>(position.y)
+  };
 }
 
 DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
@@ -106,6 +118,12 @@ DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
       .green = rectangleColor.green,
       .blue  = rectangleColor.blue,
     },
+    .dimension =
+    {
+      .width  = getVisiblePartWidth(),
+      .height = getVisiblePartHeight()
+    },
+    .position = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
       .colorFormat     = mapToDMA2DOutputColorFormat(frameBuffer.getColorFormat()),
@@ -117,13 +135,6 @@ DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
       .bufferPtr = frameBuffer.getPointer(),
     },
   };
-
-  const Position visiblePartPosition = getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER);
-
-  m_fillRectangleConfig.position.x = visiblePartPosition.x;
-  m_fillRectangleConfig.position.y = visiblePartPosition.y;
-  fillRectangleConfig.dimension.width  = getVisiblePartWidth();
-  fillRectangleConfig.dimension.height = getVisiblePartHeight();
 
   return fillRectangleConfig;
 }

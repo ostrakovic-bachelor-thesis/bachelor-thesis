@@ -27,6 +27,7 @@ set(BachelorThesis_bsp_component_cpp_sources
     ../bsp/src/FT3267.cpp)
 
 set(BachelorThesis_module_component_cpp_sources
+    ../module/src/GUIRectangleBase.cpp
     ../module/src/GUIRectangle.cpp)
 
 set(BachelorThesis_app_component_cpp_sources

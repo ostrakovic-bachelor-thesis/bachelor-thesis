@@ -333,37 +333,43 @@ void startup(void)
 
   const GUIRectangle::RectangleDescription guiRectangleDescription1 =
   {
-    .width  = 390u,
-    .height = 390u,
+    .baseDescription =
+    {
+      .width  = 410u,
+      .height = 420u,
+      .position =
+      {
+        .x   = -10,
+        .y   = -20,
+        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+      }
+    },
     .color  =
     {
       .red   = 255u,
       .green = 0u,
       .blue  = 0u
-    },
-    .position =
-    {
-      .x   = 0,
-      .y   = 0,
-      .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
     }
   };
 
   const GUIRectangle::RectangleDescription guiRectangleDescription2 =
   {
-    .width  = 150u,
-    .height = 150u,
+    .baseDescription =
+    {
+      .width  = 150u,
+      .height = 150u,
+      .position =
+      {
+        .x   = 120,
+        .y   = 120,
+        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+      }
+    },
     .color  =
     {
       .red   = 0u,
       .green = 0u,
       .blue  = 255u
-    },
-    .position =
-    {
-      .x   = 120,
-      .y   = 120,
-      .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
     }
   };
 
@@ -691,7 +697,10 @@ void startup(void)
 
       x = x + direction * 10;
 
-      guiRectangle2.moveToPosition({x, guiRectangle2.getPosition().y});
+      GUIRectangle::Position newPosition = guiRectangle2.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER);
+      newPosition.x = x;
+
+      guiRectangle2.moveToPosition(newPosition);
 
       guiRectangle1.draw(IGUIObject::DrawHardware::CPU);
       guiRectangle2.draw(IGUIObject::DrawHardware::DMA2D);

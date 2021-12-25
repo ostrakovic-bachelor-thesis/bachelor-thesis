@@ -26,7 +26,8 @@ set(BachelorThesis_driver_component_cpp_sources
 
 set(BachelorThesis_module_component_cpp_sources
     src/GUIRectangleBase.cpp
-    src/GUIRectangle.cpp)
+    src/GUIRectangle.cpp
+    src/GUIBitmap.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
     test/GPIOManagerTest.cpp
@@ -34,7 +35,8 @@ set(BachelorThesis_module_test_cpp_sources
     test/FrameBufferTest.cpp
     test/IGUIObjectTest.cpp
     test/GUIRectangleBaseTest.cpp
-    test/GUIRectangleTest.cpp)
+    test/GUIRectangleTest.cpp
+    test/GUIBitmapTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}
