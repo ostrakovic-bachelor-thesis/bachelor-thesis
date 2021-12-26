@@ -90,3 +90,57 @@ TEST(IGUIObjectPosition, IsNotEqualToAnotherIGUIObjectIfTheirPositionTagsAreNotT
   ASSERT_THAT(position1.tag, Ne(position2.tag));
   ASSERT_THAT(position1, Ne(position2));
 }
+
+TEST(IGUIObjectDimension, IsEqualToAnotherIGUIObjectDimensionOnlyIfTheirWidthAndHeightAreTheSame)
+{
+  const IGUIObject::Dimension dimension1 =
+  {
+    .width  = 250,
+    .height = 130
+  };
+  const IGUIObject::Dimension dimension2 =
+  {
+    .width  = 250,
+    .height = 130
+  };
+
+  ASSERT_THAT(dimension1.width, Eq(dimension2.width));
+  ASSERT_THAT(dimension1.height, Eq(dimension2.height));
+  ASSERT_THAT(dimension1, Eq(dimension2));
+}
+
+TEST(IGUIObjectDimension, IsNotEqualToAnotherIGUIObjectDimensionIfTheirWidthsAreNotTheSame)
+{
+  const IGUIObject::Dimension dimension1 =
+  {
+    .width  = 300,
+    .height = 130
+  };
+  const IGUIObject::Dimension dimension2 =
+  {
+    .width  = 250,
+    .height = 130
+  };
+
+  ASSERT_THAT(dimension1.width, Ne(dimension2.width));
+  ASSERT_THAT(dimension1.height, Eq(dimension2.height));
+  ASSERT_THAT(dimension1, Ne(dimension2));
+}
+
+TEST(IGUIObjectDimension, IsNotEqualToAnotherIGUIObjectDimensionIfTheirHeightsAreNotTheSame)
+{
+  const IGUIObject::Dimension dimension1 =
+  {
+    .width  = 110,
+    .height = 90
+  };
+  const IGUIObject::Dimension dimension2 =
+  {
+    .width  = 110,
+    .height = 200
+  };
+
+  ASSERT_THAT(dimension1.width, Eq(dimension2.width));
+  ASSERT_THAT(dimension1.height, Ne(dimension2.height));
+  ASSERT_THAT(dimension1, Ne(dimension2));
+}

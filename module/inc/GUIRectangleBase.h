@@ -13,8 +13,7 @@ public:
 
   struct GUIRectangleBaseDescription
   {
-    uint16_t width;
-    uint16_t height;
+    Dimension dimension;
     Position position;
   };
 
@@ -22,12 +21,17 @@ public:
 
   inline uint16_t getWidth(void) const override
   {
-    return m_rectangleBaseDescription.width;
+    return m_rectangleBaseDescription.dimension.width;
   }
 
   inline uint16_t getHeight(void) const override
   {
-    return m_rectangleBaseDescription.height;
+    return m_rectangleBaseDescription.dimension.height;
+  }
+
+  inline Dimension getDimension(void) const override
+  {
+    return m_rectangleBaseDescription.dimension;
   }
 
   Position getPosition(Position::Tag positionTag) const override;
