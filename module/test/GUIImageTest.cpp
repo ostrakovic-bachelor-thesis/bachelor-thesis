@@ -14,17 +14,32 @@ class AGUIImage : public Test
 public:
   DMA2DMock dma2dMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiImageFrameBuffer;
+  FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiImageFrameBufferBeforeDrawing;
   GUIImage guiImage = GUIImage(dma2dMock, guiImageFrameBuffer);
   GUIImage::ImageDescription guiImageDescription;
 
-  static constexpr uint16_t TEST_BITMAP_WIDTH  = 20u;
-  static constexpr uint16_t TEST_BITMAP_HEIGHT = 20u;
-  static constexpr GUIImage::ColorFormat TEST_BITMAP_COLOR_FORMAT = GUIImage::ColorFormat::RGB888;
-  static constexpr uint16_t TEST_BITMAP_COLOR_FORMAT_SIZE = 3u;
-  uint8_t m_testBitmap[TEST_BITMAP_WIDTH][TEST_BITMAP_HEIGHT * TEST_BITMAP_COLOR_FORMAT_SIZE];
+  bool m_isDMA2DCopyBitmapConfigOk;
 
-  void initTestBitmap(void);
+  static constexpr uint16_t TEST_RGB888_BITMAP_WIDTH  = 20u;
+  static constexpr uint16_t TEST_RGB888_BITMAP_HEIGHT = 20u;
+  static constexpr GUIImage::ColorFormat TEST_RGB888_BITMAP_COLOR_FORMAT = GUIImage::ColorFormat::RGB888;
+  static constexpr uint16_t TEST_RGB888_BITMAP_COLOR_FORMAT_SIZE = 3u;
+  uint8_t m_testRGB888Bitmap[TEST_RGB888_BITMAP_HEIGHT][TEST_RGB888_BITMAP_WIDTH * TEST_RGB888_BITMAP_COLOR_FORMAT_SIZE];
+
+  static constexpr uint16_t TEST_ARGB8888_BITMAP_WIDTH  = 15u;
+  static constexpr uint16_t TEST_ARGB8888_BITMAP_HEIGHT = 25u;
+  static constexpr GUIImage::ColorFormat TEST_ARGB8888_BITMAP_COLOR_FORMAT = GUIImage::ColorFormat::ARGB8888;
+  static constexpr uint16_t TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE = 4u;
+  uint8_t m_testARGB8888Bitmap[TEST_ARGB8888_BITMAP_HEIGHT][TEST_ARGB8888_BITMAP_WIDTH * TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE];
+
+  void initTestBitmaps(void);
+  void setDefaultFrameBufferColor(IFrameBuffer &frameBuffer);
   void assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
+  void assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
+    GUIImage &guiImage,
+    const IFrameBuffer &frameBufferBeforeDrawing);
+  void expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
+  void assertThatDMA2DCopyBitmapConfigParamsWereOk(void);
 
   void SetUp() override;
 };
@@ -42,50 +57,154 @@ void AGUIImage::SetUp()
     .y = 5
   };
 
-  initTestBitmap();
+  m_isDMA2DCopyBitmapConfigOk = true;
+
+  initTestBitmaps();
+  setDefaultFrameBufferColor(guiImageFrameBuffer);
+  setDefaultFrameBufferColor(guiImageFrameBufferBeforeDrawing);
 }
 
-void AGUIImage::initTestBitmap(void)
+void AGUIImage::initTestBitmaps(void)
 {
-  for (uint32_t row = 0u; row < TEST_BITMAP_HEIGHT; ++row)
+  for (uint32_t row = 0u; row < TEST_RGB888_BITMAP_HEIGHT; ++row)
   {
-    for (uint32_t column = 0u; column < TEST_BITMAP_WIDTH; ++column)
+    for (uint32_t column = 0u; column < TEST_RGB888_BITMAP_WIDTH; ++column)
     {
-      m_testBitmap[row][TEST_BITMAP_COLOR_FORMAT_SIZE * column]     = 128u;
-      m_testBitmap[row][TEST_BITMAP_COLOR_FORMAT_SIZE * column + 1] = static_cast<uint8_t>((row + column) % 256);
-      m_testBitmap[row][TEST_BITMAP_COLOR_FORMAT_SIZE * column + 2] = 128u;
+      m_testRGB888Bitmap[row][TEST_RGB888_BITMAP_COLOR_FORMAT_SIZE * column]     = 128u;
+      m_testRGB888Bitmap[row][TEST_RGB888_BITMAP_COLOR_FORMAT_SIZE * column + 1] = static_cast<uint8_t>((row + column) % 256);
+      m_testRGB888Bitmap[row][TEST_RGB888_BITMAP_COLOR_FORMAT_SIZE * column + 2] = 128u;
     }
+  }
+
+  for (uint32_t row = 0u; row < TEST_ARGB8888_BITMAP_HEIGHT; ++row)
+  {
+    for (uint32_t column = 0u; column < TEST_ARGB8888_BITMAP_WIDTH; ++column)
+    {
+      m_testARGB8888Bitmap[row][TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE * column]     = 255u;
+      m_testARGB8888Bitmap[row][TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE * column + 1] = 255u;
+      m_testARGB8888Bitmap[row][TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE * column + 2] = 255u;
+      m_testARGB8888Bitmap[row][TEST_ARGB8888_BITMAP_COLOR_FORMAT_SIZE * column + 3] = 128u;
+    }
+  }
+}
+
+void AGUIImage::setDefaultFrameBufferColor(IFrameBuffer &frameBuffer)
+{
+  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(frameBuffer.getPointer());
+
+  for (uint32_t i = 0u; i < frameBuffer.getSize();)
+  {
+    frameBufferPtr[i++] = 50u;
+    frameBufferPtr[i++] = 100u;
+    frameBufferPtr[i++] = 200u;
   }
 }
 
 void AGUIImage::assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage)
 {
-  const uint8_t *frameBufferPtr      = reinterpret_cast<uint8_t*>(guiImage.getFrameBuffer().getPointer());
-  const uint32_t frameBufferWidth    = guiImage.getFrameBuffer().getWidth();
-  const uint8_t frameBufferPixelSize = IFrameBuffer::getColorFormatPixelSize(guiImage.getFrameBuffer().getColorFormat());
+  constexpr uint8_t PIXEL_SIZE = 3u;
+
+  const uint8_t *frameBufferPtr   = reinterpret_cast<uint8_t*>(guiImage.getFrameBuffer().getPointer());
+  const uint32_t frameBufferWidth = guiImage.getFrameBuffer().getWidth();
   const uint16_t frameBufferColumnStart = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x;
   const uint16_t frameBufferRowStart    = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y;
   const uint16_t frameBufferColumnEnd = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::BOTTOM_RIGHT_CORNER).x;
   const uint16_t frameBufferRowEnd    = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::BOTTOM_RIGHT_CORNER).y;
 
   const uint8_t *bitmapPtr = reinterpret_cast<const uint8_t*>(guiImage.getBitmapPtr());
-  const uint32_t bitmapWidth = guiImage.getWidth();
-  const uint8_t bitmapPixelSize = 3u; // GUIImage::getColorFormatPixelSize(guiImage.getColorFormat());
+  const uint32_t bitmapWidth = guiImage.getBitmapDimension().width;
+  const uint16_t bitmapColumnStart = guiImage.getBitmapCopyPosition().x;
+  const uint16_t bitmapRowStart    = guiImage.getBitmapCopyPosition().y;
 
-
-
-  for (uint32_t frameBufferRow = frameBufferRowStart, bitmapRow = 0u; frameBufferRow < frameBufferRowEnd; ++frameBufferRow, ++bitmapRow)
+  uint32_t bitmapRow = bitmapRowStart;
+  for (uint32_t frameBufferRow = frameBufferRowStart; frameBufferRow < frameBufferRowEnd; ++frameBufferRow, ++bitmapRow)
   {
-    for (uint32_t frameBufferColumn = frameBufferColumnStart, bitmapColumn = 0u; frameBufferColumn < frameBufferColumnEnd; ++frameBufferColumn, ++bitmapColumn)
+    uint32_t bitmapColumn = bitmapColumnStart;
+    for (uint32_t frameBufferColumn = frameBufferColumnStart; frameBufferColumn < frameBufferColumnEnd; ++frameBufferColumn, ++bitmapColumn)
     {
-      uint32_t frameBufferPixelIndex = frameBufferPixelSize * (frameBufferRow * frameBufferWidth + frameBufferColumn);
-      uint32_t bitmapPixelIndex = bitmapPixelSize * (bitmapRow * bitmapWidth + bitmapColumn);
+      uint32_t frameBufferPixelIndex = PIXEL_SIZE * (frameBufferRow * frameBufferWidth + frameBufferColumn);
+      uint32_t bitmapPixelIndex = PIXEL_SIZE * (bitmapRow * bitmapWidth + bitmapColumn);
 
       ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex],     bitmapPtr[bitmapPixelIndex]);
       ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex + 1], bitmapPtr[bitmapPixelIndex + 1]);
       ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex + 2], bitmapPtr[bitmapPixelIndex + 2]);
     }
   }
+}
+
+void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
+  GUIImage &guiImage,
+  const IFrameBuffer &frameBufferBeforeDrawing)
+{
+  constexpr uint8_t FRAME_BUFFER_PIXEL_SIZE = 3u;
+  constexpr uint8_t BITMAP_PIXEL_SIZE       = 4u;
+
+  const uint8_t *frameBufferBeforeDrawingPtr = reinterpret_cast<const uint8_t*>(frameBufferBeforeDrawing.getPointer());
+  const uint8_t *frameBufferPtr   = reinterpret_cast<uint8_t*>(guiImage.getFrameBuffer().getPointer());
+  const uint32_t frameBufferWidth = guiImage.getFrameBuffer().getWidth();
+  const uint16_t frameBufferColumnStart = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x;
+  const uint16_t frameBufferRowStart    = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y;
+  const uint16_t frameBufferColumnEnd = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::BOTTOM_RIGHT_CORNER).x;
+  const uint16_t frameBufferRowEnd    = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::BOTTOM_RIGHT_CORNER).y;
+
+  const uint8_t *bitmapPtr = reinterpret_cast<const uint8_t*>(guiImage.getBitmapPtr());
+  const uint32_t bitmapWidth = guiImage.getBitmapDimension().width;
+  const uint16_t bitmapColumnStart = guiImage.getBitmapCopyPosition().x;
+  const uint16_t bitmapRowStart    = guiImage.getBitmapCopyPosition().y;
+
+  uint32_t bitmapRow = bitmapRowStart;
+  for (uint32_t frameBufferRow = frameBufferRowStart; frameBufferRow < frameBufferRowEnd; ++frameBufferRow, ++bitmapRow)
+  {
+    uint32_t bitmapColumn = bitmapColumnStart;
+    for (uint32_t frameBufferColumn = frameBufferColumnStart; frameBufferColumn < frameBufferColumnEnd; ++frameBufferColumn, ++bitmapColumn)
+    {
+      uint32_t frameBufferPixelIndex = FRAME_BUFFER_PIXEL_SIZE * (frameBufferRow * frameBufferWidth + frameBufferColumn);
+      uint32_t bitmapPixelIndex = BITMAP_PIXEL_SIZE * (bitmapRow * bitmapWidth + bitmapColumn);
+
+      const uint32_t alpha = bitmapPtr[bitmapPixelIndex + 3];
+      const uint8_t expectedRedColor   = (alpha * bitmapPtr[bitmapPixelIndex + 2] + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex + 2]) / 255u;
+      const uint8_t expectedGreenColor = (alpha * bitmapPtr[bitmapPixelIndex + 1] + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex + 1]) / 255u;
+      const uint8_t expectedBlueColor  = (alpha * bitmapPtr[bitmapPixelIndex]     + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex])     / 255u;
+
+      ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex],     expectedBlueColor);
+      ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex + 1], expectedGreenColor);
+      ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex + 2], expectedRedColor);
+    }
+  }
+}
+
+void AGUIImage::expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage)
+{
+  EXPECT_CALL(dma2dMock, copyBitmap(_))
+  .Times(1u)
+  .WillOnce([=](const DMA2D::CopyBitmapConfig &copyBitmapConfig) -> DMA2D::ErrorCode
+  {
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.dimension.width == guiImage.getWidth());
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.dimension.height == guiImage.getHeight());
+
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceRectanglePosition.x == guiImage.getBitmapCopyPosition().x);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceRectanglePosition.y == guiImage.getBitmapCopyPosition().y);
+
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.colorFormat == DMA2D::InputColorFormat::RGB888);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferDimension.width == guiImage.getBitmapDimension().width);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferDimension.height == guiImage.getBitmapDimension().height);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferPtr == guiImage.getBitmapPtr());
+
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationRectanglePosition.x == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationRectanglePosition.y == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y);
+
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferDimension.width == guiImage.getFrameBuffer().getWidth());
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferDimension.height == guiImage.getFrameBuffer().getHeight());
+    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferPtr == guiImage.getFrameBuffer().getPointer());
+
+    return DMA2D::ErrorCode::OK;
+  });
+}
+
+void AGUIImage::assertThatDMA2DCopyBitmapConfigParamsWereOk(void)
+{
+  ASSERT_THAT(m_isDMA2DCopyBitmapConfigOk, Eq(true));
 }
 
 
@@ -101,10 +220,10 @@ TEST_F(AGUIImage, InitFailsIfGivenFrameBufferColorFormatIsNotSupported)
 
 TEST_F(AGUIImage, GetBitmapReturnsPointerToAssociatedBitmap)
 {
-  guiImageDescription.bitmapDescription.bitmapPtr = reinterpret_cast<const void*>(&m_testBitmap);
+  guiImageDescription.bitmapDescription.bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap);
   guiImage.init(guiImageDescription);
 
-  ASSERT_THAT(guiImage.getBitmapPtr(), Eq(reinterpret_cast<const void*>(&m_testBitmap)));
+  ASSERT_THAT(guiImage.getBitmapPtr(), Eq(reinterpret_cast<const void*>(&m_testRGB888Bitmap)));
 }
 
 TEST_F(AGUIImage, GetBitmapColorFormatReturnsBitmapColorFormatSpecifiedAtTheInit)
@@ -143,15 +262,14 @@ TEST_F(AGUIImage, GetBitmapCopyPositionReturnsBitmapCopyPositionSpecifiedAtTheIn
   ASSERT_THAT(guiImage.getBitmapCopyPosition(), Eq(EXPECTED_GUI_IMAGE_BITMAP_COPY_POSITION));
 }
 
-// TODO
-TEST_F(AGUIImage, DrawWithCPUDrawsBitmapOnAssociatedFrameBuffer)
+TEST_F(AGUIImage, DrawWithCPUDrawsRGB888BitmapOnAssociatedRGB888FrameBuffer)
 {
   guiImageDescription.baseDescription =
   {
     .dimension =
     {
-      .width  = TEST_BITMAP_WIDTH / 2u,
-      .height = TEST_BITMAP_HEIGHT / 2u,
+      .width  = TEST_RGB888_BITMAP_WIDTH / 2u,
+      .height = TEST_RGB888_BITMAP_HEIGHT / 2u,
     },
     .position =
     {
@@ -162,23 +280,104 @@ TEST_F(AGUIImage, DrawWithCPUDrawsBitmapOnAssociatedFrameBuffer)
   };
   guiImageDescription.bitmapDescription =
   {
-    .colorFormat = TEST_BITMAP_COLOR_FORMAT,
+    .colorFormat = TEST_RGB888_BITMAP_COLOR_FORMAT,
     .dimension =
     {
-      .width  = TEST_BITMAP_WIDTH,
-      .height = TEST_BITMAP_HEIGHT
+      .width  = TEST_RGB888_BITMAP_WIDTH,
+      .height = TEST_RGB888_BITMAP_HEIGHT
     },
     .copyPosition =
     {
-      .x   = TEST_BITMAP_WIDTH / 4u,
-      .y   = TEST_BITMAP_WIDTH / 4u,
+      .x   = TEST_RGB888_BITMAP_WIDTH / 4u,
+      .y   = TEST_RGB888_BITMAP_HEIGHT / 4u,
       .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
     },
-    .bitmapPtr = reinterpret_cast<const void*>(&m_testBitmap)
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap)
   };
   guiImage.init(guiImageDescription);
 
   guiImage.draw(IGUIObject::DrawHardware::CPU);
 
   assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage);
+}
+
+TEST_F(AGUIImage, DrawWithCPUDrawsARGB8888BitmapOnAssociatedRGB888FrameBuffer)
+{
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH / 2u,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT / 2u,
+    },
+    .position =
+    {
+      .x   = 10,
+      .y   = 10,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_ARGB8888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = TEST_ARGB8888_BITMAP_WIDTH / 2u,
+      .y   = TEST_ARGB8888_BITMAP_HEIGHT / 2u,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testARGB8888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+
+  guiImage.draw(IGUIObject::DrawHardware::CPU);
+
+  assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
+    guiImage,
+    guiImageFrameBufferBeforeDrawing);
+}
+
+TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithRGB888BitmapTriggersDMA2DCopyBitmapOperationWithAppropriateConfigParams)
+{
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH / 2u,
+      .height = TEST_RGB888_BITMAP_HEIGHT / 2u,
+    },
+    .position =
+    {
+      .x   = 10,
+      .y   = 10,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_RGB888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH,
+      .height = TEST_RGB888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = TEST_RGB888_BITMAP_WIDTH / 4u,
+      .y   = TEST_RGB888_BITMAP_HEIGHT / 4u,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(guiImage);
+
+  guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DCopyBitmapConfigParamsWereOk();
 }

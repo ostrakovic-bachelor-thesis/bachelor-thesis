@@ -28,7 +28,8 @@ set(BachelorThesis_bsp_component_cpp_sources
 
 set(BachelorThesis_module_component_cpp_sources
     ../module/src/GUIRectangleBase.cpp
-    ../module/src/GUIRectangle.cpp)
+    ../module/src/GUIRectangle.cpp
+    ../module/src/GUIImage.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp
@@ -43,7 +44,10 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    src/system_stm32l4xx.c
                    src/syscalls.c
                    src/sysclock.c
-                   src/main.c)
+                   src/main.c
+                   #bitmaps/rimac.c
+                   bitmaps/icon.c
+                   bitmaps/rimacLogo.c)
 
 target_include_directories(app PRIVATE
                            inc

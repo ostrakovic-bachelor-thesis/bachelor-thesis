@@ -59,8 +59,12 @@ public:
 
 private:
 
+  void drawDMA2D(void);
+  void drawDMA2DFromBitmapRGB888ToFrameBufferRGB888(void);
+
   void drawCPU(void);
   void drawCPUFromBitmapRGB888ToFrameBufferRGB888(void);
+  void drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void);
 
   bool isFrameBufferColorFormatSupported(void) const;
 

@@ -41,11 +41,12 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-FLASH          (rx) : ORIGIN = 0x08000000, LENGTH = 128K
+FLASH          (rx) : ORIGIN = 0x08000000, LENGTH = 576K
 
 /* For bitmap of size 390*390*3 it's needed 456300 bytes of space (111.4 pages of 4kB) */
 /* But because of alignment, this parts of FLASH memory are rounded up to 112 pages (448kB) */
-FLASH_BGBMP1    (rx) : ORIGIN = 0x08020000, LENGTH = 448K
+
+/* FLASH_BGBMP1    (rx) : ORIGIN = 0x08020000, LENGTH = 448K */
 
 FLASH_BGBMP2    (rx) : ORIGIN = 0x08090000, LENGTH = 448K
 
@@ -189,6 +190,7 @@ SECTIONS
   /*===================================================*/
   /*=============== USER DEFINED SECTION ==============*/
 
+/*
   .backgroundBitmap1 :
   {
     . = ALIGN(12);
@@ -199,7 +201,7 @@ SECTIONS
 
     _backgroundBitmap1_end = .;
   } > FLASH_BGBMP1
-
+*/
 
   .backgroundBitmap2 :
   {

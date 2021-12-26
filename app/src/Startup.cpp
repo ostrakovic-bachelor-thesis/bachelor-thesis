@@ -13,6 +13,7 @@
 #include "RaydiumRM67160.h"
 #include "FT3267.h"
 #include "GUIRectangle.h"
+#include "GUIImage.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -26,6 +27,11 @@
 #include "MFXSTM32L152Config.h"
 #include "FT3267Config.h"
 #include "AppFrameBuffer.h"
+
+
+//extern const uint8_t rimacImageBitmap[390 * 390 * 3 + 1];
+extern const uint8_t iconBitmap[100 * 100 * 3 + 1];
+extern const uint8_t rimacLogoBitmap[300 * 71 * 4];
 
 
 bool g_isTouchEventInfoRefreshed = false;
@@ -335,8 +341,11 @@ void startup(void)
   {
     .baseDescription =
     {
-      .width  = 410u,
-      .height = 420u,
+      .dimension =
+      {
+        .width  = 410u,
+        .height = 420u
+      },
       .position =
       {
         .x   = -10,
@@ -356,8 +365,11 @@ void startup(void)
   {
     .baseDescription =
     {
-      .width  = 150u,
-      .height = 150u,
+      .dimension =
+      {
+        .width  = 150u,
+        .height = 150u
+      },
       .position =
       {
         .x   = 120,
@@ -373,11 +385,81 @@ void startup(void)
     }
   };
 
+  const GUIImage::ImageDescription imageDescription =
+  {
+    .baseDescription =
+    {
+      .dimension =
+      {
+        .width  = 80,
+        .height = 80u
+      },
+      .position =
+      {
+        .x   = 100,
+        .y   = 160,
+        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+      }
+    },
+    .bitmapDescription =
+    {
+      .colorFormat = GUIImage::ColorFormat::RGB888,
+      .dimension =
+      {
+        .width  = 100u,
+        .height = 100u
+      },
+      .copyPosition =
+      {
+        .x = 10,
+        .y = 10
+      },
+      .bitmapPtr = iconBitmap
+    }
+  };
+
+  const GUIImage::ImageDescription image2Description =
+  {
+    .baseDescription =
+    {
+      .dimension =
+      {
+        .width  = 220u,
+        .height = 71u
+      },
+      .position =
+      {
+        .x   = 95,
+        .y   = 160,
+        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+      }
+    },
+    .bitmapDescription =
+    {
+      .colorFormat = GUIImage::ColorFormat::ARGB8888,
+      .dimension =
+      {
+        .width  = 300u,
+        .height = 71u
+      },
+      .copyPosition =
+      {
+        .x = 70,
+        .y = 0
+      },
+      .bitmapPtr = rimacLogoBitmap
+    }
+  };
+
   GUIRectangle guiRectangle1(dma2d, g_frameBuffer);
   GUIRectangle guiRectangle2(dma2d, g_frameBuffer);
+  GUIImage     guiImage(dma2d, g_frameBuffer);
+  GUIImage     guiImage2(dma2d, g_frameBuffer);
 
   guiRectangle1.init(guiRectangleDescription1);
   guiRectangle2.init(guiRectangleDescription2);
+  guiImage.init(imageDescription);
+  guiImage2.init(image2Description);
 
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
@@ -580,6 +662,13 @@ void startup(void)
     }
   }
 
+/*
+  for (uint32_t i = 0u; i < g_frameBuffer.getSize(); ++i)
+  {
+    reinterpret_cast<uint8_t*>(g_frameBuffer.getPointer())[i] = rimacImageBitmap[i];
+  }
+*/
+
   dsiHost.startTransferFromLTDC();
 
   uint8_t message[2000];
@@ -704,6 +793,8 @@ void startup(void)
 
       guiRectangle1.draw(IGUIObject::DrawHardware::CPU);
       guiRectangle2.draw(IGUIObject::DrawHardware::DMA2D);
+      guiImage2.draw(IGUIObject::DrawHardware::CPU);
+      guiImage.draw(IGUIObject::DrawHardware::DMA2D);
 
       dsiHost.startTransferFromLTDC();
 
