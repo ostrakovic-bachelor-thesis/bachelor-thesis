@@ -39,7 +39,7 @@ void GUIImage::drawDMA2D(void)
   switch (m_bitmapDescription.colorFormat)
   {
     case ColorFormat::ARGB8888:
-      // do nothing
+      drawDMA2DFromBitmapARGB8888ToFrameBufferRGB888();
       break;
 
     case ColorFormat::RGB888:
@@ -112,6 +112,65 @@ void GUIImage::drawDMA2DFromBitmapRGB888ToFrameBufferRGB888(void)
   };
 
   m_dma2d.copyBitmap(copyBitmapConfig);
+}
+
+void GUIImage::drawDMA2DFromBitmapARGB8888ToFrameBufferRGB888(void)
+{
+  DMA2D::BlendBitmapConfig blendBitmapConfig =
+  {
+    .dimension =
+    {
+      .width  = m_rectangleBaseDescription.dimension.width,
+      .height = m_rectangleBaseDescription.dimension.height
+    },
+    .foregroundRectanglePosition =
+    {
+      .x = static_cast<uint16_t>(m_bitmapDescription.copyPosition.x),
+      .y = static_cast<uint16_t>(m_bitmapDescription.copyPosition.y)
+    },
+    .foregroundBufferConfig =
+    {
+      .colorFormat = DMA2D::InputColorFormat::ARGB8888,
+      .bufferDimension =
+      {
+        .width  = m_bitmapDescription.dimension.width,
+        .height = m_bitmapDescription.dimension.height
+      },
+      .bufferPtr = m_bitmapDescription.bitmapPtr
+    },
+    .backgroundRectanglePosition =
+    {
+      .x = static_cast<uint16_t>(m_rectangleBaseDescription.position.x),
+      .y = static_cast<uint16_t>(m_rectangleBaseDescription.position.y)
+    },
+    .backgroundBufferConfig =
+    {
+      .colorFormat = DMA2D::InputColorFormat::RGB888,
+      .bufferDimension =
+      {
+        .width  = m_frameBuffer.getWidth(),
+        .height = m_frameBuffer.getHeight()
+      },
+      .bufferPtr = m_frameBuffer.getPointer()
+    },
+    .destinationRectanglePosition =
+    {
+      .x = static_cast<uint16_t>(m_rectangleBaseDescription.position.x),
+      .y = static_cast<uint16_t>(m_rectangleBaseDescription.position.y)
+    },
+    .destinationBufferConfig =
+    {
+      .colorFormat = DMA2D::OutputColorFormat::RGB888,
+      .bufferDimension =
+      {
+        .width  = m_frameBuffer.getWidth(),
+        .height = m_frameBuffer.getHeight()
+      },
+      .bufferPtr = m_frameBuffer.getPointer()
+    }
+  };
+
+  m_dma2d.blendBitmap(blendBitmapConfig);
 }
 
 void GUIImage::drawCPUFromBitmapRGB888ToFrameBufferRGB888(void)

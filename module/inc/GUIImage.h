@@ -61,6 +61,7 @@ private:
 
   void drawDMA2D(void);
   void drawDMA2DFromBitmapRGB888ToFrameBufferRGB888(void);
+  void drawDMA2DFromBitmapARGB8888ToFrameBufferRGB888(void);
 
   void drawCPU(void);
   void drawCPUFromBitmapRGB888ToFrameBufferRGB888(void);

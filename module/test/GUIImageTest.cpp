@@ -19,6 +19,7 @@ public:
   GUIImage::ImageDescription guiImageDescription;
 
   bool m_isDMA2DCopyBitmapConfigOk;
+  bool m_isDMA2DBlendBitmapConfigOk;
 
   static constexpr uint16_t TEST_RGB888_BITMAP_WIDTH  = 20u;
   static constexpr uint16_t TEST_RGB888_BITMAP_HEIGHT = 20u;
@@ -39,7 +40,9 @@ public:
     GUIImage &guiImage,
     const IFrameBuffer &frameBufferBeforeDrawing);
   void expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
+  void expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
   void assertThatDMA2DCopyBitmapConfigParamsWereOk(void);
+  void assertThatDMA2DBlendBitmapConfigParamsWereOk(void);
 
   void SetUp() override;
 };
@@ -57,7 +60,8 @@ void AGUIImage::SetUp()
     .y = 5
   };
 
-  m_isDMA2DCopyBitmapConfigOk = true;
+  m_isDMA2DCopyBitmapConfigOk  = true;
+  m_isDMA2DBlendBitmapConfigOk = true;
 
   initTestBitmaps();
   setDefaultFrameBufferColor(guiImageFrameBuffer);
@@ -179,24 +183,61 @@ void AGUIImage::expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams
   .Times(1u)
   .WillOnce([=](const DMA2D::CopyBitmapConfig &copyBitmapConfig) -> DMA2D::ErrorCode
   {
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.dimension.width == guiImage.getWidth());
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.dimension.height == guiImage.getHeight());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.dimension.width == guiImage.getWidth());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.dimension.height == guiImage.getHeight());
 
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceRectanglePosition.x == guiImage.getBitmapCopyPosition().x);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceRectanglePosition.y == guiImage.getBitmapCopyPosition().y);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceRectanglePosition.x == guiImage.getBitmapCopyPosition().x);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceRectanglePosition.y == guiImage.getBitmapCopyPosition().y);
 
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.colorFormat == DMA2D::InputColorFormat::RGB888);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferDimension.width == guiImage.getBitmapDimension().width);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferDimension.height == guiImage.getBitmapDimension().height);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.sourceBufferConfig.bufferPtr == guiImage.getBitmapPtr());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceBufferConfig.colorFormat == DMA2D::InputColorFormat::RGB888);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceBufferConfig.bufferDimension.width == guiImage.getBitmapDimension().width);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceBufferConfig.bufferDimension.height == guiImage.getBitmapDimension().height);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceBufferConfig.bufferPtr == guiImage.getBitmapPtr());
 
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationRectanglePosition.x == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationRectanglePosition.y == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationRectanglePosition.x == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationRectanglePosition.y == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y);
 
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferDimension.width == guiImage.getFrameBuffer().getWidth());
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferDimension.height == guiImage.getFrameBuffer().getHeight());
-    m_isDMA2DCopyBitmapConfigOk = (copyBitmapConfig.destinationBufferConfig.bufferPtr == guiImage.getFrameBuffer().getPointer());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationBufferConfig.bufferDimension.width == guiImage.getFrameBuffer().getWidth());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationBufferConfig.bufferDimension.height == guiImage.getFrameBuffer().getHeight());
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationBufferConfig.bufferPtr == guiImage.getFrameBuffer().getPointer());
+
+    return DMA2D::ErrorCode::OK;
+  });
+}
+
+void AGUIImage::expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage)
+{
+  EXPECT_CALL(dma2dMock, blendBitmap(_))
+  .Times(1u)
+  .WillOnce([=](const DMA2D::BlendBitmapConfig &blendBitmapConfig) -> DMA2D::ErrorCode
+  {
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.dimension.width == guiImage.getWidth());
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.dimension.height == guiImage.getHeight());
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundRectanglePosition.x == guiImage.getBitmapCopyPosition().x);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundRectanglePosition.y == guiImage.getBitmapCopyPosition().y);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundBufferConfig.colorFormat == DMA2D::InputColorFormat::ARGB8888);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundBufferConfig.bufferDimension.width == guiImage.getBitmapDimension().width);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundBufferConfig.bufferDimension.height == guiImage.getBitmapDimension().height);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundBufferConfig.bufferPtr == guiImage.getBitmapPtr());
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundRectanglePosition.x == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundRectanglePosition.y == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundBufferConfig.colorFormat == DMA2D::InputColorFormat::RGB888);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundBufferConfig.bufferDimension.width == guiImage.getFrameBuffer().getWidth());
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundBufferConfig.bufferDimension.height == guiImage.getFrameBuffer().getHeight());
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundBufferConfig.bufferPtr == guiImage.getFrameBuffer().getPointer());
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationRectanglePosition.x == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationRectanglePosition.y == guiImage.getPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationBufferConfig.bufferDimension.width == guiImage.getFrameBuffer().getWidth());
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationBufferConfig.bufferDimension.height == guiImage.getFrameBuffer().getHeight());
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationBufferConfig.bufferPtr == guiImage.getFrameBuffer().getPointer());
 
     return DMA2D::ErrorCode::OK;
   });
@@ -205,6 +246,11 @@ void AGUIImage::expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams
 void AGUIImage::assertThatDMA2DCopyBitmapConfigParamsWereOk(void)
 {
   ASSERT_THAT(m_isDMA2DCopyBitmapConfigOk, Eq(true));
+}
+
+void AGUIImage::assertThatDMA2DBlendBitmapConfigParamsWereOk(void)
+{
+  ASSERT_THAT(m_isDMA2DBlendBitmapConfigOk, Eq(true));
 }
 
 
@@ -380,4 +426,44 @@ TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithRGB888BitmapTriggersDMA2DCopyBit
   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
 
   assertThatDMA2DCopyBitmapConfigParamsWereOk();
+}
+
+TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithARGB8888BitmapTriggersDMA2DBlendBitmapOperationWithAppropriateConfigParams)
+{
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH / 2u,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT / 2u,
+    },
+    .position =
+    {
+      .x   = 10,
+      .y   = 10,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_ARGB8888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = TEST_ARGB8888_BITMAP_WIDTH / 2u,
+      .y   = TEST_ARGB8888_BITMAP_HEIGHT / 2u,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testARGB8888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(guiImage);
+
+  guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DBlendBitmapConfigParamsWereOk();
 }

@@ -396,8 +396,8 @@ void startup(void)
       },
       .position =
       {
-        .x   = 100,
-        .y   = 160,
+        .x   = 150,
+        .y   = 270,
         .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
       }
     },
@@ -662,13 +662,6 @@ void startup(void)
     }
   }
 
-/*
-  for (uint32_t i = 0u; i < g_frameBuffer.getSize(); ++i)
-  {
-    reinterpret_cast<uint8_t*>(g_frameBuffer.getPointer())[i] = rimacImageBitmap[i];
-  }
-*/
-
   dsiHost.startTransferFromLTDC();
 
   uint8_t message[2000];
@@ -791,10 +784,10 @@ void startup(void)
 
       guiRectangle2.moveToPosition(newPosition);
 
-      guiRectangle1.draw(IGUIObject::DrawHardware::CPU);
-      guiRectangle2.draw(IGUIObject::DrawHardware::DMA2D);
-      guiImage2.draw(IGUIObject::DrawHardware::CPU);
-      guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+      guiRectangle1.draw(IGUIObject::DrawHardware::DMA2D);
+      guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
+      guiImage2.draw(IGUIObject::DrawHardware::DMA2D);
+      guiImage.draw(IGUIObject::DrawHardware::CPU);
 
       dsiHost.startTransferFromLTDC();
 

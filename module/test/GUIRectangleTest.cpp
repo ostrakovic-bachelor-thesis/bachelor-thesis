@@ -124,24 +124,24 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigPara
     .Times(1u)
     .WillOnce([=](const DMA2D::FillRectangleConfig &fillRectangleConfig) -> DMA2D::ErrorCode
     {
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.color.alpha == 0u);
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.color.red   == guiRectangle.getColor().red);
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.color.green == guiRectangle.getColor().green);
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.color.blue  == guiRectangle.getColor().blue);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.alpha == 0u);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.red   == guiRectangle.getColor().red);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.green == guiRectangle.getColor().green);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.blue  == guiRectangle.getColor().blue);
 
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.width == guiRectangle.getWidth());
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.height == guiRectangle.getHeight());
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.dimension.width == guiRectangle.getWidth());
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.dimension.height == guiRectangle.getHeight());
 
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.position.x == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x);
-      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.position.y == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.position.x == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x);
+      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.position.y == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y);
 
-      m_isDMA2DFillRectangleConfigOk =
+      m_isDMA2DFillRectangleConfigOk &=
         (fillRectangleConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
-      m_isDMA2DFillRectangleConfigOk =
+      m_isDMA2DFillRectangleConfigOk &=
         (fillRectangleConfig.destinationBufferConfig.bufferDimension.width == guiRectangle.getFrameBuffer().getWidth());
-      m_isDMA2DFillRectangleConfigOk =
+      m_isDMA2DFillRectangleConfigOk &=
         (fillRectangleConfig.destinationBufferConfig.bufferDimension.height == guiRectangle.getFrameBuffer().getHeight());
-      m_isDMA2DFillRectangleConfigOk =
+      m_isDMA2DFillRectangleConfigOk &=
         (fillRectangleConfig.destinationBufferConfig.bufferPtr == guiRectangle.getFrameBuffer().getPointer());
 
       return DMA2D::ErrorCode::OK;
