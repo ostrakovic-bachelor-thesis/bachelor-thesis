@@ -367,7 +367,7 @@ void startup(void)
     {
       .dimension =
       {
-        .width  = 150u,
+        .width  = 200u,
         .height = 150u
       },
       .position =
@@ -768,7 +768,7 @@ void startup(void)
 
       ledState = !ledState;
 
-      if (x >= g_frameBuffer.getWidth() - 100)
+      if (x >= g_frameBuffer.getWidth())
       {
         direction = -1;
       }
@@ -777,17 +777,24 @@ void startup(void)
         direction = 1;
       }
 
-      x = x + direction * 10;
+      x = x + direction * 5;
 
       GUIRectangle::Position newPosition = guiRectangle2.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER);
       newPosition.x = x;
-
       guiRectangle2.moveToPosition(newPosition);
 
+      newPosition = guiImage2.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER);
+      newPosition.x = x;
+
+      guiImage2.moveToPosition(newPosition);
+
+      while (dma2d.isTransferOngoing());
       guiRectangle1.draw(IGUIObject::DrawHardware::DMA2D);
+      while (dma2d.isTransferOngoing());
       guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
-      guiImage2.draw(IGUIObject::DrawHardware::DMA2D);
       guiImage.draw(IGUIObject::DrawHardware::CPU);
+      guiImage2.draw(IGUIObject::DrawHardware::DMA2D);
+      while (dma2d.isTransferOngoing());
 
       dsiHost.startTransferFromLTDC();
 

@@ -82,6 +82,31 @@ void GUIRectangle::drawDMA2D(void)
   }
 }
 
+DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
+  const GUIRectangleBaseDescription &rectangleBaseDescription,
+  Color rectangleColor,
+  IFrameBuffer &frameBuffer)
+{
+  DMA2D::FillRectangleConfig fillRectangleConfig =
+  {
+    .color = mapToDMA2DColor(rectangleColor),
+    .dimension = mapToDMA2DDimension(getVisiblePartDimension()),
+    .position = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
+    .destinationBufferConfig =
+    {
+      .colorFormat     = mapToDMA2DOutputColorFormat(frameBuffer.getColorFormat()),
+      .bufferDimension =
+      {
+        .width  = frameBuffer.getWidth(),
+        .height = frameBuffer.getHeight(),
+      },
+      .bufferPtr = frameBuffer.getPointer(),
+    },
+  };
+
+  return fillRectangleConfig;
+}
+
 DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat)
 {
   switch (colorFormat)
@@ -104,37 +129,22 @@ DMA2D::Position GUIRectangle::mapToDMA2DPosition(Position position)
   };
 }
 
-DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
-  const GUIRectangleBaseDescription &rectangleBaseDescription,
-  Color rectangleColor,
-  IFrameBuffer &frameBuffer)
+DMA2D::Dimension GUIRectangle::mapToDMA2DDimension(Dimension dimension)
 {
-  DMA2D::FillRectangleConfig fillRectangleConfig =
+  return
   {
-    .color =
-    {
-      .alpha = 0u,
-      .red   = rectangleColor.red,
-      .green = rectangleColor.green,
-      .blue  = rectangleColor.blue,
-    },
-    .dimension =
-    {
-      .width  = getVisiblePartWidth(),
-      .height = getVisiblePartHeight()
-    },
-    .position = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
-    .destinationBufferConfig =
-    {
-      .colorFormat     = mapToDMA2DOutputColorFormat(frameBuffer.getColorFormat()),
-      .bufferDimension =
-      {
-        .width  = frameBuffer.getWidth(),
-        .height = frameBuffer.getHeight(),
-      },
-      .bufferPtr = frameBuffer.getPointer(),
-    },
+    .width  = dimension.width,
+    .height = dimension.height
   };
+}
 
-  return fillRectangleConfig;
+DMA2D::Color GUIRectangle::mapToDMA2DColor(Color color)
+{
+  return
+  {
+    .alpha = 0u,
+    .red   = color.red,
+    .green = color.green,
+    .blue  = color.blue
+  };
 }

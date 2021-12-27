@@ -54,6 +54,8 @@ public:
 
   uint16_t getVisiblePartHeight(void) const;
 
+  Dimension getVisiblePartDimension(void) const;
+
   Position getVisiblePartPosition(Position::Tag positionTag) const;
 
 protected:

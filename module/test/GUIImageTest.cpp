@@ -41,6 +41,8 @@ public:
     const IFrameBuffer &frameBufferBeforeDrawing);
   void expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
   void expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
+  void expectThatDMA2DCopyBitmapWillDisplayOnlyVisiblePartOfGUIImage(GUIImage &guiImage);
+  void expectThatDMA2DBlendBitmapWillDisplayOnlyVisiblePartOfGUIImage(GUIImage &guiImage);
   void assertThatDMA2DCopyBitmapConfigParamsWereOk(void);
   void assertThatDMA2DBlendBitmapConfigParamsWereOk(void);
 
@@ -243,6 +245,61 @@ void AGUIImage::expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParam
   });
 }
 
+void AGUIImage::expectThatDMA2DCopyBitmapWillDisplayOnlyVisiblePartOfGUIImage(GUIImage &guiImage)
+{
+  EXPECT_CALL(dma2dMock, copyBitmap(_))
+  .Times(1u)
+  .WillOnce([=](const DMA2D::CopyBitmapConfig &copyBitmapConfig) -> DMA2D::ErrorCode
+  {
+    const uint16_t expectedWidth  = guiImage.getVisiblePartWidth();
+    const uint16_t expectedHeight = guiImage.getVisiblePartHeight();
+    const int16_t expectedFbuffXPos = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x;
+    const int16_t expectedFbuffYPos = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y;
+    const int16_t expectedBitmapXPos = guiImage.getBitmapVisiblePartCopyPosition().x;
+    const int16_t expectedBitmapYPos = guiImage.getBitmapVisiblePartCopyPosition().y;
+
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.dimension.width == expectedWidth);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.dimension.height == expectedHeight);
+
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceRectanglePosition.x == expectedBitmapXPos);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.sourceRectanglePosition.y == expectedBitmapYPos);
+
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationRectanglePosition.x == expectedFbuffXPos);
+    m_isDMA2DCopyBitmapConfigOk &= (copyBitmapConfig.destinationRectanglePosition.y == expectedFbuffYPos);
+
+    return DMA2D::ErrorCode::OK;
+  });
+}
+
+void AGUIImage::expectThatDMA2DBlendBitmapWillDisplayOnlyVisiblePartOfGUIImage(GUIImage &guiImage)
+{
+  EXPECT_CALL(dma2dMock, blendBitmap(_))
+  .Times(1u)
+  .WillOnce([=](const DMA2D::BlendBitmapConfig &blendBitmapConfig) -> DMA2D::ErrorCode
+  {
+    const uint16_t expectedWidth  = guiImage.getVisiblePartWidth();
+    const uint16_t expectedHeight = guiImage.getVisiblePartHeight();
+    const int16_t expectedFbuffXPos = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x;
+    const int16_t expectedFbuffYPos = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).y;
+    const int16_t expectedBitmapXPos = guiImage.getBitmapVisiblePartCopyPosition().x;
+    const int16_t expectedBitmapYPos = guiImage.getBitmapVisiblePartCopyPosition().y;
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.dimension.width == expectedWidth);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.dimension.height == expectedHeight);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundRectanglePosition.x == expectedBitmapXPos);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.foregroundRectanglePosition.y == expectedBitmapYPos);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundRectanglePosition.x == expectedFbuffXPos);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.backgroundRectanglePosition.y == expectedFbuffYPos);
+
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationRectanglePosition.x == expectedFbuffXPos);
+    m_isDMA2DBlendBitmapConfigOk &= (blendBitmapConfig.destinationRectanglePosition.y == expectedFbuffYPos);
+
+    return DMA2D::ErrorCode::OK;
+  });
+}
+
 void AGUIImage::assertThatDMA2DCopyBitmapConfigParamsWereOk(void)
 {
   ASSERT_THAT(m_isDMA2DCopyBitmapConfigOk, Eq(true));
@@ -306,6 +363,124 @@ TEST_F(AGUIImage, GetBitmapCopyPositionReturnsBitmapCopyPositionSpecifiedAtTheIn
   guiImage.init(guiImageDescription);
 
   ASSERT_THAT(guiImage.getBitmapCopyPosition(), Eq(EXPECTED_GUI_IMAGE_BITMAP_COPY_POSITION));
+}
+
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsBitmapCopyPositionSpecifiedAtTheInitIfImageIsNotOutOfTheScreenAlongXAxis)
+{
+  constexpr GUIImage::Position EXPECTED_GUI_IMAGE_BITMAP_VISIBLE_PART_COPY_POSITION =
+  {
+    .x   = 10u,
+    .y   = 20u,
+    .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.baseDescription.position =
+  {
+    .x   = 10,
+    .y   = 10,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.bitmapDescription.copyPosition = EXPECTED_GUI_IMAGE_BITMAP_VISIBLE_PART_COPY_POSITION;
+  guiImage.init(guiImageDescription);
+
+  ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition(), Eq(EXPECTED_GUI_IMAGE_BITMAP_VISIBLE_PART_COPY_POSITION));
+}
+
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyXAxisPositionWhenImageIsPartiallyOutOfScreenFromLeftSide)
+{
+  constexpr int16_t GUI_IMAGE_XPOS = -10;
+  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_XPOS = 10;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS =
+    static_cast<uint16_t>(GUI_IMAGE_BITMAP_COPY_POSITION_XPOS - GUI_IMAGE_XPOS);
+  guiImageDescription.baseDescription.position =
+  {
+    .x   = GUI_IMAGE_XPOS,
+    .y   = 10,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.bitmapDescription.copyPosition =
+  {
+    .x   = GUI_IMAGE_BITMAP_COPY_POSITION_XPOS,
+    .y   = 5,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+
+  guiImage.init(guiImageDescription);
+
+  ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().x, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS));
+}
+
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsXAxisPositionEqualsToBitmapWidthWhenImageIsCompleatelyOutOfScreenFromLeftSide)
+{
+  constexpr int16_t GUI_IMAGE_XPOS = -500;
+  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_XPOS = 10;
+  constexpr uint16_t GUI_IMAGE_BITMAP_WIDTH = 20u;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS = GUI_IMAGE_BITMAP_WIDTH;
+  guiImageDescription.baseDescription.position =
+  {
+    .x   = GUI_IMAGE_XPOS,
+    .y   = 5,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.bitmapDescription.copyPosition =
+  {
+    .x   = GUI_IMAGE_BITMAP_COPY_POSITION_XPOS,
+    .y   = 15,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+   guiImageDescription.bitmapDescription.dimension.width = GUI_IMAGE_BITMAP_WIDTH;
+
+  guiImage.init(guiImageDescription);
+
+  ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().x, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS));
+}
+
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyYAxisPositionWhenImageIsPartiallyOutOfScreenFromAbove)
+{
+  constexpr int16_t GUI_IMAGE_YPOS = -10;
+  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_YPOS = 20;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS =
+    static_cast<uint16_t>(GUI_IMAGE_BITMAP_COPY_POSITION_YPOS - GUI_IMAGE_YPOS);
+  guiImageDescription.baseDescription.position =
+  {
+    .x   = 15,
+    .y   = GUI_IMAGE_YPOS,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.bitmapDescription.copyPosition =
+  {
+    .x   = 5,
+    .y   = GUI_IMAGE_BITMAP_COPY_POSITION_YPOS,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+
+  guiImage.init(guiImageDescription);
+
+  ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().y, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS));
+}
+
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsYAxisPositionEqualsToBitmapHeightWhenImageIsCompleatelyOutOfScreenFromAbove)
+{
+  constexpr int16_t GUI_IMAGE_YPOS = -500;
+  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_YPOS = 10;
+  constexpr uint16_t GUI_IMAGE_BITMAP_HEIGHT = 30u;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS = GUI_IMAGE_BITMAP_HEIGHT;
+  guiImageDescription.baseDescription.position =
+  {
+    .x   = 15,
+    .y   = GUI_IMAGE_YPOS,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.bitmapDescription.copyPosition =
+  {
+    .x   = 0,
+    .y   = GUI_IMAGE_BITMAP_COPY_POSITION_YPOS,
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+   guiImageDescription.bitmapDescription.dimension.height = GUI_IMAGE_BITMAP_HEIGHT;
+
+  guiImage.init(guiImageDescription);
+
+  ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().y, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS));
 }
 
 TEST_F(AGUIImage, DrawWithCPUDrawsRGB888BitmapOnAssociatedRGB888FrameBuffer)
@@ -464,6 +639,86 @@ TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithARGB8888BitmapTriggersDMA2DBlend
   expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(guiImage);
 
   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DBlendBitmapConfigParamsWereOk();
+}
+
+TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithRGB888BitmapDisplaysOnlyVisiblePartOfImageIfItIsPartiallyOutOfTheScreen)
+{
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH - 2u,
+      .height = TEST_RGB888_BITMAP_HEIGHT - 3u,
+    },
+    .position =
+    {
+      .x   = -10,
+      .y   = 40,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_RGB888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH,
+      .height = TEST_RGB888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = 2,
+      .y   = 3,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  expectThatDMA2DCopyBitmapWillDisplayOnlyVisiblePartOfGUIImage(guiImage);
+
+   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DCopyBitmapConfigParamsWereOk();
+}
+
+TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithARGB8888BitmapDisplaysOnlyVisiblePartOfImageIfItIsPartiallyOutOfTheScreen)
+{
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH - 3u,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT - 2u,
+    },
+    .position =
+    {
+      .x   = -5,
+      .y   = 45,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_ARGB8888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_ARGB8888_BITMAP_WIDTH,
+      .height = TEST_ARGB8888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = 3,
+      .y   = 2,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testARGB8888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  expectThatDMA2DBlendBitmapWillDisplayOnlyVisiblePartOfGUIImage(guiImage);
+
+   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
 
   assertThatDMA2DBlendBitmapConfigParamsWereOk();
 }

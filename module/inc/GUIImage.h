@@ -52,6 +52,8 @@ public:
     return m_bitmapDescription.copyPosition;
   }
 
+  Position getBitmapVisiblePartCopyPosition(void) const;
+
   const void* getBitmapPtr(void) const
   {
     return m_bitmapDescription.bitmapPtr;
@@ -68,6 +70,9 @@ private:
   void drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void);
 
   bool isFrameBufferColorFormatSupported(void) const;
+
+  static DMA2D::Position mapToDMA2DPosition(Position position);
+  static DMA2D::Dimension mapToDMA2DDimension(Dimension dimension);
 
   BitmapDescription m_bitmapDescription;
 

@@ -96,6 +96,15 @@ uint16_t GUIRectangleBase::getVisiblePartHeight(void) const
   return static_cast<uint16_t>(visiblePartHeight);
 }
 
+GUIRectangleBase::Dimension GUIRectangleBase::getVisiblePartDimension(void) const
+{
+  return
+  {
+    .width  = getVisiblePartWidth(),
+    .height = getVisiblePartHeight()
+  };
+}
+
 GUIRectangleBase::Position GUIRectangleBase::getVisiblePartPosition(Position::Tag positionTag) const
 {
   Position position = getPosition(positionTag);

@@ -19,6 +19,34 @@ GUIImage::ErrorCode GUIImage::init(const ImageDescription &imageDescription)
   return ErrorCode::OK;
 }
 
+GUIImage::Position GUIImage::getBitmapVisiblePartCopyPosition(void) const
+{
+  const Position topLeftCornerPosition = getPosition(Position::Tag::TOP_LEFT_CORNER);
+  Position visiblePartCopyPosition = m_bitmapDescription.copyPosition;
+
+  if (0 > topLeftCornerPosition.x)
+  {
+    visiblePartCopyPosition.x -= topLeftCornerPosition.x;
+  }
+
+  if (0 > topLeftCornerPosition.y)
+  {
+    visiblePartCopyPosition.y -= topLeftCornerPosition.y;
+  }
+
+  visiblePartCopyPosition.x = saturateValue(
+    visiblePartCopyPosition.x,
+    m_bitmapDescription.copyPosition.x,
+    static_cast<int16_t>(m_bitmapDescription.dimension.width));
+
+  visiblePartCopyPosition.y = saturateValue(
+    visiblePartCopyPosition.y,
+    m_bitmapDescription.copyPosition.y,
+    static_cast<int16_t>(m_bitmapDescription.dimension.height));
+
+  return visiblePartCopyPosition;
+}
+
 void GUIImage::draw(DrawHardware drawHardware)
 {
   switch (drawHardware)
@@ -74,31 +102,15 @@ void GUIImage::drawDMA2DFromBitmapRGB888ToFrameBufferRGB888(void)
 {
   DMA2D::CopyBitmapConfig copyBitmapConfig =
   {
-    .dimension =
-    {
-      .width  = m_rectangleBaseDescription.dimension.width,
-      .height = m_rectangleBaseDescription.dimension.height
-    },
-    .sourceRectanglePosition =
-    {
-      .x = static_cast<uint16_t>(m_bitmapDescription.copyPosition.x),
-      .y = static_cast<uint16_t>(m_bitmapDescription.copyPosition.y)
-    },
+    .dimension = mapToDMA2DDimension(getVisiblePartDimension()),
+    .sourceRectanglePosition = mapToDMA2DPosition(getBitmapVisiblePartCopyPosition()),
     .sourceBufferConfig =
     {
-      .colorFormat = DMA2D::InputColorFormat::RGB888,
-      .bufferDimension =
-      {
-        .width  = m_bitmapDescription.dimension.width,
-        .height = m_bitmapDescription.dimension.height
-      },
-      .bufferPtr = m_bitmapDescription.bitmapPtr
+      .colorFormat     = DMA2D::InputColorFormat::RGB888,
+      .bufferDimension = mapToDMA2DDimension(m_bitmapDescription.dimension),
+      .bufferPtr       = m_bitmapDescription.bitmapPtr
     },
-    .destinationRectanglePosition =
-    {
-      .x = static_cast<uint16_t>(m_rectangleBaseDescription.position.x),
-      .y = static_cast<uint16_t>(m_rectangleBaseDescription.position.y)
-    },
+    .destinationRectanglePosition = mapToDMA2DPosition(getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
       .colorFormat = DMA2D::OutputColorFormat::RGB888,
@@ -118,31 +130,15 @@ void GUIImage::drawDMA2DFromBitmapARGB8888ToFrameBufferRGB888(void)
 {
   DMA2D::BlendBitmapConfig blendBitmapConfig =
   {
-    .dimension =
-    {
-      .width  = m_rectangleBaseDescription.dimension.width,
-      .height = m_rectangleBaseDescription.dimension.height
-    },
-    .foregroundRectanglePosition =
-    {
-      .x = static_cast<uint16_t>(m_bitmapDescription.copyPosition.x),
-      .y = static_cast<uint16_t>(m_bitmapDescription.copyPosition.y)
-    },
+    .dimension = mapToDMA2DDimension(getVisiblePartDimension()),
+    .foregroundRectanglePosition = mapToDMA2DPosition(getBitmapVisiblePartCopyPosition()),
     .foregroundBufferConfig =
     {
-      .colorFormat = DMA2D::InputColorFormat::ARGB8888,
-      .bufferDimension =
-      {
-        .width  = m_bitmapDescription.dimension.width,
-        .height = m_bitmapDescription.dimension.height
-      },
-      .bufferPtr = m_bitmapDescription.bitmapPtr
+      .colorFormat     = DMA2D::InputColorFormat::ARGB8888,
+      .bufferDimension = mapToDMA2DDimension(m_bitmapDescription.dimension),
+      .bufferPtr       = m_bitmapDescription.bitmapPtr
     },
-    .backgroundRectanglePosition =
-    {
-      .x = static_cast<uint16_t>(m_rectangleBaseDescription.position.x),
-      .y = static_cast<uint16_t>(m_rectangleBaseDescription.position.y)
-    },
+    .backgroundRectanglePosition = mapToDMA2DPosition(getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER)),
     .backgroundBufferConfig =
     {
       .colorFormat = DMA2D::InputColorFormat::RGB888,
@@ -153,11 +149,7 @@ void GUIImage::drawDMA2DFromBitmapARGB8888ToFrameBufferRGB888(void)
       },
       .bufferPtr = m_frameBuffer.getPointer()
     },
-    .destinationRectanglePosition =
-    {
-      .x = static_cast<uint16_t>(m_rectangleBaseDescription.position.x),
-      .y = static_cast<uint16_t>(m_rectangleBaseDescription.position.y)
-    },
+    .destinationRectanglePosition = mapToDMA2DPosition(getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
       .colorFormat = DMA2D::OutputColorFormat::RGB888,
@@ -245,4 +237,22 @@ void GUIImage::drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void)
 inline bool GUIImage::isFrameBufferColorFormatSupported(void) const
 {
   return (IFrameBuffer::ColorFormat::RGB888 == m_frameBuffer.getColorFormat());
+}
+
+DMA2D::Position GUIImage::mapToDMA2DPosition(Position position)
+{
+  return
+  {
+    .x = static_cast<uint16_t>(position.x),
+    .y = static_cast<uint16_t>(position.y)
+  };
+}
+
+DMA2D::Dimension GUIImage::mapToDMA2DDimension(Dimension dimension)
+{
+  return
+  {
+    .width  = dimension.width,
+    .height = dimension.height
+  };
 }

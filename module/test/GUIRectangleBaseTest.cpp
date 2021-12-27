@@ -505,6 +505,23 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsZeroWhenGUIRectangleIsOutOf
   ASSERT_THAT(guiRectangleBase.getVisiblePartHeight(), Eq(EXPECTED_VISIBLE_PART_HEIGHT));
 }
 
+TEST_F(AGUIRectangleBase, GetVisiblePartDimensionReturnsWidthAndHeightOfVisiblePartPackedInDimensionStructure)
+{
+  constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH  = 40u;
+  constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 40u;
+  guiRectangleBaseDescription.position =
+  {
+    .x   = -static_cast<int16_t>(GUI_RECTANGLE_BASE_WIDTH / 2u),
+    .y   = static_cast<int16_t>(guiRectangleFrameBuffer.getHeight() - (GUI_RECTANGLE_BASE_HEIGHT / 2u)),
+    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+
+  ASSERT_THAT(guiRectangleBase.getVisiblePartDimension().width, Eq(guiRectangleBase.getVisiblePartWidth()));
+  ASSERT_THAT(guiRectangleBase.getVisiblePartDimension().height, Eq(guiRectangleBase.getVisiblePartHeight()));
+}
+
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsThatPositionIfPixelIsVisibleInTheFrameBuffer)
 {
   constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =

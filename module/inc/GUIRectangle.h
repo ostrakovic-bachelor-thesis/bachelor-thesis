@@ -41,14 +41,15 @@ private:
   void drawCPU(void);
   void drawDMA2D(void);
 
-  static DMA2D::OutputColorFormat mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat);
-
-  static DMA2D::Position mapToDMA2DPosition(Position position);
-
   DMA2D::FillRectangleConfig buildFillRectangleConfig(
     const GUIRectangleBaseDescription &rectangleBaseDescription,
     Color rectangleColor,
     IFrameBuffer &frameBuffer);
+
+  static DMA2D::OutputColorFormat mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat);
+  static DMA2D::Position mapToDMA2DPosition(Position position);
+  static DMA2D::Dimension mapToDMA2DDimension(Dimension dimension);
+  static DMA2D::Color mapToDMA2DColor(Color color);
 
   Color m_color;
 
