@@ -14,7 +14,6 @@ class AGUIImage : public Test
 public:
   DMA2DMock dma2dMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiImageFrameBuffer;
-  FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiImageFrameBufferBeforeDrawing;
   GUIImage guiImage = GUIImage(dma2dMock, guiImageFrameBuffer);
   GUIImage::ImageDescription guiImageDescription;
 
@@ -39,14 +38,8 @@ public:
 
   void initTestBitmaps(void);
   void setDefaultFrameBufferColor(IFrameBuffer &frameBuffer);
-  void assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
-  void assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
-    GUIImage &guiImage,
-    const IFrameBuffer &frameBufferBeforeDrawing);
-  void assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChanged(GUIImage &guiImage);
-  void assertThatGUIImageWithARGB8888BitmapIsCorrectlyDrawnOntoFrameBufferWithRGB888ColorFormat(
-    GUIImage &guiImage,
-    const IFrameBuffer &frameBufferBeforeDrawing);
+  void assertThatGUIImageWithRGB888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
+  void assertThatGUIImageWithARGB8888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
   void assertThatStateOfFrameBufferIsNotChanged(const GUIImage &guiImage);
   void expectThatDMA2DCopyBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
   void expectThatDMA2DBlendBitmapWillBeCalledWithAppropriateConfigParams(GUIImage &guiImage);
@@ -57,6 +50,11 @@ public:
   void expectThatNoDMA2DOperationWillBeCalled(void);
 
   void SetUp() override;
+
+private:
+  void assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
+  void assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage);
+  void assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChanged(GUIImage &guiImage);
 };
 
 void AGUIImage::SetUp()
@@ -81,7 +79,6 @@ void AGUIImage::SetUp()
 
   initTestBitmaps();
   setDefaultFrameBufferColor(guiImageFrameBuffer);
-  setDefaultFrameBufferColor(guiImageFrameBufferBeforeDrawing);
 }
 
 void AGUIImage::initTestBitmaps(void)
@@ -120,6 +117,12 @@ void AGUIImage::setDefaultFrameBufferColor(IFrameBuffer &frameBuffer)
   }
 }
 
+void AGUIImage::assertThatGUIImageWithRGB888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage)
+{
+  assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage);
+  assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChanged(guiImage);
+}
+
 void AGUIImage::assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage)
 {
   constexpr uint8_t PIXEL_SIZE = 3u;
@@ -152,14 +155,17 @@ void AGUIImage::assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB8
   }
 }
 
-void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
-  GUIImage &guiImage,
-  const IFrameBuffer &frameBufferBeforeDrawing)
+void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage)
+{
+  assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage);
+  assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChanged(guiImage);
+}
+
+void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(GUIImage &guiImage)
 {
   constexpr uint8_t FRAME_BUFFER_PIXEL_SIZE = 3u;
   constexpr uint8_t BITMAP_PIXEL_SIZE       = 4u;
 
-  const uint8_t *frameBufferBeforeDrawingPtr = reinterpret_cast<const uint8_t*>(frameBufferBeforeDrawing.getPointer());
   const uint8_t *frameBufferPtr   = reinterpret_cast<uint8_t*>(guiImage.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiImage.getFrameBuffer().getWidth();
   const uint16_t frameBufferColumnStart = guiImage.getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER).x;
@@ -182,9 +188,10 @@ void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRG
       uint32_t bitmapPixelIndex = BITMAP_PIXEL_SIZE * (bitmapRow * bitmapWidth + bitmapColumn);
 
       const uint32_t alpha = bitmapPtr[bitmapPixelIndex + 3];
-      const uint8_t expectedRedColor   = (alpha * bitmapPtr[bitmapPixelIndex + 2] + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex + 2]) / 255u;
-      const uint8_t expectedGreenColor = (alpha * bitmapPtr[bitmapPixelIndex + 1] + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex + 1]) / 255u;
-      const uint8_t expectedBlueColor  = (alpha * bitmapPtr[bitmapPixelIndex]     + (255u - alpha) * frameBufferBeforeDrawingPtr[frameBufferPixelIndex])     / 255u;
+
+      const uint8_t expectedRedColor   = (alpha * bitmapPtr[bitmapPixelIndex + 2] + (255u - alpha) * m_initFameBufferColorRed)   / 255u;
+      const uint8_t expectedGreenColor = (alpha * bitmapPtr[bitmapPixelIndex + 1] + (255u - alpha) * m_initFameBufferColorGreen) / 255u;
+      const uint8_t expectedBlueColor  = (alpha * bitmapPtr[bitmapPixelIndex]     + (255u - alpha) * m_initFameBufferColorBlue)  / 255u;
 
       ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex],     expectedBlueColor);
       ASSERT_THAT(frameBufferPtr[frameBufferPixelIndex + 1], expectedGreenColor);
@@ -220,14 +227,6 @@ void AGUIImage::assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChang
       }
     }
   }
-}
-
-void AGUIImage::assertThatGUIImageWithARGB8888BitmapIsCorrectlyDrawnOntoFrameBufferWithRGB888ColorFormat(
-  GUIImage &guiImage,
-  const IFrameBuffer &frameBufferBeforeDrawing)
-{
-  assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage, frameBufferBeforeDrawing);
-  assertThatPixelsInFrameBufferOutsideGUIImageDrawnAreaAreNotChanged(guiImage);
 }
 
 void AGUIImage::assertThatStateOfFrameBufferIsNotChanged(const GUIImage &guiImage)
@@ -464,9 +463,9 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsBitmapCopyPositionSpeci
 TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyXAxisPositionWhenImageIsPartiallyOutOfScreenFromLeftSide)
 {
   constexpr int16_t GUI_IMAGE_XPOS = -10;
-  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_XPOS = 10;
+  constexpr int16_t BITMAP_COPY_POSITION_XPOS = 10;
   constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS =
-    static_cast<uint16_t>(GUI_IMAGE_BITMAP_COPY_POSITION_XPOS - GUI_IMAGE_XPOS);
+    static_cast<uint16_t>(BITMAP_COPY_POSITION_XPOS - GUI_IMAGE_XPOS);
   guiImageDescription.baseDescription.position =
   {
     .x   = GUI_IMAGE_XPOS,
@@ -475,7 +474,7 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyXAxisPositionW
   };
   guiImageDescription.bitmapDescription.copyPosition =
   {
-    .x   = GUI_IMAGE_BITMAP_COPY_POSITION_XPOS,
+    .x   = BITMAP_COPY_POSITION_XPOS,
     .y   = 5,
     .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
   };
@@ -485,12 +484,12 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyXAxisPositionW
   ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().x, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS));
 }
 
-TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsXAxisPositionEqualsToBitmapWidthWhenImageIsCompleatelyOutOfScreenFromLeftSide)
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsXAxisPositionEqualsToBitmapWidthWhenImageIsCompletelyOutOfScreenFromLeftSide)
 {
   constexpr int16_t GUI_IMAGE_XPOS = -500;
-  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_XPOS = 10;
-  constexpr uint16_t GUI_IMAGE_BITMAP_WIDTH = 20u;
-  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS = GUI_IMAGE_BITMAP_WIDTH;
+  constexpr int16_t BITMAP_COPY_POSITION_XPOS = 10;
+  constexpr uint16_t BITMAP_WIDTH = 20u;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_XPOS = BITMAP_WIDTH;
   guiImageDescription.baseDescription.position =
   {
     .x   = GUI_IMAGE_XPOS,
@@ -499,11 +498,11 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsXAxisPositionEqualsToBi
   };
   guiImageDescription.bitmapDescription.copyPosition =
   {
-    .x   = GUI_IMAGE_BITMAP_COPY_POSITION_XPOS,
+    .x   = BITMAP_COPY_POSITION_XPOS,
     .y   = 15,
     .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
   };
-   guiImageDescription.bitmapDescription.dimension.width = GUI_IMAGE_BITMAP_WIDTH;
+   guiImageDescription.bitmapDescription.dimension.width = BITMAP_WIDTH;
 
   guiImage.init(guiImageDescription);
 
@@ -513,9 +512,9 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsXAxisPositionEqualsToBi
 TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyYAxisPositionWhenImageIsPartiallyOutOfScreenFromAbove)
 {
   constexpr int16_t GUI_IMAGE_YPOS = -10;
-  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_YPOS = 20;
+  constexpr int16_t BITMAP_COPY_POSITION_YPOS = 20;
   constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS =
-    static_cast<uint16_t>(GUI_IMAGE_BITMAP_COPY_POSITION_YPOS - GUI_IMAGE_YPOS);
+    static_cast<uint16_t>(BITMAP_COPY_POSITION_YPOS - GUI_IMAGE_YPOS);
   guiImageDescription.baseDescription.position =
   {
     .x   = 15,
@@ -525,7 +524,7 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyYAxisPositionW
   guiImageDescription.bitmapDescription.copyPosition =
   {
     .x   = 5,
-    .y   = GUI_IMAGE_BITMAP_COPY_POSITION_YPOS,
+    .y   = BITMAP_COPY_POSITION_YPOS,
     .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
   };
 
@@ -534,12 +533,12 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsCorrectlyYAxisPositionW
   ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().y, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS));
 }
 
-TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsYAxisPositionEqualsToBitmapHeightWhenImageIsCompleatelyOutOfScreenFromAbove)
+TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsYAxisPositionEqualsToBitmapHeightWhenImageIsCompletelyOutOfScreenFromAbove)
 {
   constexpr int16_t GUI_IMAGE_YPOS = -500;
-  constexpr int16_t GUI_IMAGE_BITMAP_COPY_POSITION_YPOS = 10;
-  constexpr uint16_t GUI_IMAGE_BITMAP_HEIGHT = 30u;
-  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS = GUI_IMAGE_BITMAP_HEIGHT;
+  constexpr int16_t BITMAP_COPY_POSITION_YPOS = 10;
+  constexpr uint16_t BITMAP_HEIGHT = 30u;
+  constexpr uint16_t EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS = BITMAP_HEIGHT;
   guiImageDescription.baseDescription.position =
   {
     .x   = 15,
@@ -549,17 +548,17 @@ TEST_F(AGUIImage, GetBitmapVisiblePartCopyPositionReturnsYAxisPositionEqualsToBi
   guiImageDescription.bitmapDescription.copyPosition =
   {
     .x   = 0,
-    .y   = GUI_IMAGE_BITMAP_COPY_POSITION_YPOS,
+    .y   = BITMAP_COPY_POSITION_YPOS,
     .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
   };
-   guiImageDescription.bitmapDescription.dimension.height = GUI_IMAGE_BITMAP_HEIGHT;
+   guiImageDescription.bitmapDescription.dimension.height = BITMAP_HEIGHT;
 
   guiImage.init(guiImageDescription);
 
   ASSERT_THAT(guiImage.getBitmapVisiblePartCopyPosition().y, Eq(EXPECTED_BITMAP_VISIBLE_PART_COPY_POSITION_YPOS));
 }
 
-TEST_F(AGUIImage, DrawWithCPUDrawsRGB888BitmapOnAssociatedRGB888FrameBuffer)
+TEST_F(AGUIImage, DrawWithCPUDrawsRGB888BitmapOntoAssociatedRGB888FrameBufferCorrectly)
 {
   guiImageDescription.baseDescription =
   {
@@ -595,10 +594,10 @@ TEST_F(AGUIImage, DrawWithCPUDrawsRGB888BitmapOnAssociatedRGB888FrameBuffer)
 
   guiImage.draw(IGUIObject::DrawHardware::CPU);
 
-  assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage);
+  assertThatGUIImageWithRGB888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(guiImage);
 }
 
-TEST_F(AGUIImage, DrawWithCPUDrawsARGB8888BitmapOnAssociatedRGB888FrameBuffer)
+TEST_F(AGUIImage, DrawWithCPUDrawsARGB8888BitmapOntoAssociatedRGB888FrameBufferCorrectly)
 {
   guiImageDescription.baseDescription =
   {
@@ -634,9 +633,7 @@ TEST_F(AGUIImage, DrawWithCPUDrawsARGB8888BitmapOnAssociatedRGB888FrameBuffer)
 
   guiImage.draw(IGUIObject::DrawHardware::CPU);
 
-  assertThatGUIImageWithARGB8888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(
-    guiImage,
-    guiImageFrameBufferBeforeDrawing);
+  assertThatGUIImageWithARGB8888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(guiImage);
 }
 
 TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithRGB888BitmapTriggersDMA2DCopyBitmapOperationWithAppropriateConfigParams)
@@ -841,12 +838,12 @@ TEST_F(AGUIImage, DrawWithDMA2DCalledAfterImageIsMovedToBePartiallyOutOfTheScree
   guiImage.moveToPosition(NEW_GUI_IMAGE_POSITION);
   expectThatDMA2DCopyBitmapWillDisplayOnlyVisiblePartOfGUIImage(guiImage);
 
-   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+  guiImage.draw(IGUIObject::DrawHardware::DMA2D);
 
   assertThatDMA2DCopyBitmapConfigParamsWereOk();
 }
 
-TEST_F(AGUIImage, DrawWithCPUCalledOnImageWithRGB888BitmapDisplaysOnlyVisiblePartOfImageIfItIsPartiallyOutOfTheScreen)
+TEST_F(AGUIImage, DrawWithCPUCalledOnImageWithRGB888BitmapDrawsOnlyVisiblePixelsIfImageIsPartiallyOutOfTheScreen)
 {
   guiImageDescription.baseDescription =
   {
@@ -882,7 +879,7 @@ TEST_F(AGUIImage, DrawWithCPUCalledOnImageWithRGB888BitmapDisplaysOnlyVisiblePar
 
   guiImage.draw(IGUIObject::DrawHardware::CPU);
 
-  assertThatGUIImageWithRGB888BitmapIsDrawnOntoFrameBufferWithRGB888ColorFormat(guiImage);
+  assertThatGUIImageWithRGB888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(guiImage);
 }
 
 TEST_F(AGUIImage, DrawWithCPUCalledOnImageWithARGB8888BitmapDisplaysOnlyVisiblePartOfImageIfItIsPartiallyOutOfTheScreen)
@@ -921,9 +918,53 @@ TEST_F(AGUIImage, DrawWithCPUCalledOnImageWithARGB8888BitmapDisplaysOnlyVisibleP
 
   guiImage.draw(IGUIObject::DrawHardware::CPU);
 
-  assertThatGUIImageWithARGB8888BitmapIsCorrectlyDrawnOntoFrameBufferWithRGB888ColorFormat(
-    guiImage,
-    guiImageFrameBufferBeforeDrawing);
+  assertThatGUIImageWithARGB8888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(guiImage);
+}
+
+TEST_F(AGUIImage, DrawWithCPUCalledAfterImageIsMovedToBePartiallyOutOfTheScreenProducesSameResultAsIfThePositionIsGivenAtInit)
+{
+  constexpr GUIImage::Position NEW_GUI_IMAGE_POSITION =
+  {
+    .x   = 40,
+    .y   = 40,
+    .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH - 2u,
+      .height = TEST_RGB888_BITMAP_HEIGHT - 3u,
+    },
+    .position =
+    {
+      .x   = 10,
+      .y   = 10,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_RGB888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH,
+      .height = TEST_RGB888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = 2,
+      .y   = 3,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  guiImage.moveToPosition(NEW_GUI_IMAGE_POSITION);
+
+  guiImage.draw(IGUIObject::DrawHardware::CPU);
+
+  assertThatGUIImageWithRGB888BitmapIsDrawnCorrectlyOntoFrameBufferWithRGB888ColorFormat(guiImage);
 }
 
 TEST_F(AGUIImage, DrawWithCPUDoesNotChangeStateOfFrameBufferIfGUIImageIsCompletelyOutOfTheScreen)
