@@ -72,6 +72,7 @@ private:
   void drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void);
 
   bool isFrameBufferColorFormatSupported(void) const;
+  bool isImageVisibleOnTheScreen(void) const;
 
   void buildCopyBitmapConfig(void);
   void buildBlendBitmapConfig(void);

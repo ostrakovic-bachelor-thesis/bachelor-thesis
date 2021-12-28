@@ -69,16 +69,19 @@ GUIImage::Position GUIImage::getBitmapVisiblePartCopyPosition(void) const
 
 void GUIImage::draw(DrawHardware drawHardware)
 {
-  switch (drawHardware)
+  if (isImageVisibleOnTheScreen())
   {
-    case DrawHardware::DMA2D:
-      drawDMA2D();
-      break;
+    switch (drawHardware)
+    {
+      case DrawHardware::DMA2D:
+        drawDMA2D();
+        break;
 
-    case DrawHardware::CPU:
-    default:
-      drawCPU();
-      break;
+      case DrawHardware::CPU:
+      default:
+        drawCPU();
+        break;
+    }
   }
 }
 
@@ -139,11 +142,12 @@ void GUIImage::drawCPUFromBitmapRGB888ToFrameBufferRGB888(void)
   const uint32_t fbuffColumnEndOffset   = PIXEL_SIZE * fbuffEndPosition.x;
   uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBuffer.getPointer());
 
+  const Position bitmapCopyPosition      = getBitmapVisiblePartCopyPosition();
   const uint32_t bitmapRowWidth          = PIXEL_SIZE * m_bitmapDescription.dimension.width;
-  const uint32_t bitmapColumnStartOffset = PIXEL_SIZE * m_bitmapDescription.copyPosition.x;
+  const uint32_t bitmapColumnStartOffset = PIXEL_SIZE * bitmapCopyPosition.x;
   const uint8_t *bitmapPtr = reinterpret_cast<const uint8_t*>(m_bitmapDescription.bitmapPtr);
 
-  uint16_t bitmapRowIdx = m_bitmapDescription.copyPosition.y;
+  uint16_t bitmapRowIdx = bitmapCopyPosition.y;
   for (uint16_t fbuffRowIdx = fbuffStartPosition.y; fbuffRowIdx <= fbuffEndPosition.y; ++fbuffRowIdx, ++bitmapRowIdx)
   {
     const uint32_t fbuffColumnStartIdx = fbuffRowIdx * fbuffRowWidth + fbuffColumnStartOffset;
@@ -170,11 +174,12 @@ void GUIImage::drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void)
   const uint32_t fbuffColumnEndOffset   = FRAME_BUFFER_PIXEL_SIZE * fbuffEndPosition.x;
   uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBuffer.getPointer());
 
+  const Position bitmapCopyPosition      = getBitmapVisiblePartCopyPosition();
   const uint32_t bitmapRowWidth          = BITMAP_PIXEL_SIZE * m_bitmapDescription.dimension.width;
-  const uint32_t bitmapColumnStartOffset = BITMAP_PIXEL_SIZE * m_bitmapDescription.copyPosition.x;
+  const uint32_t bitmapColumnStartOffset = BITMAP_PIXEL_SIZE * bitmapCopyPosition.x;
   const uint8_t *bitmapPtr = reinterpret_cast<const uint8_t*>(m_bitmapDescription.bitmapPtr);
 
-  uint16_t bitmapRowIdx = m_bitmapDescription.copyPosition.y;
+  uint16_t bitmapRowIdx = bitmapCopyPosition.y;
   for (uint16_t fbuffRowIdx = fbuffStartPosition.y; fbuffRowIdx <= fbuffEndPosition.y; ++fbuffRowIdx, ++bitmapRowIdx)
   {
     const uint32_t fbuffColumnStartIdx = fbuffRowIdx * fbuffRowWidth + fbuffColumnStartOffset;
@@ -200,6 +205,13 @@ void GUIImage::drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void)
 inline bool GUIImage::isFrameBufferColorFormatSupported(void) const
 {
   return (IFrameBuffer::ColorFormat::RGB888 == m_frameBuffer.getColorFormat());
+}
+
+bool GUIImage::isImageVisibleOnTheScreen(void) const
+{
+  const Dimension visiblePartDimension = getVisiblePartDimension();
+
+  return (0u != visiblePartDimension.width) && (0u != visiblePartDimension.height);
 }
 
 void GUIImage::buildCopyBitmapConfig(void)
