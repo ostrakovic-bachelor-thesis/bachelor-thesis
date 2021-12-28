@@ -23,6 +23,20 @@ TEST(AFrameBuffer, GetHeightReturnsFrameBufferHeightSpecifiedAsTemplateArgument)
   ASSERT_THAT(frameBuffer.getHeight(), Eq(EXPECTED_FRAME_BUFFER_HEIGHT));
 }
 
+TEST(AFrameBuffer, GetDimensionReturnsFrameBufferWidthAndHeightSpecifiedAsTemplateArgumentPackedInDimensionStructure)
+{
+  constexpr IFrameBuffer::Dimension EXPECTED_FRAME_BUFFER_DIMENSION =
+  {
+    .width  = 50u,
+    .height = 2u,
+  };
+  FrameBuffer<EXPECTED_FRAME_BUFFER_DIMENSION.width,
+    EXPECTED_FRAME_BUFFER_DIMENSION.height,
+    IFrameBuffer::ColorFormat::RGB888> frameBuffer;
+
+  ASSERT_THAT(frameBuffer.getDimension(), Eq(EXPECTED_FRAME_BUFFER_DIMENSION));
+}
+
 TEST(AFrameBuffer, GetColorFormatReturnsFrameBufferColorFormatSpecifiedAsTemplateArgument)
 {
   constexpr IFrameBuffer::ColorFormat EXPECTED_FRAME_BUFFER_COLOR_FORMAT = IFrameBuffer::ColorFormat::ARGB8888;

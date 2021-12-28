@@ -14,14 +14,8 @@ public:
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBuffer;
   GUIRectangleBase guiRectangleBase = GUIRectangleBase(guiRectangleFrameBuffer);
   GUIRectangleBase::GUIRectangleBaseDescription guiRectangleBaseDescription;
-
-  void SetUp() override;
 };
 
-void AGUIRectangleBase::SetUp()
-{
-
-}
 
 TEST_F(AGUIRectangleBase, GetWidthReturnsZeroWhenItIsCalledOnUninitializedObject)
 {
@@ -387,7 +381,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsCorrectlyWidthOfVisiblePartW
   ASSERT_THAT(guiRectangleBase.getVisiblePartWidth(), Eq(EXPECTED_VISIBLE_PART_WIDTH));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartWidthIsEqualToFrameBufferWidthWhenGUIRectangleIsOutOfScreenFromBothSides)
+TEST_F(AGUIRectangleBase, GetVisiblePartWidthIsEqualToFrameBufferWidthWhenGUIRectangleIsOutOfScreenFromBothSidesSimultaneously)
 {
   constexpr int16_t GUI_RECTANGLE_BASE_XPOS   = -10;
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH = 500u;
@@ -471,7 +465,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsCorrectlyHeightOfVisiblePar
   ASSERT_THAT(guiRectangleBase.getVisiblePartHeight(), Eq(EXPECTED_VISIBLE_PART_HEIGHT));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartHeightIsEqualToFrameBufferHeightWhenGUIRectangleIsOutOfScreenFromAboveAndBelow)
+TEST_F(AGUIRectangleBase, GetVisiblePartHeightIsEqualToFrameBufferHeightWhenGUIRectangleIsOutOfScreenFromBothSidesSimultaneously)
 {
   constexpr int16_t GUI_RECTANGLE_BASE_YPOS    = -10;
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 400u;
@@ -522,7 +516,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartDimensionReturnsWidthAndHeightOfVisibleP
   ASSERT_THAT(guiRectangleBase.getVisiblePartDimension().height, Eq(guiRectangleBase.getVisiblePartHeight()));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsThatPositionIfPixelIsVisibleInTheFrameBuffer)
+TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsThatPositionIfItIsVisibleInTheFrameBuffer)
 {
   constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
@@ -537,7 +531,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsThatPositionIfP
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualToZeroIfPixelIsOutOfScreenFromLeftSide)
+TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualToZeroIfItIsOutOfScreenFromLeftSide)
 {
   constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
   {
@@ -558,8 +552,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualT
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
-
-TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualToFrameBufferWidthIfPixelIsOutOfScreenFromRightSide)
+TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionSetToLastColumnInFrameBufferIfItIsOutOfScreenFromRightSide)
 {
   constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
   {
@@ -569,7 +562,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualT
   };
   const GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
-    .x   = static_cast<int16_t>(guiRectangleFrameBuffer.getWidth()),
+    .x   = static_cast<int16_t>(guiRectangleFrameBuffer.getWidth() - 1u),
     .y   = 10,
     .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER
   };
@@ -581,7 +574,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualT
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualToZeroIfPixelIsOutOfScreenFromAbove)
+TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualToZeroIfItIsOutOfScreenFromAbove)
 {
   constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
   {
@@ -602,7 +595,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualT
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
-TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualToFrameBufferHeightIfPixelIsOutOfScreenFromBelow)
+TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionSetToLastRowInFrameBufferIfItIsOutOfScreenFromBelow)
 {
   constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
   {
@@ -613,7 +606,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualT
   const GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 0,
-    .y   = static_cast<int16_t>(guiRectangleFrameBuffer.getHeight()),
+    .y   = static_cast<int16_t>(guiRectangleFrameBuffer.getHeight() - 1u),
     .tag = GUIRectangleBase::Position::Tag::CENTER
   };
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;

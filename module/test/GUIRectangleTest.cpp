@@ -20,8 +20,9 @@ public:
   GUIRectangle::Color m_initFameBufferColor;
   bool m_isDMA2DFillRectangleConfigOk;
 
-  void assertThatGUIRectangleIsDrawnOntoFrameBuffer(GUIRectangle &guiRectangle);
-  void assertThatPixelsInFrameBufferOutsideDrawnGUIRectangleAreNotChanged(GUIRectangle &guiRectangle);
+  void assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUIRectangle &guiRectangle);
+  void assertThatPixelsInFrameBufferOutsideDrawnGUIRectangleAreNotChanged(const GUIRectangle &guiRectangle);
+  void assertThatStateOfFrameBufferIsNotChanged(const GUIRectangle &guiRectangle);
   void expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUIRectangle &guiRectangle);
   void expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUIRectangle &guiRectangle);
   void assertThatDMA2DFillRectangleConfigParamsWereOk(void);
@@ -66,14 +67,14 @@ void AGUIRectangle::setDefaultFrameBufferColor(GUIRectangle::Color color)
   }
 }
 
-void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUIRectangle &guiRectangle)
 {
   const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
   const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
   const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).x;
   const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).y;
 
-  const uint8_t *frameBufferPtr  = reinterpret_cast<uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
+  const uint8_t *frameBufferPtr  = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
   const uint8_t pixelSize = IFrameBuffer::getColorFormatPixelSize(guiRectangle.getFrameBuffer().getColorFormat());
 
@@ -88,14 +89,14 @@ void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(GUIRectangle &g
   }
 }
 
-void AGUIRectangle::assertThatPixelsInFrameBufferOutsideDrawnGUIRectangleAreNotChanged(GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatPixelsInFrameBufferOutsideDrawnGUIRectangleAreNotChanged(const GUIRectangle &guiRectangle)
 {
   const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
   const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
   const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).x;
   const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).y;
 
-  const uint8_t *frameBufferPtr  = reinterpret_cast<uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
+  const uint8_t *frameBufferPtr = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
   const uint8_t pixelSize = IFrameBuffer::getColorFormatPixelSize(guiRectangle.getFrameBuffer().getColorFormat());
 
@@ -113,6 +114,23 @@ void AGUIRectangle::assertThatPixelsInFrameBufferOutsideDrawnGUIRectangleAreNotC
         ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFameBufferColor.green);
         ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFameBufferColor.red);
       }
+    }
+  }
+}
+
+void AGUIRectangle::assertThatStateOfFrameBufferIsNotChanged(const GUIRectangle &guiRectangle)
+{
+  const uint8_t *frameBufferPtr = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
+  const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
+  const uint8_t pixelSize = IFrameBuffer::getColorFormatPixelSize(guiRectangle.getFrameBuffer().getColorFormat());
+
+  for (uint32_t row = 0u; row < guiRectangle.getFrameBuffer().getHeight(); ++row)
+  {
+    for (uint32_t column = 0u; column < guiRectangle.getFrameBuffer().getWidth(); ++column)
+    {
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column)],     m_initFameBufferColor.blue);
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFameBufferColor.green);
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFameBufferColor.red);
     }
   }
 }
@@ -341,4 +359,19 @@ TEST_F(AGUIRectangle, DrawWithDMA2DDoesNotTriggerDMA2DFillRectangleOperationIfGU
   expectThatDMA2DFillRectangleWillNotBeCalled();
 
   guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIRectangle, DrawWithCPUDoesNotChangeStateOfFrameBufferIfGUIRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleDescription.baseDescription.position =
+  {
+    .x   = 0,
+    .y   = 500,
+    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiRectangle.init(guiRectangleDescription);
+
+  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
+
+  assertThatStateOfFrameBufferIsNotChanged(guiRectangle);
 }

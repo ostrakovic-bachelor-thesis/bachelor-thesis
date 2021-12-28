@@ -35,6 +35,8 @@ public:
 
   ErrorCode init(const ImageDescription &imageDescription);
 
+  void moveToPosition(const Position &position) override;
+
   void draw(DrawHardware drawHardware) override;
 
   inline ColorFormat getBitmapColorFormat(void) const
@@ -71,10 +73,18 @@ private:
 
   bool isFrameBufferColorFormatSupported(void) const;
 
+  void buildCopyBitmapConfig(void);
+  void buildBlendBitmapConfig(void);
+
   static DMA2D::Position mapToDMA2DPosition(Position position);
   static DMA2D::Dimension mapToDMA2DDimension(Dimension dimension);
+  static DMA2D::Dimension mapToDMA2DDimension(IFrameBuffer::Dimension dimension);
 
   BitmapDescription m_bitmapDescription;
+
+  DMA2D::CopyBitmapConfig m_copyBitmapConfig;
+
+  DMA2D::BlendBitmapConfig m_blendBitmapConfig;
 
   //! Reference to DMA2D
   DMA2D &m_dma2d;

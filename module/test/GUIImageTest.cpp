@@ -722,3 +722,50 @@ TEST_F(AGUIImage, DrawWithDMA2DCalledOnImageWithARGB8888BitmapDisplaysOnlyVisibl
 
   assertThatDMA2DBlendBitmapConfigParamsWereOk();
 }
+
+TEST_F(AGUIImage, DrawWithDMA2DCalledAfterImageIsMovedToBePartiallyOutOfTheScreenProducesSameResultAsIfThePositionIsGivenAtInit)
+{
+  constexpr GUIImage::Position NEW_GUI_IMAGE_POSITION =
+  {
+    .x   = 40,
+    .y   = 40,
+    .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiImageDescription.baseDescription =
+  {
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH - 2u,
+      .height = TEST_RGB888_BITMAP_HEIGHT - 3u,
+    },
+    .position =
+    {
+      .x   = 10,
+      .y   = 10,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    }
+  };
+  guiImageDescription.bitmapDescription =
+  {
+    .colorFormat = TEST_RGB888_BITMAP_COLOR_FORMAT,
+    .dimension =
+    {
+      .width  = TEST_RGB888_BITMAP_WIDTH,
+      .height = TEST_RGB888_BITMAP_HEIGHT
+    },
+    .copyPosition =
+    {
+      .x   = 2,
+      .y   = 3,
+      .tag = GUIImage::Position::Tag::TOP_LEFT_CORNER
+    },
+    .bitmapPtr = reinterpret_cast<const void*>(&m_testRGB888Bitmap)
+  };
+  guiImage.init(guiImageDescription);
+  guiImage.moveToPosition(NEW_GUI_IMAGE_POSITION);
+  expectThatDMA2DCopyBitmapWillDisplayOnlyVisiblePartOfGUIImage(guiImage);
+
+   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DCopyBitmapConfigParamsWereOk();
+}

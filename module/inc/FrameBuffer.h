@@ -20,6 +20,15 @@ public:
     return t_height;
   }
 
+  inline Dimension getDimension(void) const override
+  {
+    return
+    {
+      .width  = t_width,
+      .height = t_height
+    };
+  }
+
   inline ColorFormat getColorFormat(void) const override
   {
     return t_colorFormat;

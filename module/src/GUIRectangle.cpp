@@ -10,7 +10,7 @@ void GUIRectangle::init(const RectangleDescription &rectangleDescription)
 {
   GUIRectangleBase::init(rectangleDescription.baseDescription);
   m_color = rectangleDescription.color;
-  m_fillRectangleConfig = buildFillRectangleConfig(m_rectangleBaseDescription, m_color, m_frameBuffer);
+  buildFillRectangleConfig();
 }
 
 GUIRectangle::Color GUIRectangle::getColor(void) const
@@ -22,26 +22,25 @@ void GUIRectangle::moveToPosition(const Position &position)
 {
   GUIRectangleBase::moveToPosition(position);
 
-  const Position visiblePartPosition = getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER);
-
-  m_fillRectangleConfig.position.x = visiblePartPosition.x;
-  m_fillRectangleConfig.position.y = visiblePartPosition.y;
-  m_fillRectangleConfig.dimension.width  = getVisiblePartWidth();
-  m_fillRectangleConfig.dimension.height = getVisiblePartHeight();
+  m_fillRectangleConfig.position  = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER));
+  m_fillRectangleConfig.dimension = mapToDMA2DDimension(getVisiblePartDimension());
 }
 
 void GUIRectangle::draw(DrawHardware drawHardware)
 {
-  switch (drawHardware)
+  if (isRectangleVisibleOnTheScreen())
   {
-    case DrawHardware::DMA2D:
-      drawDMA2D();
-      break;
+    switch (drawHardware)
+    {
+      case DrawHardware::DMA2D:
+       drawDMA2D();
+        break;
 
-    case DrawHardware::CPU:
-    default:
-      drawCPU();
-      break;
+      case DrawHardware::CPU:
+      default:
+        drawCPU();
+        break;
+    }
   }
 }
 
@@ -76,35 +75,30 @@ void GUIRectangle::drawCPU(void)
 
 void GUIRectangle::drawDMA2D(void)
 {
-  if ((0u != m_fillRectangleConfig.dimension.width) && (0u != m_fillRectangleConfig.dimension.height))
-  {
-    m_dma2d.fillRectangle(m_fillRectangleConfig);
-  }
+  m_dma2d.fillRectangle(m_fillRectangleConfig);
 }
 
-DMA2D::FillRectangleConfig GUIRectangle::buildFillRectangleConfig(
-  const GUIRectangleBaseDescription &rectangleBaseDescription,
-  Color rectangleColor,
-  IFrameBuffer &frameBuffer)
+bool GUIRectangle::isRectangleVisibleOnTheScreen(void) const
 {
-  DMA2D::FillRectangleConfig fillRectangleConfig =
+  const Dimension visiblePartDimension = getVisiblePartDimension();
+
+  return (0u != visiblePartDimension.width) && (0u != visiblePartDimension.height);
+}
+
+void GUIRectangle::buildFillRectangleConfig(void)
+{
+  m_fillRectangleConfig =
   {
-    .color = mapToDMA2DColor(rectangleColor),
+    .color     = mapToDMA2DColor(m_color),
     .dimension = mapToDMA2DDimension(getVisiblePartDimension()),
-    .position = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
+    .position  = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
-      .colorFormat     = mapToDMA2DOutputColorFormat(frameBuffer.getColorFormat()),
-      .bufferDimension =
-      {
-        .width  = frameBuffer.getWidth(),
-        .height = frameBuffer.getHeight(),
-      },
-      .bufferPtr = frameBuffer.getPointer(),
+      .colorFormat     = mapToDMA2DOutputColorFormat(m_frameBuffer.getColorFormat()),
+      .bufferDimension = mapToDMA2DDimension(m_frameBuffer.getDimension()),
+      .bufferPtr       = m_frameBuffer.getPointer(),
     },
   };
-
-  return fillRectangleConfig;
 }
 
 DMA2D::OutputColorFormat GUIRectangle::mapToDMA2DOutputColorFormat(IFrameBuffer::ColorFormat colorFormat)
@@ -130,6 +124,15 @@ DMA2D::Position GUIRectangle::mapToDMA2DPosition(Position position)
 }
 
 DMA2D::Dimension GUIRectangle::mapToDMA2DDimension(Dimension dimension)
+{
+  return
+  {
+    .width  = dimension.width,
+    .height = dimension.height
+  };
+}
+
+DMA2D::Dimension GUIRectangle::mapToDMA2DDimension(IFrameBuffer::Dimension dimension)
 {
   return
   {

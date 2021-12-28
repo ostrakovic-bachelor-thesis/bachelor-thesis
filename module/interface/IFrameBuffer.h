@@ -15,8 +15,25 @@ public:
     RGB888   = 1u,
   };
 
+  struct Dimension
+  {
+    inline bool operator==(const Dimension &dimension) const
+    {
+      return (dimension.width == width) && (dimension.height == height);
+    }
+
+    inline bool operator!=(const Dimension &dimension) const
+    {
+      return not (dimension == *this);
+    }
+
+    uint16_t width;
+    uint16_t height;
+  };
+
   virtual uint16_t getWidth(void) const = 0;
   virtual uint16_t getHeight(void) const = 0;
+  virtual Dimension getDimension(void) const = 0;
   virtual uint32_t getSize(void) const = 0;
   virtual ColorFormat getColorFormat(void) const = 0;
   virtual void* getPointer(void) = 0;

@@ -109,8 +109,8 @@ GUIRectangleBase::Position GUIRectangleBase::getVisiblePartPosition(Position::Ta
 {
   Position position = getPosition(positionTag);
 
-  position.x = saturateValue(position.x, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getWidth()));
-  position.y = saturateValue(position.y, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getHeight()));
+  position.x = saturateValue(position.x, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getWidth() - 1u));
+  position.y = saturateValue(position.y, static_cast<int16_t>(0), static_cast<int16_t>(m_frameBuffer.getHeight() - 1u));
 
   return position;
 }
