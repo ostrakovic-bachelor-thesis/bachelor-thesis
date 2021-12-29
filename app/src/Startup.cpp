@@ -14,6 +14,7 @@
 #include "FT3267.h"
 #include "GUIRectangle.h"
 #include "GUIImage.h"
+#include "GUIDrawPerformanceMeasurement.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -261,82 +262,6 @@ void startup(void)
     }
   }
 
-/*
-  DMA2D::BlendBitmapConfig blendBitmapConfig =
-  {
-    .blendRectangleDimension =
-    {
-      .width  = 10,+
-      .height = 10
-    },
-
-    .foregroundBufferConfig =
-    {
-      .colorFormat = DMA2D::InputColorFormat::ABGR8888,
-
-      .position =
-      {
-        .x = 0,
-        .y = 0
-      },
-
-      .bufferDimension =
-      {
-        .width  = 20,
-        .height = 20
-      },
-
-      .bufferPtr = g_fgBitmap
-    },
-
-    .backgroundBufferConfig =
-    {
-      .colorFormat = DMA2D::InputColorFormat::RGB888,
-
-      .position =
-      {
-        .x = 0,
-        .y = 0
-      },
-
-      .bufferDimension =
-      {
-        .width  = 12,
-        .height = 12
-      },
-
-      .bufferPtr = g_bgBitmap
-    },
-
-    .outputBufferConfig =
-    {
-      .colorFormat = DMA2D::OutputColorFormat::RGB565,
-
-      .position =
-      {
-        .x = 40,
-        .y = 40
-      },
-
-      .bufferDimension =
-      {
-        .width  = 100,
-        .height = 100
-      },
-
-      .bufferPtr = g_frameBuffer
-    }
-  };
-*/
-
-/*
-  DMA2D::ErrorCode errorCode = dma2D.blendBitmap(blendBitmapConfig);
-  if (DMA2D::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-*/
-
   const GUIRectangle::RectangleDescription guiRectangleDescription1 =
   {
     .baseDescription =
@@ -460,6 +385,16 @@ void startup(void)
   guiRectangle2.init(guiRectangleDescription2);
   guiImage.init(imageDescription);
   guiImage2.init(image2Description);
+
+  GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawImagePerformanceMeasurementConfig
+  {
+    .guiObjectPtr = &guiImage,
+    .drawHardware = IGUIObject::DrawHardware::CPU
+  };
+
+  GUIDrawPerformanceMeasurement guiDrawImagePerformanceMeasurement(sysTick);
+
+  guiDrawImagePerformanceMeasurement.init(guiDrawImagePerformanceMeasurementConfig);
 
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
@@ -747,12 +682,6 @@ void startup(void)
       //}
     }
 
-    //MFXSTM32L152::ErrorCode error = g_mfx.runtimeTask();
-    //if (MFXSTM32L152::ErrorCode::OK != error)
-    //{
-    //  panic();
-    //}
-
     if (sysTick.getElapsedTimeInMs(timestamp) > 50u)
     {
       timestamp = sysTick.getTicks();
@@ -792,7 +721,7 @@ void startup(void)
       guiRectangle1.draw(IGUIObject::DrawHardware::DMA2D);
       while (dma2d.isTransferOngoing());
       guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
-      guiImage.draw(IGUIObject::DrawHardware::CPU);
+      guiDrawImagePerformanceMeasurement.execute();
       guiImage2.draw(IGUIObject::DrawHardware::DMA2D);
       while (dma2d.isTransferOngoing());
 

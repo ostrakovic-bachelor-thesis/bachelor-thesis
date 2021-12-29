@@ -25,6 +25,7 @@ public:
   MOCK_METHOD(uint64_t, getTicks, (), (const, override));
   MOCK_METHOD(uint32_t, getTicksPerSecond, (), (const, override));
   MOCK_METHOD(uint64_t, getElapsedTimeInMs, (uint64_t), (const, override));
+  MOCK_METHOD(uint64_t, getElapsedTimeInUs, (uint64_t), (const, override));
   MOCK_METHOD(void, IRQHandler, (), (override));
 };
 

@@ -1256,7 +1256,7 @@ TEST_F(ADSIHost, InitSetsVSyncPolarityBySettingVSPOLBitInWCFGRRegisterAccordingT
   constexpr uint32_t DSIHOST_WCFGR_VSPOL_POSITION = 7u;
   constexpr uint32_t EXPECTED_DSIHOST_WCFGR_VSPOL_VALUE = 0x1;
   auto bitValueMatcher = BitHasValue(DSIHOST_WCFGR_VSPOL_POSITION, EXPECTED_DSIHOST_WCFGR_VSPOL_VALUE);
-  dsiHostConfig.vsyncLtdcHaltPolarity = DSIHost::VSyncLTDCHaltPolarity::FALLING_EDGE;
+  dsiHostConfig.vsyncLtdcHaltPolarity = DSIHost::VSyncLTDCHaltPolarity::RISING_EDGE;
   expectSpecificRegisterSetWithNoChangesAfter(&(virtualDSIHostPeripheral.WCFGR), bitValueMatcher);
 
   const DSIHost::ErrorCode errorCode = virtualDSIHost.init(dsiHostConfig);

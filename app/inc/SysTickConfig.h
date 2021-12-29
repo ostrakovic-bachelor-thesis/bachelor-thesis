@@ -6,7 +6,7 @@
 
 SysTick::SysTickConfig g_sysTickConfig =
 {
-  .ticksPerSecond  = 1000u,
+  .ticksPerSecond  = 10000u,
   .enableInterrupt = true,
   .enableOnInit    = true
 };

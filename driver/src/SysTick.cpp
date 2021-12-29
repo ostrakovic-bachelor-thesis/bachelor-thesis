@@ -37,9 +37,16 @@ SysTick::ErrorCode SysTick::init(const SysTickConfig& sysTickConfig)
 
 uint64_t SysTick::getElapsedTimeInMs(uint64_t timestamp) const
 {
-  constexpr uint32_t MILLISECONDS_IN_SECOND = 1000u;
+  constexpr uint64_t MILLISECONDS_IN_SECOND = 1000u;
 
   return ((getTicks() - timestamp) * MILLISECONDS_IN_SECOND) / getTicksPerSecond();
+}
+
+uint64_t SysTick::getElapsedTimeInUs(uint64_t timestamp) const
+{
+  constexpr uint64_t MICROSECONDS_IN_SECOND = 1000000u;
+
+  return ((getTicks() - timestamp) * MICROSECONDS_IN_SECOND) / getTicksPerSecond();
 }
 
 void SysTick::IRQHandler(void)

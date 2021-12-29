@@ -65,6 +65,11 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
+  uint64_t getElapsedTimeInUs(uint64_t timestamp) const;
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   void IRQHandler(void);
 
 #ifdef UNIT_TEST
