@@ -12,7 +12,7 @@ using namespace ::testing;
 class AGUIRectangle : public Test
 {
 public:
-  DMA2DMock dma2dMock;
+  NiceMock<DMA2DMock> dma2dMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBuffer;
   GUIRectangle guiRectangle = GUIRectangle(dma2dMock, guiRectangleFrameBuffer);
   GUIRectangle::RectangleDescription guiRectangleDescription;
@@ -28,6 +28,8 @@ public:
   void expectThatNoDMA2DOperationWillBeTriggered(void);
 
   void setDefaultFrameBufferColor(GUIRectangle::Color color);
+  void setDMA2DTransferOngoingStateToTrue(void);
+  void setDMA2DTransferOngoingStateToFalse(void);
 
   void SetUp() override;
 
@@ -68,6 +70,24 @@ void AGUIRectangle::setDefaultFrameBufferColor(GUIRectangle::Color color)
     frameBufferPtr[i++] = color.green;
     frameBufferPtr[i++] = color.red;
   }
+}
+
+void AGUIRectangle::setDMA2DTransferOngoingStateToTrue(void)
+{
+  ON_CALL(dma2dMock, isTransferOngoing())
+    .WillByDefault([&](void)
+    {
+      return true;
+    });
+}
+
+void AGUIRectangle::setDMA2DTransferOngoingStateToFalse(void)
+{
+  ON_CALL(dma2dMock, isTransferOngoing())
+    .WillByDefault([&](void)
+    {
+      return false;
+    });
 }
 
 void AGUIRectangle::assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(const GUIRectangle &guiRectangle)
@@ -383,4 +403,30 @@ TEST_F(AGUIRectangle, DrawWithDMA2DDrawsOnlyVisiblePixelsAfterRectangleIsMovedPa
   guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
 
   assertThatDMA2DFillRectangleConfigParamsWereOk();
+}
+
+TEST_F(AGUIRectangle, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithCPU)
+{
+  guiRectangle.init(guiRectangleDescription);
+  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
+
+  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(true));
+}
+
+TEST_F(AGUIRectangle, IsDrawCompletedReturnsFalseIfDMA2DTransferIsStillOngoingWhenDrawingWithDMA2D)
+{
+  guiRectangle.init(guiRectangleDescription);
+  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  setDMA2DTransferOngoingStateToTrue();
+
+  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(false));
+}
+
+TEST_F(AGUIRectangle, IsDrawCompletedReturnsTrueIfDMA2DTransferIsCompletedWhenDrawingWithDMA2D)
+{
+  guiRectangle.init(guiRectangleDescription);
+  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  setDMA2DTransferOngoingStateToFalse();
+
+  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(true));
 }

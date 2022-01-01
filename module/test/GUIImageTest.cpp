@@ -12,7 +12,7 @@ using namespace ::testing;
 class AGUIImage : public Test
 {
 public:
-  DMA2DMock dma2dMock;
+  NiceMock<DMA2DMock> dma2dMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiImageFrameBuffer;
   GUIImage guiImage = GUIImage(dma2dMock, guiImageFrameBuffer);
   GUIImage::ImageDescription guiImageDescription;
@@ -48,6 +48,8 @@ public:
   void assertThatDMA2DCopyBitmapConfigParamsWereOk(void);
   void assertThatDMA2DBlendBitmapConfigParamsWereOk(void);
   void expectThatNoDMA2DOperationWillBeCalled(void);
+
+  void setDMA2DTransferOngoingStateToTrue(void);
 
   void SetUp() override;
 
@@ -383,6 +385,15 @@ void AGUIImage::expectThatNoDMA2DOperationWillBeCalled(void)
 
   EXPECT_CALL(dma2dMock, blendBitmap(_))
     .Times(0u);
+}
+
+void AGUIImage::setDMA2DTransferOngoingStateToTrue(void)
+{
+  ON_CALL(dma2dMock, isTransferOngoing())
+    .WillByDefault([&](void)
+    {
+      return true;
+    });
 }
 
 
@@ -1042,4 +1053,21 @@ TEST_F(AGUIImage, DrawWithDMA2DDoesNotTriggerAnyDMA2DOperationIfGUIImageIsComple
   expectThatNoDMA2DOperationWillBeCalled();
 
   guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIImage, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithCPU)
+{
+  guiImage.init(guiImageDescription);
+  guiImage.draw(IGUIObject::DrawHardware::CPU);
+
+  ASSERT_THAT(guiImage.isDrawCompleted(), Eq(true));
+}
+
+TEST_F(AGUIImage, IsDrawCompletedReturnsFalseIfDMA2DTransferIsStillOngoingWhenDrawingWithDMA2D)
+{
+  guiImage.init(guiImageDescription);
+  guiImage.draw(IGUIObject::DrawHardware::DMA2D);
+  setDMA2DTransferOngoingStateToTrue();
+
+  ASSERT_THAT(guiImage.isDrawCompleted(), Eq(false));
 }

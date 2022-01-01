@@ -18,10 +18,15 @@ public:
   GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawPerformanceMeasurementConfig;
 
   uint64_t m_sysTickFunctionCallCounter;
+  uint32_t m_isDrawCompletedCounter;
+  bool m_isDrawCompleted;
 
   void expectThatGUIObjectDrawWillBeCalledWithGivenDrawHardware(IGUIObject::DrawHardware drawHardware);
+  void expectThatExecuteWillWaitForDrawTransactionToCompleteBeforeProceedingFurther(void);
   void expectThatGetSysTickWillBeCalledImmediatelyBeforeAndGetElapsedTimeInUsAfterGUIObjectDrawIsCalled(void);
   void setupSysTickReadings(uint64_t drawOperationExecutionTimeInUs);
+  void setupGUIObjectIsDrawCompletedReadings(void);
+  void assertThatExecuteWaitedForDrawTransactionToCompleteBeforeProceedingFurther(void);
 
   void SetUp() override;
 };
@@ -29,6 +34,9 @@ public:
 void AGUIDrawPerformanceMeasurement::SetUp()
 {
   m_sysTickFunctionCallCounter = 0u;
+  m_isDrawCompletedCounter     = 0u;
+
+  setupGUIObjectIsDrawCompletedReadings();
 }
 
 void AGUIDrawPerformanceMeasurement::expectThatGUIObjectDrawWillBeCalledWithGivenDrawHardware(IGUIObject::DrawHardware drawHardware)
@@ -68,6 +76,23 @@ void AGUIDrawPerformanceMeasurement::setupSysTickReadings(uint64_t drawOperation
     });
 }
 
+void AGUIDrawPerformanceMeasurement::setupGUIObjectIsDrawCompletedReadings(void)
+{
+  ON_CALL(guiObjectMock, isDrawCompleted())
+    .WillByDefault([&](void)
+    {
+      m_isDrawCompletedCounter++;
+      m_isDrawCompleted = (10u == m_isDrawCompletedCounter);
+
+      return m_isDrawCompleted;
+    });
+}
+
+void AGUIDrawPerformanceMeasurement::assertThatExecuteWaitedForDrawTransactionToCompleteBeforeProceedingFurther(void)
+{
+  ASSERT_THAT(m_isDrawCompleted, Eq(true));
+}
+
 
 TEST_F(AGUIDrawPerformanceMeasurement, ExecuteReturnsNotInitializedErrorIfCalledOnUninitializedObject)
 {
@@ -103,6 +128,18 @@ TEST_F(AGUIDrawPerformanceMeasurement, ExecuteCallsIGUIObjectDrawMethodWithDrawH
   const GUIDrawPerformanceMeasurement::ErrorCode errorCode = guiDrawPerformanceMeasurement.execute();
 
   ASSERT_THAT(errorCode, Eq(GUIDrawPerformanceMeasurement::ErrorCode::OK));
+}
+
+TEST_F(AGUIDrawPerformanceMeasurement, ExecuteWaitsForDrawTransactionToCompleteBeforeProceedingFurther)
+{
+  guiDrawPerformanceMeasurementConfig.guiObjectPtr = &guiObjectMock;
+  guiDrawPerformanceMeasurementConfig.drawHardware = IGUIObject::DrawHardware::DMA2D;
+  guiDrawPerformanceMeasurement.init(guiDrawPerformanceMeasurementConfig);
+
+  const GUIDrawPerformanceMeasurement::ErrorCode errorCode = guiDrawPerformanceMeasurement.execute();
+
+  ASSERT_THAT(errorCode, Eq(GUIDrawPerformanceMeasurement::ErrorCode::OK));
+  assertThatExecuteWaitedForDrawTransactionToCompleteBeforeProceedingFurther();
 }
 
 TEST_F(AGUIDrawPerformanceMeasurement, ExecuteCallsSysTickGetTicksBeforeAndGetElapsedTimeInUsAfterIGUIObjectDrawIsCalled)

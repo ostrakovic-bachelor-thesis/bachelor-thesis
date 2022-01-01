@@ -72,15 +72,27 @@ public:
     Baudrate baudrate;
   };
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode init(const USARTConfig &usartConfig);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   ErrorCode write(const void *messagePtr, uint32_t messageLen);
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   inline bool isWriteTransactionOngoing(void) const
   {
     return not m_isTxTransactionCompleted;
   }
 
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
   void IRQHandler(void);
 
   inline Peripheral getPeripheralTag(void) const

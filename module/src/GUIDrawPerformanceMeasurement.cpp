@@ -29,6 +29,7 @@ GUIDrawPerformanceMeasurement::ErrorCode GUIDrawPerformanceMeasurement::execute(
 
   const uint64_t timestamp = m_sysTick.getTicks();
   m_guiObjectPtr->draw(m_drawHardware);
+  while (not m_guiObjectPtr->isDrawCompleted());
   m_executionTimeInUs = m_sysTick.getElapsedTimeInUs(timestamp);
 
   m_initializationState = InitializationState::EXECUTION_TIME_IS_AVAILABLE;

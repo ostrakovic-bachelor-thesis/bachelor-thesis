@@ -30,7 +30,8 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/GUIRectangleBase.cpp
     ../module/src/GUIRectangle.cpp
     ../module/src/GUIImage.cpp
-    ../module/src/GUIDrawPerformanceMeasurement.cpp)
+    ../module/src/GUIDrawPerformanceMeasurement.cpp
+    ../module/src/USARTLogger.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp
@@ -52,13 +53,13 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
 
 target_include_directories(app PRIVATE
                            inc
-                           ../module/inc
-                           ../module/interface
+                           ../utility/interface
+                           ../utility/inc
                            ../driver/inc
                            ../driver/sdk
                            ../bsp/inc
-                           ../module/inc
-                           ../utility/inc)
+                           ../module/interface
+                           ../module/inc)
 
 target_compile_definitions(app PRIVATE
                            -DSTM32L4R9xx)

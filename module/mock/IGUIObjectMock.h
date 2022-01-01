@@ -24,6 +24,7 @@ public:
   MOCK_METHOD(Position, getPosition, (Position::Tag), (const, override));
   MOCK_METHOD(void, moveToPosition, (const Position &), (override));
   MOCK_METHOD(void, draw, (DrawHardware), (override));
+  MOCK_METHOD(bool, isDrawCompleted, (), (const, override));
 };
 
 #endif // #ifndef I_GUI_OBJECT_MOCK_H

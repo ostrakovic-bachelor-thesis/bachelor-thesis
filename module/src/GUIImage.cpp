@@ -71,6 +71,8 @@ void GUIImage::draw(DrawHardware drawHardware)
 {
   if (isImageVisibleOnTheScreen())
   {
+    m_lastTransactionDrawHardware = drawHardware;
+
     switch (drawHardware)
     {
       case DrawHardware::DMA2D:
@@ -82,6 +84,18 @@ void GUIImage::draw(DrawHardware drawHardware)
         drawCPU();
         break;
     }
+  }
+}
+
+bool GUIImage::isDrawCompleted(void) const
+{
+  if (DrawHardware::DMA2D == m_lastTransactionDrawHardware)
+  {
+    return not m_dma2d.isTransferOngoing();
+  }
+  else
+  {
+    return true;
   }
 }
 

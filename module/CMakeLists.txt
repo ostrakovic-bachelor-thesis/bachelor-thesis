@@ -11,6 +11,7 @@ include_directories(mock)
 include_directories(../driver/sdk)
 include_directories(../driver/inc)
 include_directories(../driver/mock)
+include_directories(../utility/interface)
 include_directories(../utility/inc)
 link_directories(${GOOGLETEST_HOME}/build/lib)
 add_compile_options(-std=c++14 -Wall -DUNIT_TEST)
@@ -30,7 +31,8 @@ set(BachelorThesis_module_component_cpp_sources
     src/GUIRectangleBase.cpp
     src/GUIRectangle.cpp
     src/GUIImage.cpp
-    src/GUIDrawPerformanceMeasurement.cpp)
+    src/GUIDrawPerformanceMeasurement.cpp
+    src/USARTLogger.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
     test/GPIOManagerTest.cpp
@@ -40,7 +42,8 @@ set(BachelorThesis_module_test_cpp_sources
     test/GUIRectangleBaseTest.cpp
     test/GUIRectangleTest.cpp
     test/GUIImageTest.cpp
-    test/GUIDrawPerformanceMeasurementTest.cpp)
+    test/GUIDrawPerformanceMeasurementTest.cpp
+    test/USARTLoggerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}

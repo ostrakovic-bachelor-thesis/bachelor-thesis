@@ -54,6 +54,11 @@ void GUIRectangleBase::draw(DrawHardware drawHardware)
   // do nothing
 }
 
+bool GUIRectangleBase::isDrawCompleted(void) const
+{
+  return true;
+}
+
 uint16_t GUIRectangleBase::getVisiblePartWidth(void) const
 {
   const int16_t frameBufferWidth = static_cast<int16_t>(m_frameBuffer.getWidth());

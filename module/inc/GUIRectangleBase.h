@@ -40,6 +40,8 @@ public:
 
   void draw(DrawHardware drawHardware) override;
 
+  bool isDrawCompleted(void) const override;
+
   inline IFrameBuffer& getFrameBuffer(void)
   {
     return m_frameBuffer;

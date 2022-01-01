@@ -34,6 +34,8 @@ public:
 
   void draw(DrawHardware drawHardware) override;
 
+  bool isDrawCompleted(void) const override;
+
   Color getColor(void) const;
 
 private:
@@ -52,6 +54,8 @@ private:
   static DMA2D::Color mapToDMA2DColor(Color color);
 
   Color m_color;
+
+  DrawHardware m_lastTransactionDrawHardware;
 
   DMA2D::FillRectangleConfig m_fillRectangleConfig;
 

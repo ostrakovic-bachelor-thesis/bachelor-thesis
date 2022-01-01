@@ -30,10 +30,12 @@ void GUIRectangle::draw(DrawHardware drawHardware)
 {
   if (isRectangleVisibleOnTheScreen())
   {
+    m_lastTransactionDrawHardware = drawHardware;
+
     switch (drawHardware)
     {
       case DrawHardware::DMA2D:
-       drawDMA2D();
+        drawDMA2D();
         break;
 
       case DrawHardware::CPU:
@@ -41,6 +43,18 @@ void GUIRectangle::draw(DrawHardware drawHardware)
         drawCPU();
         break;
     }
+  }
+}
+
+bool GUIRectangle::isDrawCompleted(void) const
+{
+  if (DrawHardware::DMA2D == m_lastTransactionDrawHardware)
+  {
+    return not m_dma2d.isTransferOngoing();
+  }
+  else
+  {
+    return true;
   }
 }
 

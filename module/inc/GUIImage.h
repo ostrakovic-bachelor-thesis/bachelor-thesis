@@ -39,6 +39,8 @@ public:
 
   void draw(DrawHardware drawHardware) override;
 
+  bool isDrawCompleted(void) const override;
+
   inline ColorFormat getBitmapColorFormat(void) const
   {
     return m_bitmapDescription.colorFormat;
@@ -82,6 +84,8 @@ private:
   static DMA2D::Dimension mapToDMA2DDimension(IFrameBuffer::Dimension dimension);
 
   BitmapDescription m_bitmapDescription;
+
+  DrawHardware m_lastTransactionDrawHardware;
 
   DMA2D::CopyBitmapConfig m_copyBitmapConfig;
 

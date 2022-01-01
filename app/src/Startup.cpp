@@ -15,6 +15,8 @@
 #include "GUIRectangle.h"
 #include "GUIImage.h"
 #include "GUIDrawPerformanceMeasurement.h"
+#include "StringBuilder.h"
+#include "USARTLogger.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -389,12 +391,20 @@ void startup(void)
   GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawImagePerformanceMeasurementConfig
   {
     .guiObjectPtr = &guiImage,
+    .drawHardware = IGUIObject::DrawHardware::DMA2D
+  };
+
+  GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawImage2PerformanceMeasurementConfig
+  {
+    .guiObjectPtr = &guiImage2,
     .drawHardware = IGUIObject::DrawHardware::CPU
   };
 
   GUIDrawPerformanceMeasurement guiDrawImagePerformanceMeasurement(sysTick);
+  GUIDrawPerformanceMeasurement guiDrawImage2PerformanceMeasurement(sysTick);
 
   guiDrawImagePerformanceMeasurement.init(guiDrawImagePerformanceMeasurementConfig);
+  guiDrawImage2PerformanceMeasurement.init(guiDrawImage2PerformanceMeasurementConfig);
 
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
@@ -609,6 +619,9 @@ void startup(void)
   int16_t x = -100;
   int16_t direction = 1;
 
+  StringBuilder<200u> stringBuilder;
+  USARTLogger usartLogger(usart2);
+
   while (true)
   {
     const uint64_t ticks = sysTick.getTicks();
@@ -621,66 +634,41 @@ void startup(void)
       }
     }
 
-    if (not usart2.isWriteTransactionOngoing())
+    stringBuilder.reset();
+    stringBuilder.append("systick: ");
+    stringBuilder.append(static_cast<uint32_t>(ticks));
+
+    if(g_isTouchEventInfoRefreshed)
     {
-      /*
-      if (dma2D.isTransferOngoing())
+      g_isTouchEventInfoRefreshed = false;
+
+      stringBuilder.append(" touch count: ");
+      stringBuilder.append(g_touchEventInfo.touchCount);
+
+      if (g_touchEventInfo.touchCount >= 1u)
       {
-        messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-          "systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+        stringBuilder.append(" point1 x: ");
+        stringBuilder.append(g_touchEventInfo.touchPoints[0].position.x);
+        stringBuilder.append(" y: ");
+        stringBuilder.append(g_touchEventInfo.touchPoints[0].position.y);
       }
-      else
+
+      if (g_touchEventInfo.touchCount >= 2u)
       {
-        messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-          "DMA2D completed, systick: %" PRIu32 "\r\n", static_cast<uint32_t>(ticks));
+        stringBuilder.append(" point2 x: ");
+        stringBuilder.append(g_touchEventInfo.touchPoints[1].position.x);
+        stringBuilder.append(" y: ");
+        stringBuilder.append(g_touchEventInfo.touchPoints[1].position.y);
       }
-      */
-
-      if(g_isTouchEventInfoRefreshed)
-      {
-
-        g_isTouchEventInfoRefreshed = false;
-
-        switch (g_touchEventInfo.touchCount)
-        {
-          case 1u:
-            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-              "systick: %" PRIu32 " touch count: %d point 1 x: %d y: %d\r\n",
-              static_cast<uint32_t>(ticks),
-              g_touchEventInfo.touchCount,
-              g_touchEventInfo.touchPoints[0].position.x,
-              g_touchEventInfo.touchPoints[0].position.y);
-            break;
-
-          case 2u:
-            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-              "systick: %" PRIu32 " touch count: %d point 1 x: %d y: %d point 2 x: %d y: %d\r\n",
-              static_cast<uint32_t>(ticks),
-              g_touchEventInfo.touchCount,
-              g_touchEventInfo.touchPoints[0].position.x,
-              g_touchEventInfo.touchPoints[0].position.y,
-              g_touchEventInfo.touchPoints[1].position.x,
-              g_touchEventInfo.touchPoints[1].position.y);
-            break;
-
-          case 0u:
-          default:
-            messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-              "systick: %" PRIu32 " touch count: %d\r\n",
-              static_cast<uint32_t>(ticks),
-              g_touchEventInfo.touchCount);
-            break;
-        }
-
-
-          usart2.write(message, messageLen);
-      }
-      //else
-      //{
-      //  messageLen = sprintf(reinterpret_cast<char*>(&message[0]),
-      //    "systick: %" PRIu32 " no touch\r\n", static_cast<uint32_t>(ticks));
-      //}
     }
+    else
+    {
+      stringBuilder.append(" no touch(es)");
+    }
+
+    stringBuilder.append("\r\n");
+    usartLogger.write(stringBuilder);
+
 
     if (sysTick.getElapsedTimeInMs(timestamp) > 50u)
     {
@@ -722,8 +710,7 @@ void startup(void)
       while (dma2d.isTransferOngoing());
       guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
       guiDrawImagePerformanceMeasurement.execute();
-      guiImage2.draw(IGUIObject::DrawHardware::DMA2D);
-      while (dma2d.isTransferOngoing());
+      guiDrawImage2PerformanceMeasurement.execute();
 
       dsiHost.startTransferFromLTDC();
 

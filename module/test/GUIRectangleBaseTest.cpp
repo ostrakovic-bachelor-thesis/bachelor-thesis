@@ -331,6 +331,18 @@ TEST_F(AGUIRectangleBase, MoveToPositionMovesGUIRectangleBaseToGivenPosition)
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
+TEST_F(AGUIRectangleBase, DrawDoesNotDoAnything)
+{
+  guiRectangleBase.draw(GUIRectangleBase::DrawHardware::CPU);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIRectangleBase, IsDrawCompletedAlwaysReturnTrue)
+{
+  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
+}
+
 TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsWidthSpecifiedAtInitIfNoPartIsOutOfTheScreenAlongXAxis)
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH = 20u;

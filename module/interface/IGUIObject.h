@@ -70,6 +70,7 @@ public:
   virtual Position getPosition(Position::Tag positionTag) const = 0;
   virtual void moveToPosition(const Position &position) = 0;
   virtual void draw(DrawHardware drawHardware) = 0;
+  virtual bool isDrawCompleted(void) const = 0;
 };
 
 #endif // #ifndef I_GUI_OBJECT_H
