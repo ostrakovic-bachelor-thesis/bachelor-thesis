@@ -16,7 +16,8 @@ set(BachelorThesis_utility_test_cpp_sources
     test/MemoryAccessTest.cpp
     test/MemoryUtilityTest.cpp
     test/RegisterUtilityTest.cpp
-    test/StringBuilderTest.cpp)
+    test/StringBuilderTest.cpp
+    test/ArrayListTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources} ${BachelorThesis_utility_test_cpp_sources})
 
