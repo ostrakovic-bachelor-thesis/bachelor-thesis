@@ -18,6 +18,9 @@ public:
   virtual ~IGUIObjectMock() = default;
 
   // mock methods
+  MOCK_METHOD(IFrameBuffer&, getFrameBuffer, (), (override));
+  MOCK_METHOD(IFrameBuffer&, getFrameBuffer, (), (const, override));
+  MOCK_METHOD(void, setFrameBuffer, (IFrameBuffer &), (override));
   MOCK_METHOD(uint16_t, getWidth, (), (const, override));
   MOCK_METHOD(uint16_t, getHeight, (), (const, override));
   MOCK_METHOD(Dimension, getDimension, (), (const, override));

@@ -21,6 +21,13 @@ GUIImage::ErrorCode GUIImage::init(const ImageDescription &imageDescription)
   return ErrorCode::OK;
 }
 
+void GUIImage::setFrameBuffer(IFrameBuffer &frameBuffer)
+{
+  GUIRectangleBase::setFrameBuffer(frameBuffer);
+  buildCopyBitmapConfig();
+  buildBlendBitmapConfig();
+}
+
 void GUIImage::moveToPosition(const Position &position)
 {
   GUIRectangleBase::moveToPosition(position);
@@ -151,10 +158,10 @@ void GUIImage::drawCPUFromBitmapRGB888ToFrameBufferRGB888(void)
 
   const Position fbuffStartPosition = getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER);
   const Position fbuffEndPosition   = getVisiblePartPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
-  const uint32_t fbuffRowWidth          = PIXEL_SIZE * m_frameBuffer.getWidth();
+  const uint32_t fbuffRowWidth          = PIXEL_SIZE * m_frameBufferPtr->getWidth();
   const uint32_t fbuffColumnStartOffset = PIXEL_SIZE * fbuffStartPosition.x;
   const uint32_t fbuffColumnEndOffset   = PIXEL_SIZE * fbuffEndPosition.x;
-  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBuffer.getPointer());
+  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBufferPtr->getPointer());
 
   const Position bitmapCopyPosition      = getBitmapVisiblePartCopyPosition();
   const uint32_t bitmapRowWidth          = PIXEL_SIZE * m_bitmapDescription.dimension.width;
@@ -183,10 +190,10 @@ void GUIImage::drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void)
 
   const Position fbuffStartPosition = getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER);
   const Position fbuffEndPosition   = getVisiblePartPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
-  const uint32_t fbuffRowWidth          = FRAME_BUFFER_PIXEL_SIZE * m_frameBuffer.getWidth();
+  const uint32_t fbuffRowWidth          = FRAME_BUFFER_PIXEL_SIZE * m_frameBufferPtr->getWidth();
   const uint32_t fbuffColumnStartOffset = FRAME_BUFFER_PIXEL_SIZE * fbuffStartPosition.x;
   const uint32_t fbuffColumnEndOffset   = FRAME_BUFFER_PIXEL_SIZE * fbuffEndPosition.x;
-  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBuffer.getPointer());
+  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBufferPtr->getPointer());
 
   const Position bitmapCopyPosition      = getBitmapVisiblePartCopyPosition();
   const uint32_t bitmapRowWidth          = BITMAP_PIXEL_SIZE * m_bitmapDescription.dimension.width;
@@ -218,7 +225,7 @@ void GUIImage::drawCPUFromBitmapARGB8888ToFrameBufferRGB888(void)
 
 inline bool GUIImage::isFrameBufferColorFormatSupported(void) const
 {
-  return (IFrameBuffer::ColorFormat::RGB888 == m_frameBuffer.getColorFormat());
+  return (IFrameBuffer::ColorFormat::RGB888 == m_frameBufferPtr->getColorFormat());
 }
 
 bool GUIImage::isImageVisibleOnTheScreen(void) const
@@ -244,8 +251,8 @@ void GUIImage::buildCopyBitmapConfig(void)
     .destinationBufferConfig =
     {
       .colorFormat     = DMA2D::OutputColorFormat::RGB888,
-      .bufferDimension = mapToDMA2DDimension(m_frameBuffer.getDimension()),
-      .bufferPtr       = m_frameBuffer.getPointer()
+      .bufferDimension = mapToDMA2DDimension(m_frameBufferPtr->getDimension()),
+      .bufferPtr       = m_frameBufferPtr->getPointer()
     }
   };
 }
@@ -266,15 +273,15 @@ void GUIImage::buildBlendBitmapConfig(void)
     .backgroundBufferConfig =
     {
       .colorFormat     = DMA2D::InputColorFormat::RGB888,
-      .bufferDimension = mapToDMA2DDimension(m_frameBuffer.getDimension()),
-      .bufferPtr       = m_frameBuffer.getPointer()
+      .bufferDimension = mapToDMA2DDimension(m_frameBufferPtr->getDimension()),
+      .bufferPtr       = m_frameBufferPtr->getPointer()
     },
     .destinationRectanglePosition = mapToDMA2DPosition(getVisiblePartPosition(GUIImage::Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
       .colorFormat     = DMA2D::OutputColorFormat::RGB888,
-      .bufferDimension = mapToDMA2DDimension(m_frameBuffer.getDimension()),
-      .bufferPtr       = m_frameBuffer.getPointer()
+      .bufferDimension = mapToDMA2DDimension(m_frameBufferPtr->getDimension()),
+      .bufferPtr       = m_frameBufferPtr->getPointer()
     }
   };
 }

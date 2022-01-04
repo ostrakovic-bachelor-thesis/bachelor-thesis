@@ -19,6 +19,10 @@ public:
 
   void init(const GUIRectangleBaseDescription &rectangleDescription);
 
+  IFrameBuffer& getFrameBuffer(void) override;
+  const IFrameBuffer& getFrameBuffer(void) const;
+  void setFrameBuffer(IFrameBuffer &frameBuffer) override;
+
   inline uint16_t getWidth(void) const override
   {
     return m_rectangleBaseDescription.dimension.width;
@@ -35,27 +39,13 @@ public:
   }
 
   Position getPosition(Position::Tag positionTag) const override;
-
   void moveToPosition(const Position &position) override;
 
   void draw(DrawHardware drawHardware) override;
-
   bool isDrawCompleted(void) const override;
 
-  inline IFrameBuffer& getFrameBuffer(void)
-  {
-    return m_frameBuffer;
-  }
-
-  inline const IFrameBuffer& getFrameBuffer(void) const
-  {
-    return m_frameBuffer;
-  }
-
   uint16_t getVisiblePartWidth(void) const;
-
   uint16_t getVisiblePartHeight(void) const;
-
   Dimension getVisiblePartDimension(void) const;
 
   Position getVisiblePartPosition(Position::Tag positionTag) const;
@@ -73,7 +63,7 @@ protected:
   template <typename T>
   static T saturateValue(T value, T valueLowerLimit, T valueUpperLimit);
 
-  IFrameBuffer &m_frameBuffer;
+  IFrameBuffer *m_frameBufferPtr;
 
   GUIRectangleBaseDescription m_rectangleBaseDescription;
 };

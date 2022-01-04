@@ -47,8 +47,15 @@ void AGUIRectangle::SetUp()
   };
   guiRectangleDescription.baseDescription.position =
   {
-    .x = 5,
-    .y = 5
+    .x   = 5,
+    .y   = 5,
+    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+  };
+  guiRectangleDescription.color =
+  {
+    .red   = 55u,
+    .green = 210u,
+    .blue  = 145u
   };
 
   m_initFameBufferColor.red   = 0u;
@@ -171,16 +178,21 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigPara
     .Times(1u)
     .WillOnce([=](const DMA2D::FillRectangleConfig &fillRectangleConfig) -> DMA2D::ErrorCode
     {
+      const uint16_t expectedWidth  = guiRectangle.getVisiblePartWidth();
+      const uint16_t expectedHeight = guiRectangle.getVisiblePartHeight();
+      const int16_t expectedXPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
+      const int16_t expectedYPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
+
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.alpha == 0u);
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.red   == guiRectangle.getColor().red);
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.green == guiRectangle.getColor().green);
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.blue  == guiRectangle.getColor().blue);
 
-      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.dimension.width == guiRectangle.getWidth());
-      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.dimension.height == guiRectangle.getHeight());
+      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.width == expectedWidth);
+      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.height == expectedHeight);
 
-      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.position.x == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x);
-      m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.position.y == guiRectangle.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y);
+      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.position.x == expectedXPos);
+      m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.position.y == expectedYPos);
 
       m_isDMA2DFillRectangleConfigOk &=
         (fillRectangleConfig.destinationBufferConfig.colorFormat == DMA2D::OutputColorFormat::RGB888);
@@ -429,4 +441,16 @@ TEST_F(AGUIRectangle, IsDrawCompletedReturnsTrueIfDMA2DTransferIsCompletedWhenDr
   setDMA2DTransferOngoingStateToFalse();
 
   ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(true));
+}
+
+TEST_F(AGUIRectangle, DrawWithDMA2DTriggersDMA2DFillRectangleOperationWithAppropriateConfigParamsAfterSubstitutionOfFrameBuffer)
+{
+  FrameBuffer<40u, 60u, IFrameBuffer::ColorFormat::RGB888> newFrameBuffer;
+  guiRectangle.init(guiRectangleDescription);
+  guiRectangle.setFrameBuffer(newFrameBuffer);
+  expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(guiRectangle);
+
+  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+
+  assertThatDMA2DFillRectangleConfigParamsWereOk();
 }

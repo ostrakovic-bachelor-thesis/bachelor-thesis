@@ -35,6 +35,8 @@ public:
 
   ErrorCode init(const ImageDescription &imageDescription);
 
+  void setFrameBuffer(IFrameBuffer &frameBuffer) override;
+
   void moveToPosition(const Position &position) override;
 
   void draw(DrawHardware drawHardware) override;

@@ -229,7 +229,7 @@ inline void DMA2D::setLineOffsetModeToBytes(uint32_t &registerValueCR)
   registerValueCR = MemoryUtility<uint32_t>::setBit(registerValueCR, DMA2D_CR_LOM_POSITION);
 }
 
-inline bool DMA2D::isTransferOngoing(void) const
+bool DMA2D::isTransferOngoing(void) const
 {
   constexpr uint8_t DMA2D_CR_START_POSITION = 0u;
   const uint32_t registerValue = MemoryAccess::getRegisterValue(&(m_DMA2DPeripheralPtr->CR));

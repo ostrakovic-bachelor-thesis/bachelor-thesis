@@ -1,6 +1,7 @@
 #ifndef I_GUI_OBJECT_H
 #define I_GUI_OBJECT_H
 
+#include "IFrameBuffer.h"
 #include <cstdint>
 
 
@@ -64,11 +65,17 @@ public:
     uint16_t height;
   };
 
+  virtual IFrameBuffer& getFrameBuffer(void) = 0;
+  virtual const IFrameBuffer& getFrameBuffer(void) const = 0;
+  virtual void setFrameBuffer(IFrameBuffer &frameBuffer) = 0;
+
   virtual uint16_t getWidth(void) const = 0;
   virtual uint16_t getHeight(void) const = 0;
   virtual Dimension getDimension(void) const = 0;
+
   virtual Position getPosition(Position::Tag positionTag) const = 0;
   virtual void moveToPosition(const Position &position) = 0;
+
   virtual void draw(DrawHardware drawHardware) = 0;
   virtual bool isDrawCompleted(void) const = 0;
 };

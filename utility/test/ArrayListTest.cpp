@@ -237,3 +237,48 @@ TEST_F(AnArrayList, IsFullReturnsTruefSizeIsEqualToArrayListCapacity)
   ASSERT_THAT(uint32ArrayList.getSize(), Eq(uint32ArrayList.getCapacity()));
   ASSERT_THAT(uint32ArrayList.isFull(), Eq(true));
 }
+
+TEST_F(AnArrayList, GetBeginIteratorReturnsTheSameIteratorAsGetEndIteratorIfArrayListIsEmpty)
+{
+  ASSERT_THAT(uint32ArrayList.getBeginIterator(), Eq(uint32ArrayList.getEndIterator()));
+  ASSERT_THAT(uint32ArrayList.isEmpty(), Eq(true));
+}
+
+TEST_F(AnArrayList, GetBeginIteratorReturnsDifferentIteratorFromGetEndIteratorIfArrayListIsNotEmpty)
+{
+  uint32ArrayList.addElement(0u);
+
+  ASSERT_THAT(uint32ArrayList.getBeginIterator(), Ne(uint32ArrayList.getEndIterator()));
+  ASSERT_THAT(uint32ArrayList.isEmpty(), Ne(true));
+}
+
+TEST_F(AnArrayList, GetBeginIteratorReturnsIteratorWhichPointsToFirstElementInArrayList)
+{
+  uint32ArrayList.addElement(100u);
+  uint32ArrayList.addElement(0u);
+
+  ASSERT_THAT(*(uint32ArrayList.getBeginIterator()), Eq(100u));
+}
+
+TEST_F(AnArrayList, IteratorPlusPlusOperationMovesIteratorToTheNextElementInArrayList)
+{
+  uint32ArrayList.addElement(100u);
+  uint32ArrayList.addElement(25u);
+  IArrayList<uint32_t>::ConstIterator uint32ArrayListIterator = uint32ArrayList.getBeginIterator();
+
+  uint32ArrayListIterator++;
+
+  ASSERT_THAT(*uint32ArrayListIterator, Eq(25u));
+}
+
+TEST_F(AnArrayList, IteratorPlusPlusOperationWhenPerformedOnTheLastElementInArrayListTransformsIteratorToEndIterator)
+{
+  uint32ArrayList.addElement(100u);
+  uint32ArrayList.addElement(25u);
+  IArrayList<uint32_t>::ConstIterator uint32ArrayListIterator = uint32ArrayList.getBeginIterator();
+  uint32ArrayListIterator++;
+
+  uint32ArrayListIterator++;
+
+  ASSERT_THAT(uint32ArrayListIterator, Eq(uint32ArrayList.getEndIterator()));
+}

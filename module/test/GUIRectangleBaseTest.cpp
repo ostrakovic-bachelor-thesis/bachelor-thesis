@@ -307,12 +307,20 @@ TEST_F(AGUIRectangleBase, GetPositionCenterReturnsCorrectValueNoMatterWhichPosit
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
-TEST_F(AGUIRectangleBase, GetFrameBufferReturnsPointerToTheFrameBufferAssociatedWithGUIRectangleBase)
+TEST_F(AGUIRectangleBase, GetFrameBufferReturnsReferenceToTheFrameBufferAssociatedWithGUIRectangleBase)
 {
   FrameBuffer<50, 50, IFrameBuffer::ColorFormat::RGB888> frameBuffer;
   GUIRectangleBase guiRectangleBase(frameBuffer);
 
   ASSERT_EQ(guiRectangleBase.getFrameBuffer(), frameBuffer);
+}
+
+TEST_F(AGUIRectangleBase, SetFrameBufferSetsNewFrameBufferWhichWillBeUsedByGUIRectangleBase)
+{
+  FrameBuffer<30, 40, IFrameBuffer::ColorFormat::RGB888> newFrameBuffer;
+  guiRectangleBase.setFrameBuffer(newFrameBuffer);
+
+  ASSERT_EQ(guiRectangleBase.getFrameBuffer(), newFrameBuffer);
 }
 
 TEST_F(AGUIRectangleBase, MoveToPositionMovesGUIRectangleBaseToGivenPosition)

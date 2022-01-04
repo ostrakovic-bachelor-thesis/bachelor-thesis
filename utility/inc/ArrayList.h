@@ -9,6 +9,9 @@ class ArrayList : public IArrayList<T>
 {
 public:
 
+  using Iterator      = typename IArrayList<T>::Iterator;
+  using ConstIterator = typename IArrayList<T>::ConstIterator;
+
   using ErrorCode = IArrayListBase::ErrorCode;
 
   inline uint32_t getCapacity(void) const override
@@ -38,6 +41,26 @@ public:
   ErrorCode addElement(uint32_t index, const T &element) override;
 
   ErrorCode removeElement(uint32_t index) override;
+
+  inline Iterator getBeginIterator(void) override
+  {
+    return isEmpty() ? getEndIterator() : &m_buffer[0];
+  }
+
+  inline Iterator getEndIterator(void) override
+  {
+    return &m_buffer[m_size];
+  }
+
+  inline ConstIterator getBeginIterator(void) const override
+  {
+    return getBeginIterator();
+  }
+
+  inline ConstIterator getEndIterator(void) const override
+  {
+    return getEndIterator();
+  }
 
 private:
 

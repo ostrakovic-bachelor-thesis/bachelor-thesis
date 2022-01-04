@@ -13,6 +13,13 @@ void GUIRectangle::init(const RectangleDescription &rectangleDescription)
   buildFillRectangleConfig();
 }
 
+void GUIRectangle::setFrameBuffer(IFrameBuffer &frameBuffer)
+{
+  GUIRectangleBase::setFrameBuffer(frameBuffer);
+
+  buildFillRectangleConfig();
+}
+
 GUIRectangle::Color GUIRectangle::getColor(void) const
 {
   return m_color;
@@ -67,12 +74,12 @@ void GUIRectangle::drawCPU(void)
 {
   const Position startPosition = getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER);
   const Position endPosition   = getVisiblePartPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
-  const uint32_t rowWidth      = m_frameBuffer.getSize() / m_frameBuffer.getHeight();
-  const uint8_t pixelSize      = IFrameBuffer::getColorFormatPixelSize(m_frameBuffer.getColorFormat());
+  const uint32_t rowWidth      = m_frameBufferPtr->getSize() / m_frameBufferPtr->getHeight();
+  const uint8_t pixelSize      = IFrameBuffer::getColorFormatPixelSize(m_frameBufferPtr->getColorFormat());
   const uint32_t columnStartOffset = pixelSize * startPosition.x;
   const uint32_t columnEndOffset   = pixelSize * endPosition.x;
 
-  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBuffer.getPointer());
+  uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(m_frameBufferPtr->getPointer());
 
   for (uint16_t rowIdx = startPosition.y; rowIdx <= endPosition.y; ++rowIdx)
   {
@@ -108,9 +115,9 @@ void GUIRectangle::buildFillRectangleConfig(void)
     .position  = mapToDMA2DPosition(getVisiblePartPosition(Position::Tag::TOP_LEFT_CORNER)),
     .destinationBufferConfig =
     {
-      .colorFormat     = mapToDMA2DOutputColorFormat(m_frameBuffer.getColorFormat()),
-      .bufferDimension = mapToDMA2DDimension(m_frameBuffer.getDimension()),
-      .bufferPtr       = m_frameBuffer.getPointer(),
+      .colorFormat     = mapToDMA2DOutputColorFormat(m_frameBufferPtr->getColorFormat()),
+      .bufferDimension = mapToDMA2DDimension(m_frameBufferPtr->getDimension()),
+      .bufferPtr       = m_frameBufferPtr->getPointer(),
     },
   };
 }
