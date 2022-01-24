@@ -26,7 +26,11 @@ const DMA2D::CSRegisterMapping DMA2D::s_interruptStatusFlagsRegisterMapping[stat
 DMA2D::DMA2D(DMA2D_TypeDef *DMA2DPeripheralPtr, ResetControl *resetControlPtr):
   m_DMA2DPeripheralPtr(DMA2DPeripheralPtr),
   m_resetControlPtr(resetControlPtr),
-  m_isTransferCompleted(true)
+  m_isTransferCompleted(true),
+  m_drawCompletedCallback{
+    .functionPtr = nullptr,
+    .argument    = nullptr
+  }
 {}
 
 DMA2D::ErrorCode DMA2D::init(void)
@@ -63,6 +67,8 @@ DMA2D::ErrorCode DMA2D::fillRectangle(const FillRectangleConfig &fillRectangleCo
     return ErrorCode::BUSY;
   }
 
+  setDrawCompletedCallback(fillRectangleConfig.drawCompletedCallback);
+
   setMode(Mode::REGISTER_TO_MEMORY);
 
   configureOutputStage(fillRectangleConfig.destinationBufferConfig.colorFormat,
@@ -88,6 +94,8 @@ DMA2D::ErrorCode DMA2D::copyBitmap(const CopyBitmapConfig &copyBitmapConfig)
   {
     return ErrorCode::BUSY;
   }
+
+  setDrawCompletedCallback(copyBitmapConfig.drawCompletedCallback);
 
   setMode(Mode::MEMORY_TO_MEMORY_PFC);
 
@@ -118,6 +126,8 @@ DMA2D::ErrorCode DMA2D::blendBitmap(const BlendBitmapConfig &blendBitmapConfig)
   {
     return ErrorCode::BUSY;
   }
+
+  setDrawCompletedCallback(blendBitmapConfig.drawCompletedCallback);
 
   setMode(Mode::MEMORY_TO_MEMORY_WITH_BLENDING);
 
@@ -154,6 +164,7 @@ void DMA2D::IRQHandler(void)
     disableInterrupt(Interrupt::TRANSFER_COMPLETE);
     clearFlag(Flag::IS_TRANSFER_COMPLETED);
     endTransfer();
+    callDrawCompletedCallbackIfSpecified();
   }
 }
 
@@ -343,7 +354,7 @@ void DMA2D::clearFlag(Flag flag)
 {
   const auto bitPosition = s_interruptStatusFlagsRegisterMapping[static_cast<uint8_t>(flag)].bitPosition;
 
-  RegisterUtility<uint32_t>::resetBitInRegister(&(m_DMA2DPeripheralPtr->ISR), bitPosition);
+  RegisterUtility<uint32_t>::setBitInRegister(&(m_DMA2DPeripheralPtr->IFCR), bitPosition);
 }
 
 void DMA2D::enableInterrupt(Interrupt interrupt)
@@ -375,6 +386,19 @@ bool DMA2D::isInterruptEnabled(Interrupt interrupt) const
 
   const uint32_t registerValue = MemoryAccess::getRegisterValue(registerPtr);
   return MemoryUtility<uint32_t>::isBitSet(registerValue, bitPosition);
+}
+
+inline void DMA2D::setDrawCompletedCallback(const CallbackDescription &callbackDescription)
+{
+  m_drawCompletedCallback = callbackDescription;
+}
+
+void DMA2D::callDrawCompletedCallbackIfSpecified(void)
+{
+  if (nullptr != m_drawCompletedCallback.functionPtr)
+  {
+    m_drawCompletedCallback.functionPtr(m_drawCompletedCallback.argument);
+  }
 }
 
 DMA2D::ErrorCode DMA2D::checkFillRectangleConfig(const FillRectangleConfig &fillRectangleConfig)

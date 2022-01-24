@@ -1,7 +1,8 @@
 #include "GUIRectangleBase.h"
 
 
-GUIRectangleBase::GUIRectangleBase(IFrameBuffer &frameBuffer):
+GUI::RectangleBase::RectangleBase(SysTick &sysTick, IFrameBuffer &frameBuffer):
+  m_sysTick(sysTick),
   m_frameBufferPtr(&frameBuffer),
   m_rectangleBaseDescription{
     .dimension = {
@@ -15,28 +16,28 @@ GUIRectangleBase::GUIRectangleBase(IFrameBuffer &frameBuffer):
     }}
 {}
 
-void GUIRectangleBase::init(const GUIRectangleBaseDescription &rectangleDescription)
+void GUI::RectangleBase::init(const RectangleBaseDescription &rectangleDescription)
 {
   m_rectangleBaseDescription = rectangleDescription;
   recalculatePositionToBeTopLeftCorner(m_rectangleBaseDescription);
 }
 
-IFrameBuffer& GUIRectangleBase::getFrameBuffer(void)
+IFrameBuffer& GUI::RectangleBase::getFrameBuffer(void)
 {
   return *m_frameBufferPtr;
 }
 
-const IFrameBuffer& GUIRectangleBase::getFrameBuffer(void) const
+const IFrameBuffer& GUI::RectangleBase::getFrameBuffer(void) const
 {
   return *m_frameBufferPtr;
 }
 
-void GUIRectangleBase::setFrameBuffer(IFrameBuffer &frameBuffer)
+void GUI::RectangleBase::setFrameBuffer(IFrameBuffer &frameBuffer)
 {
   m_frameBufferPtr = &frameBuffer;
 }
 
-GUIRectangleBase::Position GUIRectangleBase::getPosition(Position::Tag positionTag) const
+GUI::Position GUI::RectangleBase::getPosition(Position::Tag positionTag) const
 {
   switch (positionTag)
   {
@@ -58,23 +59,57 @@ GUIRectangleBase::Position GUIRectangleBase::getPosition(Position::Tag positionT
   }
 }
 
-void GUIRectangleBase::moveToPosition(const Position &position)
+void GUI::RectangleBase::moveToPosition(const Position &position)
 {
   m_rectangleBaseDescription.position = position;
   recalculatePositionToBeTopLeftCorner(m_rectangleBaseDescription);
 }
 
-void GUIRectangleBase::draw(DrawHardware drawHardware)
+void GUI::RectangleBase::draw(DrawHardware drawHardware)
 {
-  // do nothing
+  if (isVisibleOnTheScreen())
+  {
+    startDrawingTransaction(drawHardware);
+
+    switch (drawHardware)
+    {
+      case DrawHardware::DMA2D:
+      {
+        drawDMA2D();
+      }
+      break;
+
+      default:
+      case DrawHardware::CPU:
+      {
+        drawCPU();
+        endDrawingTransaction(drawHardware);
+      }
+      break;
+    }
+  }
 }
 
-bool GUIRectangleBase::isDrawCompleted(void) const
+bool GUI::RectangleBase::isDrawCompleted(void) const
 {
-  return true;
+  return m_isDrawingCompleted;
 }
 
-uint16_t GUIRectangleBase::getVisiblePartWidth(void) const
+GUI::ErrorCode GUI::RectangleBase::getDrawingTime(DrawHardware drawHardware, uint64_t &drawingTimeInUs) const
+{
+  const DrawingDurationInfo *drawingDurationInfoPtr = &m_drawingDurationInfo[static_cast<uint8_t>(drawHardware)];
+  ErrorCode errorCode = GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE;
+
+  if (drawingDurationInfoPtr->isDrawnAtLeastOnce)
+  {
+    drawingTimeInUs = calculateDrawingTime(drawingDurationInfoPtr);
+    errorCode = ErrorCode::OK;
+  }
+
+  return errorCode;
+}
+
+uint16_t GUI::RectangleBase::getVisiblePartWidth(void) const
 {
   const int16_t frameBufferWidth = static_cast<int16_t>(m_frameBufferPtr->getWidth());
   const Position topLeftCornerPosition = getPosition(Position::Tag::TOP_LEFT_CORNER);
@@ -95,7 +130,7 @@ uint16_t GUIRectangleBase::getVisiblePartWidth(void) const
   return static_cast<uint16_t>(visiblePartWidth);
 }
 
-uint16_t GUIRectangleBase::getVisiblePartHeight(void) const
+uint16_t GUI::RectangleBase::getVisiblePartHeight(void) const
 {
   const int16_t frameBufferHeight = static_cast<int16_t>(m_frameBufferPtr->getHeight());
   const Position topLeftCornerPosition = getPosition(Position::Tag::TOP_LEFT_CORNER);
@@ -116,7 +151,7 @@ uint16_t GUIRectangleBase::getVisiblePartHeight(void) const
   return static_cast<uint16_t>(visiblePartHeight);
 }
 
-GUIRectangleBase::Dimension GUIRectangleBase::getVisiblePartDimension(void) const
+GUI::Dimension GUI::RectangleBase::getVisiblePartDimension(void) const
 {
   return
   {
@@ -125,7 +160,12 @@ GUIRectangleBase::Dimension GUIRectangleBase::getVisiblePartDimension(void) cons
   };
 }
 
-GUIRectangleBase::Position GUIRectangleBase::getVisiblePartPosition(Position::Tag positionTag) const
+uint64_t GUI::RectangleBase::getVisiblePartArea(void) const
+{
+  return getVisiblePartWidth() * getVisiblePartHeight();
+}
+
+GUI::Position GUI::RectangleBase::getVisiblePartPosition(Position::Tag positionTag) const
 {
   Position position = getPosition(positionTag);
 
@@ -135,12 +175,12 @@ GUIRectangleBase::Position GUIRectangleBase::getVisiblePartPosition(Position::Ta
   return position;
 }
 
-inline GUIRectangleBase::Position GUIRectangleBase::getPositionTopLeftCorner(void) const
+inline GUI::Position GUI::RectangleBase::getPositionTopLeftCorner(void) const
 {
   return m_rectangleBaseDescription.position;
 }
 
-inline GUIRectangleBase::Position GUIRectangleBase::getPositionTopRightCorner(void) const
+inline GUI::Position GUI::RectangleBase::getPositionTopRightCorner(void) const
 {
   const int16_t x = m_rectangleBaseDescription.position.x + static_cast<int16_t>(m_rectangleBaseDescription.dimension.width) - 1;
   const int16_t y = m_rectangleBaseDescription.position.y;
@@ -148,7 +188,7 @@ inline GUIRectangleBase::Position GUIRectangleBase::getPositionTopRightCorner(vo
   return { .x = x, .y = y, .tag = Position::Tag::TOP_RIGHT_CORNER };
 }
 
-inline GUIRectangleBase::Position GUIRectangleBase::getPositionBottomLeftCorner(void) const
+inline GUI::Position GUI::RectangleBase::getPositionBottomLeftCorner(void) const
 {
   const int16_t x = m_rectangleBaseDescription.position.x;
   const int16_t y = m_rectangleBaseDescription.position.y + static_cast<int16_t>(m_rectangleBaseDescription.dimension.height) - 1;
@@ -156,7 +196,7 @@ inline GUIRectangleBase::Position GUIRectangleBase::getPositionBottomLeftCorner(
   return { .x = x, .y = y, .tag = Position::Tag::BOTTOM_LEFT_CORNER };
 }
 
-inline GUIRectangleBase::Position GUIRectangleBase::getPositionBottomRightCorner(void) const
+inline GUI::Position GUI::RectangleBase::getPositionBottomRightCorner(void) const
 {
   const int16_t x = m_rectangleBaseDescription.position.x + static_cast<int16_t>(m_rectangleBaseDescription.dimension.width) - 1;
   const int16_t y = m_rectangleBaseDescription.position.y + static_cast<int16_t>(m_rectangleBaseDescription.dimension.height) - 1;
@@ -164,7 +204,7 @@ inline GUIRectangleBase::Position GUIRectangleBase::getPositionBottomRightCorner
   return { .x = x, .y = y, .tag = Position::Tag::BOTTOM_RIGHT_CORNER };
 }
 
-inline GUIRectangleBase::Position GUIRectangleBase::getPositionCenter(void) const
+inline GUI::Position GUI::RectangleBase::getPositionCenter(void) const
 {
   const int16_t x = m_rectangleBaseDescription.position.x + static_cast<int16_t>(m_rectangleBaseDescription.dimension.width / 2);
   const int16_t y = m_rectangleBaseDescription.position.y + static_cast<int16_t>(m_rectangleBaseDescription.dimension.height / 2);
@@ -172,7 +212,40 @@ inline GUIRectangleBase::Position GUIRectangleBase::getPositionCenter(void) cons
   return { .x = x, .y = y, .tag = Position::Tag::CENTER };
 }
 
-void GUIRectangleBase::recalculatePositionToBeTopLeftCorner(GUIRectangleBaseDescription &rectangleDescription)
+bool GUI::RectangleBase::isVisibleOnTheScreen(void) const
+{
+  return (0u != getVisiblePartWidth()) && (0u != getVisiblePartHeight());
+}
+
+void GUI::RectangleBase::startDrawingTransaction(DrawHardware drawHardware)
+{
+  DrawingDurationInfo *drawingDurationInfoPtr = &m_drawingDurationInfo[static_cast<uint8_t>(drawHardware)];
+
+  m_isDrawingCompleted                               = false;
+  drawingDurationInfoPtr->drawStartTimestamp         = m_sysTick.getTicks();
+  drawingDurationInfoPtr->lastDrawingVisiblePartArea = getVisiblePartArea();
+}
+
+void GUI::RectangleBase::endDrawingTransaction(DrawHardware drawHardware)
+{
+  DrawingDurationInfo *drawingDurationInfoPtr = &m_drawingDurationInfo[static_cast<uint8_t>(drawHardware)];
+
+  drawingDurationInfoPtr->lastDrawingDurationInUs =
+    m_sysTick.getElapsedTimeInUs(drawingDurationInfoPtr->drawStartTimestamp);
+  drawingDurationInfoPtr->isDrawnAtLeastOnce = true;
+  m_isDrawingCompleted                       = true;
+}
+
+uint64_t GUI::RectangleBase::calculateDrawingTime(const DrawingDurationInfo *drawingDurationInfoPtr) const
+{
+  uint64_t drawingTimeInUs =  drawingDurationInfoPtr->lastDrawingDurationInUs;
+  drawingTimeInUs *= getVisiblePartArea();
+  drawingTimeInUs /= drawingDurationInfoPtr->lastDrawingVisiblePartArea;
+
+  return drawingTimeInUs;
+}
+
+void GUI::RectangleBase::recalculatePositionToBeTopLeftCorner(RectangleBaseDescription &rectangleDescription)
 {
   switch (rectangleDescription.position.tag)
   {
@@ -204,4 +277,14 @@ void GUIRectangleBase::recalculatePositionToBeTopLeftCorner(GUIRectangleBaseDesc
   }
 
   rectangleDescription.position.tag = Position::Tag::TOP_LEFT_CORNER;
+}
+
+void GUI::RectangleBase::callbackDMA2DDrawCompleted(void *guiRectangleBasePtr)
+{
+  GUI::RectangleBase *rectangleBasePtr = reinterpret_cast<GUI::RectangleBase*>(guiRectangleBasePtr);
+
+  if (nullptr != rectangleBasePtr)
+  {
+    rectangleBasePtr->endDrawingTransaction(DrawHardware::DMA2D);
+  }
 }

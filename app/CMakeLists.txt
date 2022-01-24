@@ -30,7 +30,7 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/GUIRectangleBase.cpp
     ../module/src/GUIRectangle.cpp
     ../module/src/GUIImage.cpp
-    ../module/src/GUIDrawPerformanceMeasurement.cpp
+    ../module/src/GUISceneBase.cpp
     ../module/src/USARTLogger.cpp)
 
 set(BachelorThesis_app_component_cpp_sources

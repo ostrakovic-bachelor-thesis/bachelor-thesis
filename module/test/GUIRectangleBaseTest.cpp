@@ -1,5 +1,7 @@
 #include "GUIRectangleBase.h"
 #include "FrameBuffer.h"
+#include "GUIRectangleBaseMock.h"
+#include "SysTickMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -11,10 +13,69 @@ using namespace ::testing;
 class AGUIRectangleBase : public Test
 {
 public:
+  AGUIRectangleBase():
+    guiRectangleBase(sysTickMock, guiRectangleFrameBuffer)
+  {}
+
+  NiceMock<SysTickMock> sysTickMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBuffer;
-  GUIRectangleBase guiRectangleBase = GUIRectangleBase(guiRectangleFrameBuffer);
-  GUIRectangleBase::GUIRectangleBaseDescription guiRectangleBaseDescription;
+  NiceMock<GUIRectangleBaseMock> guiRectangleBase;
+  GUI::RectangleBase::RectangleBaseDescription guiRectangleBaseDescription;
+
+  static constexpr uint64_t DRAW_OPERATION_DURATION_IN_US = 4300u;
+  static constexpr GUI::Position GUI_RECTANGLE_PARTIALLY_OUT_OF_SCREEN_POSITION =
+  {
+    .x   = -10,
+    .y   = -20,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+  static constexpr GUI::Position GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION =
+  {
+    .x   = 0,
+    .y   = 500,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+
+  uint64_t m_sysTickFunctionCallCounter;
+
+  void setupSysTickReadings(uint64_t drawOperationExecutionTimeInUs);
+
+  void SetUp() override;
 };
+
+constexpr GUI::Position AGUIRectangleBase::GUI_RECTANGLE_PARTIALLY_OUT_OF_SCREEN_POSITION;
+
+void AGUIRectangleBase::SetUp()
+{
+  m_sysTickFunctionCallCounter = 0u;
+
+  guiRectangleBaseDescription.dimension =
+  {
+    .width  = 10u,
+    .height = 10u
+  };
+  guiRectangleBaseDescription.position =
+  {
+    .x   = 0u,
+    .y   = 0u,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+}
+
+void AGUIRectangleBase::setupSysTickReadings(uint64_t drawOperationExecutionTimeInUs)
+{
+  EXPECT_CALL(sysTickMock, getTicks())
+    .WillRepeatedly([&] ()
+    {
+      return (m_sysTickFunctionCallCounter++);
+    });
+
+  EXPECT_CALL(sysTickMock, getElapsedTimeInUs(_))
+    .WillRepeatedly([&, drawOperationExecutionTimeInUs] (uint64_t timestamp)
+    {
+      return ((m_sysTickFunctionCallCounter++) - timestamp) * drawOperationExecutionTimeInUs;
+    });
+}
 
 
 TEST_F(AGUIRectangleBase, GetWidthReturnsZeroWhenItIsCalledOnUninitializedObject)
@@ -47,7 +108,7 @@ TEST_F(AGUIRectangleBase, GetHeightReturnsHeightSpecifiedAtInit)
 
 TEST_F(AGUIRectangleBase, GetDimensionReturnsDimensionWithWidthAndHeightSetToZerosWhenItIsCalledOnUninitializedObject)
 {
-  const GUIRectangleBase::Dimension dimension = guiRectangleBase.getDimension();
+  const GUI::Dimension dimension = guiRectangleBase.getDimension();
 
   ASSERT_THAT(dimension.width, Eq(0u));
   ASSERT_THAT(dimension.height, Eq(0u));
@@ -55,7 +116,7 @@ TEST_F(AGUIRectangleBase, GetDimensionReturnsDimensionWithWidthAndHeightSetToZer
 
 TEST_F(AGUIRectangleBase, GetDimensionReturnsGUIRectangleDimensionsSpecifiedAtInit)
 {
-  constexpr GUIRectangleBase::Dimension EXPECTED_GUI_RECTANGLE_BASE_DIMENSION =
+  constexpr GUI::Dimension EXPECTED_GUI_RECTANGLE_BASE_DIMENSION =
   {
     .width  = 100u,
     .height = 150u
@@ -68,7 +129,7 @@ TEST_F(AGUIRectangleBase, GetDimensionReturnsGUIRectangleDimensionsSpecifiedAtIn
 
 TEST_F(AGUIRectangleBase, GetPositionWithAnyTagReturnsPositionWithBothXAndYSetToZerosWhenItIsCalledOnUninitializedObject)
 {
-  const GUIRectangleBase::Position position = guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::CENTER);
+  const GUI::Position position = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER);
 
   ASSERT_THAT(position.x, Eq(0));
   ASSERT_THAT(position.y, Eq(0));
@@ -76,25 +137,25 @@ TEST_F(AGUIRectangleBase, GetPositionWithAnyTagReturnsPositionWithBothXAndYSetTo
 
 TEST_F(AGUIRectangleBase, GetPositionWithAnyTagReturnsPositionWithThatTag)
 {
-  const GUIRectangleBase::Position position =
-    guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER);
+  const GUI::Position position =
+    guiRectangleBase.getPosition(GUI::Position::Tag::BOTTOM_LEFT_CORNER);
 
-  ASSERT_THAT(position.tag, Eq(GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER));
+  ASSERT_THAT(position.tag, Eq(GUI::Position::Tag::BOTTOM_LEFT_CORNER));
 }
 
 TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsExactSameTopLeftCornerPositionSpecifiedAtTheInit)
 {
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 90,
     .y   = 140,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.position = EXPECTED_GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  const GUIRectangleBase::Position position =
-    guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER);
+  const GUI::Position position =
+    guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
 
   ASSERT_THAT(position, Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
@@ -102,24 +163,24 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsExactSameTopLeftCornerP
 TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfTopRightCornerPositionIsSpecifiedAtTheInit)
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH = 20;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 49,
     .y   = 50,
-    .tag = GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER,
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x - GUI_RECTANGLE_BASE_WIDTH + 1,
     .y   = GUI_RECTANGLE_BASE_POSITION.y,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER,
   };
   guiRectangleBaseDescription.position        = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-   const GUIRectangleBase::Position position =
-    guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER);
+   const GUI::Position position =
+    guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
 
   ASSERT_THAT(position, Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
@@ -127,23 +188,23 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfTopRightC
 TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfBottomLeftCornerPositionIsSpecifiedAtTheInit)
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 25;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 180,
     .y   = 74,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER,
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x,
     .y   = GUI_RECTANGLE_BASE_POSITION.y - GUI_RECTANGLE_BASE_HEIGHT + 1,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER,
   };
   guiRectangleBaseDescription.position         = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
@@ -151,17 +212,17 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfCenterPos
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH  = 25;
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 40;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 100,
     .y   = 100,
-    .tag = GUIRectangleBase::Position::Tag::CENTER,
+    .tag = GUI::Position::Tag::CENTER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x - (GUI_RECTANGLE_BASE_WIDTH / 2),
     .y   = GUI_RECTANGLE_BASE_POSITION.y - (GUI_RECTANGLE_BASE_HEIGHT / 2),
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER,
   };
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension =
@@ -171,7 +232,7 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfCenterPos
   };
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
@@ -179,17 +240,17 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfBottomRig
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH  = 49;
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 49;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 99,
     .y   = 99,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER,
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x - GUI_RECTANGLE_BASE_WIDTH + 1,
     .y   = GUI_RECTANGLE_BASE_POSITION.y - GUI_RECTANGLE_BASE_HEIGHT + 1,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER,
   };
   guiRectangleBaseDescription.position  = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension =
@@ -199,31 +260,31 @@ TEST_F(AGUIRectangleBase, GetPositionTopLeftCornerReturnsCorrectValueIfBottomRig
   };
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetPositionTopRightCornerReturnsCorrectValueNoMatterWhichPositionTagIsSpecifiedAtTheInit)
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH = 100;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 50,
     .y   = 50,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x + GUI_RECTANGLE_BASE_WIDTH - 1,
     .y   = GUI_RECTANGLE_BASE_POSITION.y,
-    .tag = GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER,
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER,
   };
   guiRectangleBaseDescription.position        = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-   const GUIRectangleBase::Position position =
-    guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER);
+   const GUI::Position position =
+    guiRectangleBase.getPosition(GUI::Position::Tag::TOP_RIGHT_CORNER);
 
   ASSERT_THAT(position, Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
@@ -232,17 +293,17 @@ TEST_F(AGUIRectangleBase, GetPositionBottomLeftCornerReturnsCorrectValueNoMatter
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH  = 50;
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 25;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 75,
     .y   = 75,
-    .tag = GUIRectangleBase::Position::Tag::CENTER,
+    .tag = GUI::Position::Tag::CENTER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x - (GUI_RECTANGLE_BASE_WIDTH / 2),
     .y   = GUI_RECTANGLE_BASE_POSITION.y - (GUI_RECTANGLE_BASE_HEIGHT / 2) + GUI_RECTANGLE_BASE_HEIGHT - 1,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER,
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER,
   };
   guiRectangleBaseDescription.position  = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension =
@@ -252,30 +313,30 @@ TEST_F(AGUIRectangleBase, GetPositionBottomLeftCornerReturnsCorrectValueNoMatter
   };
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::BOTTOM_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetPositionBottomRightCornerReturnsCorrectValueNoMatterWhichPositionTagIsSpecifiedAtTheInit)
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH = 50;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 100,
     .y   = 100,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER,
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x + GUI_RECTANGLE_BASE_WIDTH - 1,
     .y   = GUI_RECTANGLE_BASE_POSITION.y,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER,
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER,
   };
   guiRectangleBaseDescription.position        = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
@@ -283,17 +344,17 @@ TEST_F(AGUIRectangleBase, GetPositionCenterReturnsCorrectValueNoMatterWhichPosit
 {
   constexpr uint16_t GUI_RECTANGLE_BASE_WIDTH  = 50;
   constexpr uint16_t GUI_RECTANGLE_BASE_HEIGHT = 55;
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 100,
     .y   = 100,
-    .tag = GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER,
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER,
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = GUI_RECTANGLE_BASE_POSITION.x - (GUI_RECTANGLE_BASE_WIDTH - 1) + (GUI_RECTANGLE_BASE_WIDTH / 2),
     .y   = GUI_RECTANGLE_BASE_POSITION.y + (GUI_RECTANGLE_BASE_HEIGHT / 2),
-    .tag = GUIRectangleBase::Position::Tag::CENTER,
+    .tag = GUI::Position::Tag::CENTER,
   };
   guiRectangleBaseDescription.position  = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBaseDescription.dimension =
@@ -303,14 +364,14 @@ TEST_F(AGUIRectangleBase, GetPositionCenterReturnsCorrectValueNoMatterWhichPosit
   };
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::CENTER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::CENTER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetFrameBufferReturnsReferenceToTheFrameBufferAssociatedWithGUIRectangleBase)
 {
   FrameBuffer<50, 50, IFrameBuffer::ColorFormat::RGB888> frameBuffer;
-  GUIRectangleBase guiRectangleBase(frameBuffer);
+  GUIRectangleBaseMock guiRectangleBase(sysTickMock, frameBuffer);
 
   ASSERT_EQ(guiRectangleBase.getFrameBuffer(), frameBuffer);
 }
@@ -325,30 +386,18 @@ TEST_F(AGUIRectangleBase, SetFrameBufferSetsNewFrameBufferWhichWillBeUsedByGUIRe
 
 TEST_F(AGUIRectangleBase, MoveToPositionMovesGUIRectangleBaseToGivenPosition)
 {
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 250,
     .y   = 450,
-    .tag = GUIRectangleBase::Position::Tag::CENTER
+    .tag = GUI::Position::Tag::CENTER
   };
   guiRectangleBase.init(guiRectangleBaseDescription);
 
   guiRectangleBase.moveToPosition(EXPECTED_GUI_RECTANGLE_BASE_POSITION);
 
-  ASSERT_THAT(guiRectangleBase.getPosition(GUIRectangleBase::Position::Tag::CENTER),
+  ASSERT_THAT(guiRectangleBase.getPosition(GUI::Position::Tag::CENTER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
-}
-
-TEST_F(AGUIRectangleBase, DrawDoesNotDoAnything)
-{
-  guiRectangleBase.draw(GUIRectangleBase::DrawHardware::CPU);
-
-  SUCCEED();
-}
-
-TEST_F(AGUIRectangleBase, IsDrawCompletedAlwaysReturnTrue)
-{
-  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
 }
 
 TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsWidthSpecifiedAtInitIfNoPartIsOutOfTheScreenAlongXAxis)
@@ -359,7 +408,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsWidthSpecifiedAtInitIfNoPart
   {
     .x   = 0,
     .y   = 0,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -376,7 +425,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsCorrectlyWidthOfVisiblePartW
   {
     .x   = GUI_RECTANGLE_BASE_XPOS,
     .y   = -10,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -393,7 +442,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsCorrectlyWidthOfVisiblePartW
   {
     .x   = GUI_RECTANGLE_BASE_XPOS,
     .y   = 20,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -410,7 +459,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthIsEqualToFrameBufferWidthWhenGUIRec
   {
     .x   = GUI_RECTANGLE_BASE_XPOS,
     .y   = 110,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -427,7 +476,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartWidthReturnsZeroWhenGUIRectangleIsOutOfS
   {
     .x   = GUI_RECTANGLE_BASE_XPOS,
     .y   = 110,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.width = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -443,7 +492,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsHeightSpecifiedAtInitIfNoPa
   {
     .x   = 0,
     .y   = 0,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -460,7 +509,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsCorrectlyHeightOfVisiblePar
   {
     .x   = 20,
     .y   = GUI_RECTANGLE_BASE_YPOS,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -477,7 +526,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsCorrectlyHeightOfVisiblePar
   {
     .x   = -10,
     .y   = GUI_RECTANGLE_BASE_YPOS,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -494,7 +543,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightIsEqualToFrameBufferHeightWhenGUIR
   {
     .x   = 30,
     .y   = GUI_RECTANGLE_BASE_YPOS,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -511,7 +560,7 @@ TEST_F(AGUIRectangleBase, GetVisiblePartHeightReturnsZeroWhenGUIRectangleIsOutOf
   {
     .x   = 90,
     .y   = GUI_RECTANGLE_BASE_YPOS,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -527,8 +576,9 @@ TEST_F(AGUIRectangleBase, GetVisiblePartDimensionReturnsWidthAndHeightOfVisibleP
   {
     .x   = -static_cast<int16_t>(GUI_RECTANGLE_BASE_WIDTH / 2u),
     .y   = static_cast<int16_t>(guiRectangleFrameBuffer.getHeight() - (GUI_RECTANGLE_BASE_HEIGHT / 2u)),
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
+  guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_WIDTH;
   guiRectangleBaseDescription.dimension.height = GUI_RECTANGLE_BASE_HEIGHT;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
@@ -536,102 +586,344 @@ TEST_F(AGUIRectangleBase, GetVisiblePartDimensionReturnsWidthAndHeightOfVisibleP
   ASSERT_THAT(guiRectangleBase.getVisiblePartDimension().height, Eq(guiRectangleBase.getVisiblePartHeight()));
 }
 
+TEST_F(AGUIRectangleBase, GetVisiblePartAreaReturnsVisiblePartWidthMultipliedByVisiblePartHeight)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  const uint64_t expectedVisiblePartArea =
+    static_cast<uint64_t>(guiRectangleBase.getVisiblePartWidth()) *
+    static_cast<uint64_t>(guiRectangleBase.getVisiblePartHeight());
+
+  ASSERT_THAT(guiRectangleBase.getVisiblePartArea(), Eq(expectedVisiblePartArea));
+}
+
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsThatPositionIfItIsVisibleInTheFrameBuffer)
 {
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 30,
     .y   = 40,
-    .tag = GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleBaseDescription.position = EXPECTED_GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUIRectangleBase::Position::Tag::TOP_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionEqualToZeroIfItIsOutOfScreenFromLeftSide)
 {
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = -30,
     .y   = 40,
-    .tag = GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 0,
     .y   = 40,
-    .tag = GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER
   };
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUIRectangleBase::Position::Tag::TOP_RIGHT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUI::Position::Tag::TOP_RIGHT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsXPositionSetToLastColumnInFrameBufferIfItIsOutOfScreenFromRightSide)
 {
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 500,
     .y   = 10,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER
   };
-  const GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  const GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = static_cast<int16_t>(guiRectangleFrameBuffer.getWidth() - 1u),
     .y   = 10,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER
   };
 
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUIRectangleBase::Position::Tag::BOTTOM_LEFT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_LEFT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionEqualToZeroIfItIsOutOfScreenFromAbove)
 {
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 35,
     .y   = -100,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER
   };
-  constexpr GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 35,
     .y   = 0,
-    .tag = GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER
   };
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUIRectangleBase::Position::Tag::BOTTOM_RIGHT_CORNER),
+  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
 
 TEST_F(AGUIRectangleBase, GetVisiblePartPositionWithAnyTagReturnsYPositionSetToLastRowInFrameBufferIfItIsOutOfScreenFromBelow)
 {
-  constexpr GUIRectangleBase::Position GUI_RECTANGLE_BASE_POSITION =
+  constexpr GUI::Position GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 0,
     .y   = 500,
-    .tag = GUIRectangleBase::Position::Tag::CENTER
+    .tag = GUI::Position::Tag::CENTER
   };
-  const GUIRectangleBase::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
+  const GUI::Position EXPECTED_GUI_RECTANGLE_BASE_POSITION =
   {
     .x   = 0,
     .y   = static_cast<int16_t>(guiRectangleFrameBuffer.getHeight() - 1u),
-    .tag = GUIRectangleBase::Position::Tag::CENTER
+    .tag = GUI::Position::Tag::CENTER
   };
   guiRectangleBaseDescription.position = GUI_RECTANGLE_BASE_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);
 
-  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUIRectangleBase::Position::Tag::CENTER),
+  ASSERT_THAT(guiRectangleBase.getVisiblePartPosition(GUI::Position::Tag::CENTER),
     Eq(EXPECTED_GUI_RECTANGLE_BASE_POSITION));
 }
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDrawHardwareCallsDrawCPUMethod)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawCPU())
+    .Times(1u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DDrawHardwareCallsDrawDMA2DMethod)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawDMA2D())
+    .Times(1u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDrawHardwareDoesNotCallDrawDMA2DMethod)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawDMA2D())
+    .Times(0u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DDrawHardwareDoesNotCallDrawCPUMethod)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawCPU())
+    .Times(0u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDrawHardwarDoesNotCallDrawCPUMethodIfRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawCPU())
+    .Times(0u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DDrawHardwarDoesNotCallDrawDMA2DMethodIfRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  EXPECT_CALL(guiRectangleBase, drawDMA2D())
+    .Times(0u);
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDrawHardwareCallsSysTickGetTicksBeforeDrawCPUMethodIsCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  {
+    InSequence expectCallsInSequence;
+
+    EXPECT_CALL(sysTickMock, getTicks())
+      .Times(1u);
+    EXPECT_CALL(guiRectangleBase, drawCPU())
+      .Times(1u);
+  }
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DDrawHardwareCallsSysTickGetTicksBeforeDrawDMA2DMethodIsCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  {
+    InSequence expectCallsInSequence;
+
+    EXPECT_CALL(sysTickMock, getTicks())
+      .Times(1u);
+    EXPECT_CALL(guiRectangleBase, drawDMA2D())
+      .Times(1u);
+  }
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDrawHardwareCallsSysTickGetElapsedTimeInUsAfterDrawCPUMethodIsCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  {
+    InSequence expectCallsInSequence;
+
+    EXPECT_CALL(guiRectangleBase, drawCPU())
+      .Times(1u);
+    EXPECT_CALL(sysTickMock, getElapsedTimeInUs(_))
+      .Times(1u);
+  }
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeFailsIfCalledBeforeRectangleIsDrawnAtTheLeastOnceWithTheGivenDrawHardware)
+{
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE));
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeSucceedIfDrawWithTheGivenDrawHardwareIsCalledAtTheLeastOnce)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeForCPUDrawHardwareGetsTheDurationOfTheLastDrawingIfRectangleIsNotMoved)
+{
+  setupSysTickReadings(DRAW_OPERATION_DURATION_IN_US);
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  uint64_t drawingTimeInUs = 0u;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  ASSERT_THAT(drawingTimeInUs, DRAW_OPERATION_DURATION_IN_US);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeForCPUDrawHardwareScalesTheLastDrawingTimeIfValueOfVisiblePartAreaHasBeenChanged)
+{
+  setupSysTickReadings(DRAW_OPERATION_DURATION_IN_US);
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  const uint64_t oldVisiblePartArea = guiRectangleBase.getVisiblePartArea();
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+  guiRectangleBase.moveToPosition(GUI_RECTANGLE_PARTIALLY_OUT_OF_SCREEN_POSITION);
+  const uint64_t newVisiblePartArea = guiRectangleBase.getVisiblePartArea();
+
+  uint64_t drawingTimeInUs = 0u;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  ASSERT_THAT(drawingTimeInUs, DRAW_OPERATION_DURATION_IN_US * newVisiblePartArea / oldVisiblePartArea);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIRectangleBase, DMA2DDrawCompletedCallbackWillNotCauseFaultIfNullptrIsProvided)
+{
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(nullptr);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIRectangleBase, DMA2DDrawCompletedCallbackCallsSysTickGetElapsedTimeInUs)
+{
+  EXPECT_CALL(sysTickMock, getElapsedTimeInUs(_))
+    .Times(1u);
+
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DIsNotFinishedIfDMA2DDrawCompleteCallbackIsNotCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE));
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeForDMA2DGetsElapsedTimeBetweenDMA2DTransactionIsStartedAndDrawCompletedCallbackIsCalled)
+{
+  setupSysTickReadings(DRAW_OPERATION_DURATION_IN_US);
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+
+  uint64_t drawingTimeInUs = 0u;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(drawingTimeInUs, DRAW_OPERATION_DURATION_IN_US);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIRectangleBase, GetDrawingTimeForDMA2DDrawHardwareScalesTheLastDrawingTimeIfValueOfVisiblePartAreaHasBeenChanged)
+{
+  setupSysTickReadings(DRAW_OPERATION_DURATION_IN_US);
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  const uint64_t oldVisiblePartArea = guiRectangleBase.getVisiblePartArea();
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+  guiRectangleBase.moveToPosition(GUI_RECTANGLE_PARTIALLY_OUT_OF_SCREEN_POSITION);
+  const uint64_t newVisiblePartArea = guiRectangleBase.getVisiblePartArea();
+
+  uint64_t drawingTimeInUs = 0u;
+  GUI::ErrorCode errorCode = guiRectangleBase.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(drawingTimeInUs, DRAW_OPERATION_DURATION_IN_US * newVisiblePartArea / oldVisiblePartArea);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithCPU)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
+}
+
+TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsFalseIfDrawingWithDMA2DButDrawCompleteCallbackHasNotBeenYetCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+
+  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(false));
+}
+
+TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsTrueWhenDrawingWithDMA2DAndDrawCompleteCallbackWasCalled)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+
+  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
+}
+

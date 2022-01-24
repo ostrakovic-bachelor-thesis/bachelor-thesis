@@ -14,9 +14,9 @@
 #include "FT3267.h"
 #include "GUIRectangle.h"
 #include "GUIImage.h"
-#include "GUIDrawPerformanceMeasurement.h"
 #include "StringBuilder.h"
 #include "USARTLogger.h"
+#include "GUIScene.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -264,7 +264,7 @@ void startup(void)
     }
   }
 
-  const GUIRectangle::RectangleDescription guiRectangleDescription1 =
+  const GUI::Rectangle::RectangleDescription guiRectangleDescription1 =
   {
     .baseDescription =
     {
@@ -277,7 +277,7 @@ void startup(void)
       {
         .x   = -10,
         .y   = -20,
-        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
       }
     },
     .color  =
@@ -288,7 +288,7 @@ void startup(void)
     }
   };
 
-  const GUIRectangle::RectangleDescription guiRectangleDescription2 =
+  const GUI::Rectangle::RectangleDescription guiRectangleDescription2 =
   {
     .baseDescription =
     {
@@ -301,7 +301,7 @@ void startup(void)
       {
         .x   = 120,
         .y   = 120,
-        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
       }
     },
     .color  =
@@ -312,7 +312,7 @@ void startup(void)
     }
   };
 
-  const GUIImage::ImageDescription imageDescription =
+  const GUI::Image::ImageDescription imageDescription =
   {
     .baseDescription =
     {
@@ -325,12 +325,12 @@ void startup(void)
       {
         .x   = 150,
         .y   = 270,
-        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
       }
     },
     .bitmapDescription =
     {
-      .colorFormat = GUIImage::ColorFormat::RGB888,
+      .colorFormat = GUI::ColorFormat::RGB888,
       .dimension =
       {
         .width  = 100u,
@@ -345,7 +345,7 @@ void startup(void)
     }
   };
 
-  const GUIImage::ImageDescription image2Description =
+  const GUI::Image::ImageDescription image2Description =
   {
     .baseDescription =
     {
@@ -358,12 +358,12 @@ void startup(void)
       {
         .x   = 95,
         .y   = 160,
-        .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
       }
     },
     .bitmapDescription =
     {
-      .colorFormat = GUIImage::ColorFormat::ARGB8888,
+      .colorFormat = GUI::ColorFormat::ARGB8888,
       .dimension =
       {
         .width  = 300u,
@@ -378,33 +378,22 @@ void startup(void)
     }
   };
 
-  GUIRectangle guiRectangle1(dma2d, g_frameBuffer);
-  GUIRectangle guiRectangle2(dma2d, g_frameBuffer);
-  GUIImage     guiImage(dma2d, g_frameBuffer);
-  GUIImage     guiImage2(dma2d, g_frameBuffer);
+  GUI::Scene<5u> guiScene(g_frameBuffer);
+
+  GUI::Rectangle guiRectangle1(dma2d, sysTick, g_frameBuffer);
+  GUI::Rectangle guiRectangle2(dma2d, sysTick, g_frameBuffer);
+  GUI::Image     guiImage(dma2d, sysTick, g_frameBuffer);
+  GUI::Image     guiImage2(dma2d, sysTick, g_frameBuffer);
 
   guiRectangle1.init(guiRectangleDescription1);
   guiRectangle2.init(guiRectangleDescription2);
   guiImage.init(imageDescription);
   guiImage2.init(image2Description);
 
-  GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawImagePerformanceMeasurementConfig
-  {
-    .guiObjectPtr = &guiImage,
-    .drawHardware = IGUIObject::DrawHardware::DMA2D
-  };
-
-  GUIDrawPerformanceMeasurement::GUIDrawPerformanceMeasurementConfig guiDrawImage2PerformanceMeasurementConfig
-  {
-    .guiObjectPtr = &guiImage2,
-    .drawHardware = IGUIObject::DrawHardware::CPU
-  };
-
-  GUIDrawPerformanceMeasurement guiDrawImagePerformanceMeasurement(sysTick);
-  GUIDrawPerformanceMeasurement guiDrawImage2PerformanceMeasurement(sysTick);
-
-  guiDrawImagePerformanceMeasurement.init(guiDrawImagePerformanceMeasurementConfig);
-  guiDrawImage2PerformanceMeasurement.init(guiDrawImage2PerformanceMeasurementConfig);
+  guiScene.addObject(&guiRectangle2, 5u);
+  guiScene.addObject(&guiRectangle1, 0u);
+  guiScene.addObject(&guiImage2, 10u);
+  guiScene.addObject(&guiImage, 7u);
 
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
@@ -609,9 +598,6 @@ void startup(void)
 
   dsiHost.startTransferFromLTDC();
 
-  uint8_t message[2000];
-  uint32_t messageLen;
-
   uint8_t brightness = 120u;
   bool ledState      = false;
   uint32_t timestamp = sysTick.getTicks();
@@ -619,8 +605,13 @@ void startup(void)
   int16_t x = -100;
   int16_t direction = 1;
 
-  StringBuilder<200u> stringBuilder;
+  StringBuilder<500u> stringBuilder;
   USARTLogger usartLogger(usart2);
+
+  guiRectangle1.init(guiRectangleDescription1);
+  guiRectangle2.init(guiRectangleDescription2);
+  guiImage.init(imageDescription);
+  guiImage2.init(image2Description);
 
   while (true)
   {
@@ -634,6 +625,7 @@ void startup(void)
       }
     }
 
+/*
     stringBuilder.reset();
     stringBuilder.append("systick: ");
     stringBuilder.append(static_cast<uint32_t>(ticks));
@@ -668,9 +660,8 @@ void startup(void)
 
     stringBuilder.append("\r\n");
     usartLogger.write(stringBuilder);
-
-
-    if (sysTick.getElapsedTimeInMs(timestamp) > 50u)
+*/
+    if (sysTick.getElapsedTimeInMs(timestamp) >= 20u)
     {
       timestamp = sysTick.getTicks();
 
@@ -696,23 +687,44 @@ void startup(void)
 
       x = x + direction * 5;
 
-      GUIRectangle::Position newPosition = guiRectangle2.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER);
+      GUI::Position newPosition = guiRectangle2.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
       newPosition.x = x;
       guiRectangle2.moveToPosition(newPosition);
 
-      newPosition = guiImage2.getPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER);
+      newPosition = guiImage2.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
       newPosition.x = x;
-
       guiImage2.moveToPosition(newPosition);
 
-      while (dma2d.isTransferOngoing());
-      guiRectangle1.draw(IGUIObject::DrawHardware::DMA2D);
-      while (dma2d.isTransferOngoing());
-      guiRectangle2.draw(IGUIObject::DrawHardware::CPU);
-      guiDrawImagePerformanceMeasurement.execute();
-      guiDrawImage2PerformanceMeasurement.execute();
+      for (auto it = guiScene.getBeginIterator(); it != guiScene.getEndIterator(); ++it)
+      {
+        it->guiObjectPtr->draw(GUI::DrawHardware::DMA2D);
+
+        while (not it->guiObjectPtr->isDrawCompleted());
+      }
 
       dsiHost.startTransferFromLTDC();
+
+      stringBuilder.reset();
+      stringBuilder.append("systick: ");
+      stringBuilder.append(static_cast<uint32_t>(ticks));
+      stringBuilder.append("\r\nCPU performance:\r\n");
+
+      uint32_t i = 0u;
+      for (auto it = guiScene.getBeginIterator(); it != guiScene.getEndIterator(); ++it)
+      {
+        uint64_t drawingTimeCPUInUs   = -1;
+        uint64_t drawingTimeDMA2DInUs = -1;
+        it->guiObjectPtr->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
+        it->guiObjectPtr->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
+        stringBuilder.append(i);
+        stringBuilder.append(". drawing time DMA2D -> ");
+        stringBuilder.append(static_cast<uint32_t>(drawingTimeDMA2DInUs));
+        stringBuilder.append("\tCPU -> ");
+        stringBuilder.append(static_cast<uint32_t>(drawingTimeCPUInUs));
+        stringBuilder.append("\r\n");
+      }
+
+      usartLogger.write(stringBuilder);
 
       //brightness += 10u;
       //g_displayRM67160.setDisplayBrightness(brightness);

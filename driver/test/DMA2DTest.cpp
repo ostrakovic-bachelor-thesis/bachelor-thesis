@@ -36,6 +36,9 @@ public:
   static constexpr uint32_t DMA2D_LWR_RESET_VALUE     = 0x00000000;
   static constexpr uint32_t DMA2D_AMTCR_RESET_VALUE   = 0x00000000;
 
+  static constexpr uint32_t DMA2D_ISR_TCIF_POSITION = 1u;
+  static constexpr uint32_t DMA2D_CR_START_POSITION = 0u;
+
   static constexpr uint32_t DMA2D_OCOLR_ARGB4444_BLUE_POSITION  = 0u;
   static constexpr uint32_t DMA2D_OCOLR_ARGB4444_GREEN_POSITION = 4u;
   static constexpr uint32_t DMA2D_OCOLR_ARGB4444_RED_POSITION   = 8u;
@@ -500,14 +503,16 @@ TEST_F(ADMA2D, isTransferOngoingReturnsTrueIfStartBitInCRRegisterIsSet)
 
 TEST_F(ADMA2D, IRQHandlerClearsTCIFFlagInISRRegisterOnlyIfItIsSetAndTransferCompleteInterruptIsEnabled)
 {
-  constexpr uint32_t DMA2D_ISR_TCIF_POSITION = 1u;
-  constexpr uint32_t EXPECTED_DMA2D_ISR_TCIF_VALUE = 0u;
+  constexpr uint32_t DMA2D_ISR_TCIF_POSITION   = 1u;
+  constexpr uint32_t DMA2D_IFCR_CTCIF_POSITION = 1u;
+  constexpr uint32_t EXPECTED_DMA2D_IFCR_CTCIF_VALUE = 1u;
+  virtualDMA2D.fillRectangle(fillRectangleConfig);
+  // emulate that transfer complete interrupt is triggered
   virtualDMA2DPeripheral.ISR =
     expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
-  virtualDMA2D.fillRectangle(fillRectangleConfig);
   auto bitValueMatcher =
-    BitHasValue(DMA2D_ISR_TCIF_POSITION, EXPECTED_DMA2D_ISR_TCIF_VALUE);
-  expectRegisterSet(&(virtualDMA2DPeripheral.ISR), bitValueMatcher);
+    BitHasValue(DMA2D_IFCR_CTCIF_POSITION, EXPECTED_DMA2D_IFCR_CTCIF_VALUE);
+  expectRegisterSet(&(virtualDMA2DPeripheral.IFCR), bitValueMatcher);
 
   virtualDMA2D.IRQHandler();
 }
@@ -1130,4 +1135,78 @@ TEST_F(ADMA2D, BlendBitmapFailsIfAnotherDMA2DTransferIsOngoing)
 {
   ASSERT_THAT(virtualDMA2D.blendBitmap(blendBitmapConfig), Eq(DMA2D::ErrorCode::OK));
   ASSERT_THAT(virtualDMA2D.blendBitmap(blendBitmapConfig), Eq(DMA2D::ErrorCode::BUSY));
+}
+
+TEST_F(ADMA2D, IRQHandlerDoesNotCauseFaultIfDrawCompletedCallbackIsNotProvided)
+{
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  fillRectangleConfig.drawCompletedCallback.functionPtr = nullptr;
+
+  // simulate that START bit is cleared because the ongoing transfer end
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(virtualDMA2DPeripheral.CR, DMA2D_CR_START_POSITION, 1u, 0u);
+  virtualDMA2D.IRQHandler();
+
+  SUCCEED();
+}
+
+TEST_F(ADMA2D, IRQHandlerCallsDrawCompletedCallbackProvidedInFillRectangleConfiguration)
+{
+  uint32_t callbackCallCounter = 0u;
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  fillRectangleConfig.drawCompletedCallback.functionPtr = [](void *argument)
+  {
+    (*reinterpret_cast<uint32_t*>(argument))++;
+  };
+  fillRectangleConfig.drawCompletedCallback.argument = &callbackCallCounter;
+  virtualDMA2D.fillRectangle(fillRectangleConfig);
+
+  // simulate that START bit is cleared because the ongoing transfer end
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(virtualDMA2DPeripheral.CR, DMA2D_CR_START_POSITION, 1u, 0u);
+  virtualDMA2D.IRQHandler();
+
+  ASSERT_THAT(callbackCallCounter, Eq(1u));
+}
+
+TEST_F(ADMA2D, IRQHandlerCallsDrawCompletedCallbackProvidedInCopyBitmapConfiguration)
+{
+  uint32_t callbackCallCounter = 0u;
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  copyBitmapConfig.drawCompletedCallback.functionPtr = [](void *argument)
+  {
+    (*reinterpret_cast<uint32_t*>(argument))++;
+  };
+  copyBitmapConfig.drawCompletedCallback.argument = &callbackCallCounter;
+  virtualDMA2D.copyBitmap(copyBitmapConfig);
+
+  // simulate that START bit is cleared because the ongoing transfer end
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(virtualDMA2DPeripheral.CR, DMA2D_CR_START_POSITION, 1u, 0u);
+  virtualDMA2D.IRQHandler();
+
+  ASSERT_THAT(callbackCallCounter, Eq(1u));
+}
+
+TEST_F(ADMA2D, IRQHandlerCallsDrawCompletedCallbackProvidedInBlendBitmapConfiguration)
+{
+  uint32_t callbackCallCounter = 0u;
+  virtualDMA2DPeripheral.ISR =
+    expectedRegVal(DMA2D_ISR_RESET_VALUE, DMA2D_ISR_TCIF_POSITION, 1u, 1u);
+  blendBitmapConfig.drawCompletedCallback.functionPtr = [](void *argument)
+  {
+    (*reinterpret_cast<uint32_t*>(argument))++;
+  };
+  blendBitmapConfig.drawCompletedCallback.argument = &callbackCallCounter;
+  virtualDMA2D.blendBitmap(blendBitmapConfig);
+
+  // simulate that START bit is cleared because the ongoing transfer end
+  virtualDMA2DPeripheral.CR =
+    expectedRegVal(virtualDMA2DPeripheral.CR, DMA2D_CR_START_POSITION, 1u, 0u);
+  virtualDMA2D.IRQHandler();
+
+  ASSERT_THAT(callbackCallCounter, Eq(1u));
 }

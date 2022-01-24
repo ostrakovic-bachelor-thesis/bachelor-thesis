@@ -1,6 +1,7 @@
 #include "GUIRectangle.h"
 #include "FrameBuffer.h"
 #include "DMA2DMock.h"
+#include "SysTickMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -13,29 +14,36 @@ class AGUIRectangle : public Test
 {
 public:
   NiceMock<DMA2DMock> dma2dMock;
+  NiceMock<SysTickMock> sysTickMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBuffer;
-  GUIRectangle guiRectangle = GUIRectangle(dma2dMock, guiRectangleFrameBuffer);
-  GUIRectangle::RectangleDescription guiRectangleDescription;
+  FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBufferSnapshot;
+  GUI::Rectangle guiRectangle = GUI::Rectangle(dma2dMock, sysTickMock, guiRectangleFrameBuffer);
+  GUI::Rectangle::RectangleDescription guiRectangleDescription;
 
-  GUIRectangle::Color m_initFameBufferColor;
+  GUI::Color m_initFrameBufferColor;
   bool m_isDMA2DFillRectangleConfigOk;
+  bool m_isDMA2DFillRectangleCallbackOk;
 
-  void assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(const GUIRectangle &guiRectangle);
-  void assertThatStateOfFrameBufferIsNotChanged(const GUIRectangle &guiRectangle);
-  void expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUIRectangle &guiRectangle);
-  void expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUIRectangle &guiRectangle);
+  void assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(const GUI::Rectangle &guiRectangle);
+  void assertThatStateOfFrameBufferIsNotChanged(const GUI::Rectangle &guiRectangle);
+  void assertThatDMA2DFillRectangleDrawCompletedCallbackWasOk(void);
+  void expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUI::Rectangle &guiRectangle);
+  void expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUI::Rectangle &guiRectangle);
   void assertThatDMA2DFillRectangleConfigParamsWereOk(void);
   void expectThatNoDMA2DOperationWillBeTriggered(void);
+  void expectThatDMA2DFillRectangleWillBeCalledWithAppropriateDrawCompletedCallback(
+    DMA2D::CallbackFunc callbackFunc,
+    void *callbackArgument);
 
-  void setDefaultFrameBufferColor(GUIRectangle::Color color);
+  void setDefaultFrameBufferColor(GUI::Color color);
   void setDMA2DTransferOngoingStateToTrue(void);
   void setDMA2DTransferOngoingStateToFalse(void);
 
   void SetUp() override;
 
 private:
-  void assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUIRectangle &guiRectangle);
-  void assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAreNotChanged(const GUIRectangle &guiRectangle);
+  void assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUI::Rectangle &guiRectangle);
+  void assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAreNotChanged(const GUI::Rectangle &guiRectangle);
 };
 
 void AGUIRectangle::SetUp()
@@ -49,7 +57,7 @@ void AGUIRectangle::SetUp()
   {
     .x   = 5,
     .y   = 5,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleDescription.color =
   {
@@ -58,16 +66,17 @@ void AGUIRectangle::SetUp()
     .blue  = 145u
   };
 
-  m_initFameBufferColor.red   = 0u;
-  m_initFameBufferColor.green = 0u;
-  m_initFameBufferColor.blue  = 0u;
+  m_initFrameBufferColor.red   = 0u;
+  m_initFrameBufferColor.green = 0u;
+  m_initFrameBufferColor.blue  = 0u;
 
-  m_isDMA2DFillRectangleConfigOk = true;
+  m_isDMA2DFillRectangleConfigOk   = true;
+  m_isDMA2DFillRectangleCallbackOk = true;
 
-  setDefaultFrameBufferColor(m_initFameBufferColor);
+  setDefaultFrameBufferColor(m_initFrameBufferColor);
 }
 
-void AGUIRectangle::setDefaultFrameBufferColor(GUIRectangle::Color color)
+void AGUIRectangle::setDefaultFrameBufferColor(GUI::Color color)
 {
   uint8_t *frameBufferPtr = reinterpret_cast<uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
 
@@ -97,18 +106,18 @@ void AGUIRectangle::setDMA2DTransferOngoingStateToFalse(void)
     });
 }
 
-void AGUIRectangle::assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(const GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(const GUI::Rectangle &guiRectangle)
 {
   assertThatGUIRectangleIsDrawnOntoFrameBuffer(guiRectangle);
   assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAreNotChanged(guiRectangle);
 }
 
-void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUI::Rectangle &guiRectangle)
 {
-  const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
-  const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
-  const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).x;
-  const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).y;
+  const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).x;
+  const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).y;
+  const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER).x;
+  const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER).y;
 
   const uint8_t *frameBufferPtr  = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
@@ -125,12 +134,12 @@ void AGUIRectangle::assertThatGUIRectangleIsDrawnOntoFrameBuffer(const GUIRectan
   }
 }
 
-void AGUIRectangle::assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAreNotChanged(const GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAreNotChanged(const GUI::Rectangle &guiRectangle)
 {
-  const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
-  const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
-  const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).x;
-  const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::BOTTOM_RIGHT_CORNER).y;
+  const uint16_t columnStart = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).x;
+  const uint16_t rowStart    = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).y;
+  const uint16_t columnEnd = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER).x;
+  const uint16_t rowEnd    = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER).y;
 
   const uint8_t *frameBufferPtr = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
@@ -146,15 +155,15 @@ void AGUIRectangle::assertThatPixelsInFrameBufferOutsideGUIRectangleDrawnAreaAre
       }
       else
       {
-        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column)],     m_initFameBufferColor.blue);
-        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFameBufferColor.green);
-        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFameBufferColor.red);
+        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column)],     m_initFrameBufferColor.blue);
+        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFrameBufferColor.green);
+        ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFrameBufferColor.red);
       }
     }
   }
 }
 
-void AGUIRectangle::assertThatStateOfFrameBufferIsNotChanged(const GUIRectangle &guiRectangle)
+void AGUIRectangle::assertThatStateOfFrameBufferIsNotChanged(const GUI::Rectangle &guiRectangle)
 {
   const uint8_t *frameBufferPtr = reinterpret_cast<const uint8_t*>(guiRectangle.getFrameBuffer().getPointer());
   const uint32_t frameBufferWidth = guiRectangle.getFrameBuffer().getWidth();
@@ -164,15 +173,15 @@ void AGUIRectangle::assertThatStateOfFrameBufferIsNotChanged(const GUIRectangle 
   {
     for (uint32_t column = 0u; column < guiRectangle.getFrameBuffer().getWidth(); ++column)
     {
-      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column)],     m_initFameBufferColor.blue);
-      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFameBufferColor.green);
-      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFameBufferColor.red);
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column)],     m_initFrameBufferColor.blue);
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 1], m_initFrameBufferColor.green);
+      ASSERT_THAT(frameBufferPtr[pixelSize * (row * frameBufferWidth + column) + 2], m_initFrameBufferColor.red);
     }
   }
 }
 
 void
-AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUIRectangle &guiRectangle)
+AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(const GUI::Rectangle &guiRectangle)
 {
   EXPECT_CALL(dma2dMock, fillRectangle(_))
     .Times(1u)
@@ -180,8 +189,8 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigPara
     {
       const uint16_t expectedWidth  = guiRectangle.getVisiblePartWidth();
       const uint16_t expectedHeight = guiRectangle.getVisiblePartHeight();
-      const int16_t expectedXPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
-      const int16_t expectedYPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
+      const int16_t expectedXPos = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).x;
+      const int16_t expectedYPos = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).y;
 
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.alpha == 0u);
       m_isDMA2DFillRectangleConfigOk &= (fillRectangleConfig.color.red   == guiRectangle.getColor().red);
@@ -208,7 +217,7 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigPara
 }
 
 void
-AGUIRectangle::expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUIRectangle &guiRectangle)
+AGUIRectangle::expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(const GUI::Rectangle &guiRectangle)
 {
   EXPECT_CALL(dma2dMock, fillRectangle(_))
     .Times(1u)
@@ -216,8 +225,8 @@ AGUIRectangle::expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectan
     {
       const uint16_t expectedWidth  = guiRectangle.getVisiblePartWidth();
       const uint16_t expectedHeight = guiRectangle.getVisiblePartHeight();
-      const int16_t expectedXPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).x;
-      const int16_t expectedYPos = guiRectangle.getVisiblePartPosition(GUIRectangle::Position::Tag::TOP_LEFT_CORNER).y;
+      const int16_t expectedXPos = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).x;
+      const int16_t expectedYPos = guiRectangle.getVisiblePartPosition(GUI::Position::Tag::TOP_LEFT_CORNER).y;
 
       m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.width == expectedWidth);
       m_isDMA2DFillRectangleConfigOk = (fillRectangleConfig.dimension.height == expectedHeight);
@@ -241,15 +250,37 @@ void AGUIRectangle::expectThatNoDMA2DOperationWillBeTriggered(void)
     .Times(0u);
 }
 
+void AGUIRectangle::expectThatDMA2DFillRectangleWillBeCalledWithAppropriateDrawCompletedCallback(
+  DMA2D::CallbackFunc callbackFunc,
+  void *callbackArgument)
+{
+  EXPECT_CALL(dma2dMock, fillRectangle(_))
+    .Times(1u)
+    .WillOnce([=](const DMA2D::FillRectangleConfig &fillRectangleConfig) -> DMA2D::ErrorCode
+    {
+      m_isDMA2DFillRectangleCallbackOk &=
+        (fillRectangleConfig.drawCompletedCallback.functionPtr == callbackFunc);
+     m_isDMA2DFillRectangleCallbackOk &=
+        (fillRectangleConfig.drawCompletedCallback.argument == callbackArgument);
+
+      return DMA2D::ErrorCode::OK;
+    });
+}
+
 void AGUIRectangle::assertThatDMA2DFillRectangleConfigParamsWereOk(void)
 {
   ASSERT_THAT(m_isDMA2DFillRectangleConfigOk, Eq(true));
 }
 
+void AGUIRectangle::assertThatDMA2DFillRectangleDrawCompletedCallbackWasOk(void)
+{
+  ASSERT_THAT(m_isDMA2DFillRectangleCallbackOk, Eq(true));
+}
+
 
 TEST_F(AGUIRectangle, GetColorReturnsColorSpecifiedAtInit)
 {
-  constexpr GUIRectangle::Color EXPECTED_GUI_RECTANGLE_COLOR =
+  constexpr GUI::Color EXPECTED_GUI_RECTANGLE_COLOR =
   {
     .red   = 255u,
     .green = 192u,
@@ -267,7 +298,7 @@ TEST_F(AGUIRectangle, DrawWithCPUDrawsRectangleCorrectlyOntoAssociatedFrameBuffe
   {
     .x   = 10,
     .y   = 10,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleDescription.baseDescription.dimension =
   {
@@ -282,7 +313,7 @@ TEST_F(AGUIRectangle, DrawWithCPUDrawsRectangleCorrectlyOntoAssociatedFrameBuffe
   };
   guiRectangle.init(guiRectangleDescription);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
+  guiRectangle.draw(GUI::DrawHardware::CPU);
 
   assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(guiRectangle);
 }
@@ -293,7 +324,7 @@ TEST_F(AGUIRectangle, DrawWithDMA2DTriggersDMA2DFillRectangleOperationWithApprop
   {
     .x   = 0,
     .y   = 0,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleDescription.baseDescription.dimension =
   {
@@ -309,7 +340,7 @@ TEST_F(AGUIRectangle, DrawWithDMA2DTriggersDMA2DFillRectangleOperationWithApprop
   guiRectangle.init(guiRectangleDescription);
   expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(guiRectangle);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  guiRectangle.draw(GUI::DrawHardware::DMA2D);
 
   assertThatDMA2DFillRectangleConfigParamsWereOk();
 }
@@ -320,7 +351,7 @@ TEST_F(AGUIRectangle, DrawWithCPUDrawsOnlyVisiblePixelsIfPartOfRectangleIsOutOfT
   {
     .x   = 40,
     .y   = -15,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleDescription.baseDescription.dimension =
   {
@@ -329,7 +360,7 @@ TEST_F(AGUIRectangle, DrawWithCPUDrawsOnlyVisiblePixelsIfPartOfRectangleIsOutOfT
   };
   guiRectangle.init(guiRectangleDescription);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
+  guiRectangle.draw(GUI::DrawHardware::CPU);
 
   assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(guiRectangle);
 }
@@ -340,7 +371,7 @@ TEST_F(AGUIRectangle, DrawWithDMA2DDrawsOnlyVisiblePixelsIfPartOfRectangleIsOutO
   {
     .x   = -20,
     .y   = 35,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangleDescription.baseDescription.dimension =
   {
@@ -350,97 +381,42 @@ TEST_F(AGUIRectangle, DrawWithDMA2DDrawsOnlyVisiblePixelsIfPartOfRectangleIsOutO
   guiRectangle.init(guiRectangleDescription);
   expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(guiRectangle);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  guiRectangle.draw(GUI::DrawHardware::DMA2D);
 
   assertThatDMA2DFillRectangleConfigParamsWereOk();
 }
 
-TEST_F(AGUIRectangle, DrawWithCPUDoesNotChangeStateOfFrameBufferIfGUIRectangleIsCompletelyOutOfTheScreen)
-{
-  guiRectangleDescription.baseDescription.position =
-  {
-    .x   = 0,
-    .y   = 500,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
-  };
-  guiRectangle.init(guiRectangleDescription);
-
-  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
-
-  assertThatStateOfFrameBufferIsNotChanged(guiRectangle);
-}
-
-TEST_F(AGUIRectangle, DrawWithDMA2DDoesNotTriggerAnyDMA2DOperationIfGUIRectangleIsCompletelyOutOfTheScreen)
-{
-  guiRectangleDescription.baseDescription.position =
-  {
-    .x   = -400,
-    .y   = 40,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
-  };
-  guiRectangle.init(guiRectangleDescription);
-  expectThatNoDMA2DOperationWillBeTriggered();
-
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
-}
-
 TEST_F(AGUIRectangle, DrawWithCPUDrawsOnlyVisiblePixelsAfterRectangleIsMovedPartiallyOutOfTheScreen)
 {
-  constexpr GUIRectangle::Position NEW_GUI_RECTANGLE_POSITION =
+  constexpr GUI::Position NEW_GUI_RECTANGLE_POSITION =
   {
     .x   = -20,
     .y   = -20,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangle.init(guiRectangleDescription);
   guiRectangle.moveToPosition(NEW_GUI_RECTANGLE_POSITION);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
+  guiRectangle.draw(GUI::DrawHardware::CPU);
 
   assertThatGUIRectangleIsDrawnCorrectlyOntoFrameBuffer(guiRectangle);
 }
 
 TEST_F(AGUIRectangle, DrawWithDMA2DDrawsOnlyVisiblePixelsAfterRectangleIsMovedPartiallyOutOfTheScreen)
 {
-  constexpr GUIRectangle::Position NEW_GUI_RECTANGLE_POSITION =
+  constexpr GUI::Position NEW_GUI_RECTANGLE_POSITION =
   {
     .x   = 40,
     .y   = 40,
-    .tag = GUIRectangle::Position::Tag::TOP_LEFT_CORNER
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
   guiRectangle.init(guiRectangleDescription);
   guiRectangle.moveToPosition(NEW_GUI_RECTANGLE_POSITION);
   expectThatDMA2DFillRectangleWillDisplayOnlyVisiblePartOfGUIRectangle(guiRectangle);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  guiRectangle.draw(GUI::DrawHardware::DMA2D);
 
   assertThatDMA2DFillRectangleConfigParamsWereOk();
-}
-
-TEST_F(AGUIRectangle, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithCPU)
-{
-  guiRectangle.init(guiRectangleDescription);
-  guiRectangle.draw(IGUIObject::DrawHardware::CPU);
-
-  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(true));
-}
-
-TEST_F(AGUIRectangle, IsDrawCompletedReturnsFalseIfDMA2DTransferIsStillOngoingWhenDrawingWithDMA2D)
-{
-  guiRectangle.init(guiRectangleDescription);
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
-  setDMA2DTransferOngoingStateToTrue();
-
-  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(false));
-}
-
-TEST_F(AGUIRectangle, IsDrawCompletedReturnsTrueIfDMA2DTransferIsCompletedWhenDrawingWithDMA2D)
-{
-  guiRectangle.init(guiRectangleDescription);
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
-  setDMA2DTransferOngoingStateToFalse();
-
-  ASSERT_THAT(guiRectangle.isDrawCompleted(), Eq(true));
 }
 
 TEST_F(AGUIRectangle, DrawWithDMA2DTriggersDMA2DFillRectangleOperationWithAppropriateConfigParamsAfterSubstitutionOfFrameBuffer)
@@ -450,7 +426,19 @@ TEST_F(AGUIRectangle, DrawWithDMA2DTriggersDMA2DFillRectangleOperationWithApprop
   guiRectangle.setFrameBuffer(newFrameBuffer);
   expectThatDMA2DFillRectangleWillBeCalledWithAppropriateConfigParams(guiRectangle);
 
-  guiRectangle.draw(IGUIObject::DrawHardware::DMA2D);
+  guiRectangle.draw(GUI::DrawHardware::DMA2D);
 
   assertThatDMA2DFillRectangleConfigParamsWereOk();
+}
+
+TEST_F(AGUIRectangle, DrawWithDMA2DSetsFunctionCallbackDMA2DDrawCompletedToBeFillRectangleTransactionCompletedCallback)
+{
+  guiRectangle.init(guiRectangleDescription);
+  expectThatDMA2DFillRectangleWillBeCalledWithAppropriateDrawCompletedCallback(
+    GUI::Rectangle::callbackDMA2DDrawCompleted,
+    reinterpret_cast<void*>(&guiRectangle));
+
+  guiRectangle.draw(GUI::DrawHardware::DMA2D);
+
+  assertThatDMA2DFillRectangleDrawCompletedCallbackWasOk();
 }

@@ -31,18 +31,19 @@ set(BachelorThesis_module_component_cpp_sources
     src/GUIRectangleBase.cpp
     src/GUIRectangle.cpp
     src/GUIImage.cpp
-    src/GUIDrawPerformanceMeasurement.cpp
+    src/GUISceneBase.cpp
     src/USARTLogger.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
     test/GPIOManagerTest.cpp
     test/IFrameBufferTest.cpp
     test/FrameBufferTest.cpp
-    test/IGUIObjectTest.cpp
+    test/GUICommonTest.cpp
     test/GUIRectangleBaseTest.cpp
     test/GUIRectangleTest.cpp
     test/GUIImageTest.cpp
-    test/GUIDrawPerformanceMeasurementTest.cpp
+    test/GUISceneBaseTest.cpp
+    test/GUISceneTest.cpp
     test/USARTLoggerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

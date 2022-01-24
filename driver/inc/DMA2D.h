@@ -11,6 +11,8 @@ class DMA2D
 {
 public:
 
+  typedef void (*CallbackFunc)(void*);
+
   DMA2D(DMA2D_TypeDef *DMA2DPeripheralPtr, ResetControl *resetControlPtr);
 
 #ifdef UNIT_TEST
@@ -95,12 +97,19 @@ public:
     void *bufferPtr;
   };
 
+  struct CallbackDescription
+  {
+    CallbackFunc functionPtr;
+    void *argument;
+  };
+
   struct FillRectangleConfig
   {
     Color color;
     Dimension dimension;
     Position position;
     OutputBufferConfiguration destinationBufferConfig;
+    CallbackDescription drawCompletedCallback;
   };
 
   struct CopyBitmapConfig
@@ -110,6 +119,7 @@ public:
     InputBufferConfiguration sourceBufferConfig;
     Position destinationRectanglePosition;
     OutputBufferConfiguration destinationBufferConfig;
+    CallbackDescription drawCompletedCallback;
   };
 
   struct BlendBitmapConfig
@@ -121,6 +131,7 @@ public:
     InputBufferConfiguration backgroundBufferConfig;
     Position destinationRectanglePosition;
     OutputBufferConfiguration destinationBufferConfig;
+    CallbackDescription drawCompletedCallback;
   };
 
 #ifdef UNIT_TEST
@@ -272,6 +283,9 @@ private:
 
   ErrorCode enablePeripheralClock(void);
 
+  void setDrawCompletedCallback(const CallbackDescription &callbackDescription);
+  void callDrawCompletedCallbackIfSpecified(void);
+
   //! TODO
   static const CSRegisterMapping s_interruptCSRegisterMapping[static_cast<uint8_t>(Interrupt::COUNT)];
 
@@ -287,6 +301,8 @@ private:
   //! Is DMA2D transfer completed
   bool m_isTransferCompleted;
 
+  //! Draw completed callback description
+  CallbackDescription m_drawCompletedCallback;
 };
 
 #endif // #ifndef DMA2D_H
