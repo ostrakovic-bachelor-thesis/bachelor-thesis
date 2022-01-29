@@ -31,6 +31,7 @@ set(BachelorThesis_module_component_cpp_sources
     src/GUIRectangleBase.cpp
     src/GUIRectangle.cpp
     src/GUIImage.cpp
+    src/GUIContainer.cpp
     src/GUISceneBase.cpp
     src/USARTLogger.cpp)
 
@@ -42,8 +43,9 @@ set(BachelorThesis_module_test_cpp_sources
     test/GUIRectangleBaseTest.cpp
     test/GUIRectangleTest.cpp
     test/GUIImageTest.cpp
-    test/GUISceneBaseTest.cpp
-    test/GUISceneTest.cpp
+    test/GUIContainerTest.cpp
+    #test/GUISceneBaseTest.cpp
+    #test/GUISceneTest.cpp
     test/USARTLoggerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

@@ -50,6 +50,9 @@ namespace GUI
     bool isDrawCompleted(void) const override;
     ErrorCode getDrawingTime(DrawHardware drawHardware, uint64_t &drawingTimeInUs) const override;
 
+    void registerDrawCompletedCallback(const CallbackDescription &callbackDescription) override;
+    void unregisterDrawCompletedCallback(void) override;
+
     uint16_t getVisiblePartWidth(void) const;
     uint16_t getVisiblePartHeight(void) const;
     Dimension getVisiblePartDimension(void) const;
@@ -87,6 +90,8 @@ namespace GUI
 
     uint64_t calculateDrawingTime(const DrawingDurationInfo *drawingDurationInfoPtr) const;
 
+    void callDrawCompletedCallbackIfRegistered(void);
+
     static void recalculatePositionToBeTopLeftCorner(RectangleBaseDescription &rectangleDescription);
 
     template <typename T>
@@ -110,6 +115,8 @@ namespace GUI
     IFrameBuffer *m_frameBufferPtr;
 
     RectangleBaseDescription m_rectangleBaseDescription;
+
+    CallbackDescription m_drawCompletedCallback;
   };
 }
 

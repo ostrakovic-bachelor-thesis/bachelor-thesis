@@ -10,11 +10,12 @@ namespace GUI
   enum class ErrorCode : uint8_t
   {
     OK                             = 0u,
-    MEASUREMENT_NOT_AVAILABLE      = 1u,
-    UNSUPPORTED_FBUFF_COLOR_FORMAT = 2u,
-    Z_INDEX_ALREADY_IN_USAGE       = 3u,
-    CONTAINER_FULL_ERROR           = 4u,
-    DMA2D_TRANSACTION_ONGOING      = 5u,
+    ARGUMENT_NULL_POINTER          = 1u,
+    MEASUREMENT_NOT_AVAILABLE      = 2u,
+    UNSUPPORTED_FBUFF_COLOR_FORMAT = 3u,
+    Z_INDEX_ALREADY_IN_USAGE       = 4u,
+    CONTAINER_FULL_ERROR           = 5u,
+    DMA2D_TRANSACTION_ONGOING      = 6u,
   };
 
   //! TODO

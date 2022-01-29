@@ -13,7 +13,11 @@ GUI::RectangleBase::RectangleBase(SysTick &sysTick, IFrameBuffer &frameBuffer):
       .x   = 0,
       .y   = 0,
       .tag = Position::Tag::TOP_LEFT_CORNER
-    }}
+    }},
+  m_drawCompletedCallback{
+    .functionPtr = nullptr,
+    .argument    = nullptr
+  }
 {}
 
 void GUI::RectangleBase::init(const RectangleBaseDescription &rectangleDescription)
@@ -84,6 +88,7 @@ void GUI::RectangleBase::draw(DrawHardware drawHardware)
       {
         drawCPU();
         endDrawingTransaction(drawHardware);
+        callDrawCompletedCallbackIfRegistered();
       }
       break;
     }
@@ -107,6 +112,20 @@ GUI::ErrorCode GUI::RectangleBase::getDrawingTime(DrawHardware drawHardware, uin
   }
 
   return errorCode;
+}
+
+void GUI::RectangleBase::registerDrawCompletedCallback(const CallbackDescription &callbackDescription)
+{
+  m_drawCompletedCallback = callbackDescription;
+}
+
+void GUI::RectangleBase::unregisterDrawCompletedCallback(void)
+{
+  m_drawCompletedCallback =
+  {
+    .functionPtr = nullptr,
+    .argument    = nullptr
+  };
 }
 
 uint16_t GUI::RectangleBase::getVisiblePartWidth(void) const
@@ -245,6 +264,14 @@ uint64_t GUI::RectangleBase::calculateDrawingTime(const DrawingDurationInfo *dra
   return drawingTimeInUs;
 }
 
+void GUI::RectangleBase::callDrawCompletedCallbackIfRegistered(void)
+{
+  if (nullptr != m_drawCompletedCallback.functionPtr)
+  {
+    m_drawCompletedCallback.functionPtr(m_drawCompletedCallback.argument);
+  }
+}
+
 void GUI::RectangleBase::recalculatePositionToBeTopLeftCorner(RectangleBaseDescription &rectangleDescription)
 {
   switch (rectangleDescription.position.tag)
@@ -286,5 +313,6 @@ void GUI::RectangleBase::callbackDMA2DDrawCompleted(void *guiRectangleBasePtr)
   if (nullptr != rectangleBasePtr)
   {
     rectangleBasePtr->endDrawingTransaction(DrawHardware::DMA2D);
+    rectangleBasePtr->callDrawCompletedCallbackIfRegistered();
   }
 }

@@ -36,9 +36,14 @@ public:
     .tag = GUI::Position::Tag::TOP_LEFT_CORNER
   };
 
+
+  GUI::RectangleBase::CallbackDescription callbackDescription;
+  bool m_isCallbackCalled;
   uint64_t m_sysTickFunctionCallCounter;
 
   void setupSysTickReadings(uint64_t drawOperationExecutionTimeInUs);
+  void assertThatCallbackIsCalled(void);
+  void assertThatCallbackIsNotCalled(void);
 
   void SetUp() override;
 };
@@ -47,6 +52,7 @@ constexpr GUI::Position AGUIRectangleBase::GUI_RECTANGLE_PARTIALLY_OUT_OF_SCREEN
 
 void AGUIRectangleBase::SetUp()
 {
+  m_isCallbackCalled           = false;
   m_sysTickFunctionCallCounter = 0u;
 
   guiRectangleBaseDescription.dimension =
@@ -59,6 +65,12 @@ void AGUIRectangleBase::SetUp()
     .x   = 0u,
     .y   = 0u,
     .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+
+  callbackDescription =
+  {
+    .functionPtr = [](void *argument) { *reinterpret_cast<bool*>(argument) = true; },
+    .argument = &m_isCallbackCalled
   };
 }
 
@@ -75,6 +87,16 @@ void AGUIRectangleBase::setupSysTickReadings(uint64_t drawOperationExecutionTime
     {
       return ((m_sysTickFunctionCallCounter++) - timestamp) * drawOperationExecutionTimeInUs;
     });
+}
+
+void AGUIRectangleBase::assertThatCallbackIsCalled(void)
+{
+  ASSERT_THAT(m_isCallbackCalled, Eq(true));
+}
+
+void AGUIRectangleBase::assertThatCallbackIsNotCalled(void)
+{
+  ASSERT_THAT(m_isCallbackCalled, Eq(false));
 }
 
 
@@ -927,3 +949,72 @@ TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsTrueWhenDrawingWithDMA2DAndDrawC
   ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
 }
 
+TEST_F(AGUIRectangleBase, DrawWithDMA2DDoesNotDirectlyCallRegisteredCallback)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+
+  assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIRectangleBase, DMA2DDrawCompletedCallbackDoesNotFailIfDrawCompletedCallbackIsNotRegistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIRectangleBase, DMA2DDrawCompletedCallbackCallsRegisteredDrawCompletedCallback)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIRectangleBase, DMA2DDrawCompletedCallbackDoesNotCallPreviouslyRegisteredCallbackIfLaterItIsUnregistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+  guiRectangleBase.unregisterDrawCompletedCallback();
+
+  GUI::RectangleBase::callbackDMA2DDrawCompleted(&guiRectangleBase);
+
+  assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDoesNotFailIfDrawCompletedCallbackIsNotRegistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUCallsRegisteredDrawCompletedCallbackBeforeReturningExecutionToCaller)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUDoesNotCallPreviouslyRegisteredCallbackIfLaterItIsUnregistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+  guiRectangleBase.unregisterDrawCompletedCallback();
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsNotCalled();
+}
