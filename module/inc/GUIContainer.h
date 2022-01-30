@@ -1,13 +1,15 @@
 #ifndef GUI_CONTAINER_H
 #define GUI_CONTAINER_H
 
+#include "IGUIDrawable.h"
 #include "IArrayList.h"
 #include "IGUIObject.h"
+#include "IFrameBuffer.h"
 
 
 namespace GUI
 {
-  class Container
+  class Container : public IDrawable
   {
   public:
 
@@ -38,28 +40,25 @@ namespace GUI
       IArrayList<ObjectInfo>::Iterator m_objectInfoListIterator;
     };
 
-
     IFrameBuffer& getFrameBuffer(void);
 
     uint32_t getCapacity(void) const;
-
     uint32_t getSize(void) const;
-
     bool isEmpty(void) const;
 
-
     IObject* getObject(uint32_t zIndex);
-
     ErrorCode addObject(IObject *objectPtr, uint32_t zIndex);
 
 
     Iterator getBeginIterator(void);
-
     Iterator getEndIterator(void);
 
+    void draw(DrawHardware drawHardware) override;
+    bool isDrawCompleted(void) const override;
+    ErrorCode getDrawingTime(DrawHardware drawHardware, uint64_t &drawingTimeInUs) const override;
 
-    void draw(DrawHardware drawHardware);
-    bool isDrawCompleted(void) const;
+    void registerDrawCompletedCallback(const CallbackDescription &callbackDescription) override;
+    void unregisterDrawCompletedCallback(void) override;
 
   private:
 
@@ -68,6 +67,8 @@ namespace GUI
 
     void startDrawingTransaction(DrawHardware drawHardware);
     void endDrawingTransaction(void);
+
+    void callDrawCompletedCallbackIfRegistered(void);
 
     bool startDrawingOfTheNextObjectWithDMA2D(void);
 
@@ -84,6 +85,8 @@ namespace GUI
     IFrameBuffer &m_frameBuffer;
 
     Iterator m_currentDrawingObjectIterator;
+
+    CallbackDescription m_drawCompletedCallback;
 
     bool m_isDrawingCompleted = true;
 

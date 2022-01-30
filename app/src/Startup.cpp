@@ -398,6 +398,14 @@ void startup(void)
   guiContainer.addObject(&guiImage2, 10u);
   guiContainer.addObject(&guiImage, 7u);
 
+  GUI::Container::CallbackDescription drawCompletedCallback =
+  {
+    .functionPtr = [](void *argument) { reinterpret_cast<DSIHost*>(argument)->startTransferFromLTDC(); },
+    .argument = &dsiHost
+  };
+
+  guiContainer.registerDrawCompletedCallback(drawCompletedCallback);
+
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
     if (SystemConfig::ErrorCode::OK != errorCode)
@@ -668,16 +676,16 @@ void startup(void)
     {
       timestamp = sysTick.getTicks();
 
-      if (ledState)
-      {
-        g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
-      }
-      else
-      {
-        g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
-      }
+      // if (ledState)
+      // {
+      //   g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
+      // }
+      // else
+      // {
+      //   g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
+      // }
 
-      ledState = !ledState;
+      // ledState = !ledState;
 
       if (x >= g_frameBuffer.getWidth())
       {
@@ -699,31 +707,30 @@ void startup(void)
       guiImage2.moveToPosition(newPosition);
 
       guiContainer.draw(GUI::DrawHardware::DMA2D);
-      while (not guiContainer.isDrawCompleted());
 
-      dsiHost.startTransferFromLTDC();
+      //while (not guiContainer.isDrawCompleted());
 
-      stringBuilder.reset();
-      stringBuilder.append("systick: ");
-      stringBuilder.append(static_cast<uint32_t>(ticks));
-      stringBuilder.append("\r\nCPU performance:\r\n");
+      // stringBuilder.reset();
+      // stringBuilder.append("systick: ");
+      // stringBuilder.append(static_cast<uint32_t>(ticks));
+      // stringBuilder.append("\r\nCPU performance:\r\n");
 
-      uint32_t i = 0u;
-      for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
-      {
-        uint64_t drawingTimeCPUInUs   = -1;
-        uint64_t drawingTimeDMA2DInUs = -1;
-        (*it)->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
-        (*it)->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
-        stringBuilder.append(i);
-        stringBuilder.append(". drawing time DMA2D -> ");
-        stringBuilder.append(static_cast<uint32_t>(drawingTimeDMA2DInUs));
-        stringBuilder.append("\tCPU -> ");
-        stringBuilder.append(static_cast<uint32_t>(drawingTimeCPUInUs));
-        stringBuilder.append("\r\n");
-      }
+      // uint32_t i = 0u;
+      // for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+      // {
+      //   uint64_t drawingTimeCPUInUs   = -1;
+      //   uint64_t drawingTimeDMA2DInUs = -1;
+      //   (*it)->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
+      //   (*it)->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
+      //   stringBuilder.append(i);
+      //   stringBuilder.append(". drawing time DMA2D -> ");
+      //   stringBuilder.append(static_cast<uint32_t>(drawingTimeDMA2DInUs));
+      //   stringBuilder.append("\tCPU -> ");
+      //   stringBuilder.append(static_cast<uint32_t>(drawingTimeCPUInUs));
+      //   stringBuilder.append("\r\n");
+      // }
 
-      usartLogger.write(stringBuilder);
+      // usartLogger.write(stringBuilder);
 
       //brightness += 10u;
       //g_displayRM67160.setDisplayBrightness(brightness);

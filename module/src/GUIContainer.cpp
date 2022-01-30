@@ -79,29 +79,71 @@ GUI::Container::Iterator GUI::Container::getEndIterator(void)
 
 void GUI::Container::draw(DrawHardware drawHardware)
 {
-  startDrawingTransaction(drawHardware);
-
-  switch (drawHardware)
+  if (not isEmpty())
   {
-    case DrawHardware::DMA2D:
-    {
-      drawDMA2D();
-    }
-    break;
+    startDrawingTransaction(drawHardware);
 
-    default:
-    case DrawHardware::CPU:
+    switch (drawHardware)
     {
-      drawCPU();
-      endDrawingTransaction();
+      case DrawHardware::DMA2D:
+      {
+        drawDMA2D();
+      }
+      break;
+
+      default:
+      case DrawHardware::CPU:
+      {
+        drawCPU();
+        endDrawingTransaction();
+        callDrawCompletedCallbackIfRegistered();
+     }
+     break;
     }
-    break;
+  }
+  else
+  {
+    callDrawCompletedCallbackIfRegistered();
   }
 }
 
 bool GUI::Container::isDrawCompleted(void) const
 {
   return m_isDrawingCompleted;
+}
+
+GUI::ErrorCode GUI::Container::getDrawingTime(DrawHardware drawHardware, uint64_t &drawingTimeInUs) const
+{
+  ErrorCode errorCode = ErrorCode::OK;
+  uint64_t containerDrawingTimeInUs = 0u;
+  uint64_t objectDrawingTimeInUs;
+
+  for (auto it = m_objectInfoList.getBeginIterator(); it != m_objectInfoList.getEndIterator(); ++it)
+  {
+    if (ErrorCode::OK == errorCode)
+    {
+      errorCode = it->objectPtr->getDrawingTime(drawHardware, objectDrawingTimeInUs);
+      containerDrawingTimeInUs += objectDrawingTimeInUs;
+    }
+  }
+
+  drawingTimeInUs = containerDrawingTimeInUs;
+
+  return errorCode;
+}
+
+void GUI::Container::registerDrawCompletedCallback(const CallbackDescription &callbackDescription)
+{
+  m_drawCompletedCallback = callbackDescription;
+}
+
+void GUI::Container::unregisterDrawCompletedCallback(void)
+{
+  m_drawCompletedCallback =
+  {
+    .functionPtr = nullptr,
+    .argument    = nullptr
+  };
 }
 
 GUI::IObject* GUI::Container::findObjectAtZIndex(uint32_t zIndex) const
@@ -148,17 +190,16 @@ GUI::ErrorCode GUI::Container::insertObjectInfoIntoList(const ObjectInfo &object
 
 void GUI::Container::drawDMA2D(void)
 {
-  Iterator it = getBeginIterator();
-  m_currentDrawingObjectIterator = it;
-  (*it)->draw(DrawHardware::DMA2D);
+  m_currentDrawingObjectIterator = getBeginIterator();
+  (*m_currentDrawingObjectIterator)->draw(DrawHardware::DMA2D);
 }
 
 void GUI::Container::drawCPU(void)
 {
-  for (Iterator it = getBeginIterator(); it != getEndIterator(); it++)
+  m_currentDrawingObjectIterator = getBeginIterator();
+  while (getEndIterator() != m_currentDrawingObjectIterator)
   {
-    m_currentDrawingObjectIterator = it;
-    (*it)->draw(DrawHardware::CPU);
+    (m_currentDrawingObjectIterator++)->draw(DrawHardware::CPU);
   }
 }
 
@@ -171,6 +212,14 @@ void GUI::Container::startDrawingTransaction(DrawHardware drawHardware)
 void GUI::Container::endDrawingTransaction(void)
 {
   m_isDrawingCompleted = true;
+}
+
+void GUI::Container::callDrawCompletedCallbackIfRegistered(void)
+{
+  if (nullptr != m_drawCompletedCallback.functionPtr)
+  {
+    m_drawCompletedCallback.functionPtr(m_drawCompletedCallback.argument);
+  }
 }
 
 GUI::ErrorCode GUI::Container::mapToErrorCode(IArrayListBase::ErrorCode errorCode)
@@ -214,6 +263,7 @@ void GUI::Container::objectDrawingCompletedCallback(void *guiContainerPtr)
       if (not isDrawingStartedSuccessfully)
       {
         containerPtr->endDrawingTransaction();
+        containerPtr->callDrawCompletedCallbackIfRegistered();
       }
     }
   }

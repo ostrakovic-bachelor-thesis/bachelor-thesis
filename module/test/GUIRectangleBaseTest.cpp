@@ -1039,7 +1039,7 @@ TEST_F(AGUIRectangleBase, DrawWithCPUCallsRegisteredDrawCompletedCallbackEvenWhe
   assertThatCallbackIsCalled();
 }
 
-TEST_F(AGUIRectangleBase, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackEvenWhenRectangleIsCompletelyOutOfTheScreen)
+TEST_F(AGUIRectangleBase, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackDirectlyWhenRectangleIsCompletelyOutOfTheScreen)
 {
   guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
   guiRectangleBase.init(guiRectangleBaseDescription);

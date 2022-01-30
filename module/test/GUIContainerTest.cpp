@@ -26,7 +26,10 @@ public:
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> frameBuffer;
   GUI::Container guiContainer = GUI::Container(guiContainerObjectInfoList, frameBuffer);
 
+  GUI::Container::CallbackDescription callbackDescription;
   uint32_t m_lastZIndex;
+  uint32_t m_expectedDrawingTimeInUs;
+  bool m_isCallbackCalled;
 
   void addNRandomIGUIObjectsIntoIGUIContainer(GUI::Container &guiContainer, uint32_t numberOfIGUIObjects);
   void expectThatGUIObjectWillBeForcedToUseGUIContainerFrameBuffer(
@@ -39,6 +42,19 @@ public:
   void expectThatDrawCompletedCallbackWillBeRegisteredForGUIObject(GUIObjectMock &guiObjectMock);
   void simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(GUI::Container &guiContainer);
   void expectThatOnlyDrawForTheGUIObjectWithTheLowestZIndexWillBeCalled(GUI::Container &guiContainer);
+  void expectThatGetDrawingTimeWillBeCalledForEachObjectInContainer(
+    GUI::Container &guiContainer,
+    GUI::DrawHardware drawHardware);
+  void  setupGUIObjectGetDrawingTimeReadings(
+    GUIObjectMock &guiObjectMock,
+    GUI::DrawHardware drawHardware,
+    uint64_t expectedDrawingTimeInUs,
+    GUI::ErrorCode errorCode);
+  void setupGetCPUDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer);
+  void setupGetDMA2DDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer);
+  void assertThatDrawingTimeIsEqualToExpectedOne(uint64_t drawingTimeInUs);
+  void assertThatCallbackIsNotCalled(void);
+  void assertThatCallbackIsCalled(void);
 
   void SetUp() override;
 };
@@ -46,6 +62,14 @@ public:
 void AGUIContainer::SetUp()
 {
   m_lastZIndex = 0u;
+  m_expectedDrawingTimeInUs = 0u;
+  m_isCallbackCalled = false;
+
+  callbackDescription =
+  {
+    .functionPtr = [](void *argument) { *reinterpret_cast<bool*>(argument) = true; },
+    .argument = &m_isCallbackCalled
+  };
 }
 
 void AGUIContainer::addNRandomIGUIObjectsIntoIGUIContainer(GUI::Container &guiContainer, uint32_t numberOfIGUIObjects)
@@ -144,6 +168,75 @@ void AGUIContainer::expectThatOnlyDrawForTheGUIObjectWithTheLowestZIndexWillBeCa
     EXPECT_CALL(*guiObjectMockPtr, draw(_))
       .Times((guiContainer.getBeginIterator() == it) ? 1u : 0u);
   }
+}
+
+void AGUIContainer::expectThatGetDrawingTimeWillBeCalledForEachObjectInContainer(
+  GUI::Container &guiContainer,
+  GUI::DrawHardware drawHardware)
+{
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+    EXPECT_CALL(*guiObjectMockPtr, getDrawingTime(drawHardware, _))
+      .Times(1u);
+  }
+}
+
+void AGUIContainer::setupGUIObjectGetDrawingTimeReadings(
+  GUIObjectMock &guiObjectMock,
+  GUI::DrawHardware drawHardware,
+  uint64_t expectedDrawingTimeInUs,
+  GUI::ErrorCode errorCode)
+{
+  ON_CALL(guiObjectMock, getDrawingTime(drawHardware, _))
+    .WillByDefault([&, expectedDrawingTimeInUs, errorCode](GUI::DrawHardware drawHardware, uint64_t &drawingTimeInUs)
+    {
+      drawingTimeInUs = expectedDrawingTimeInUs;
+      m_expectedDrawingTimeInUs += drawingTimeInUs;
+
+      return errorCode;
+    });
+}
+
+void AGUIContainer::setupGetCPUDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer)
+{
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+    setupGUIObjectGetDrawingTimeReadings(
+      *guiObjectMockPtr,
+      GUI::DrawHardware::CPU,
+      50u,
+      GUI::ErrorCode::OK);
+  }
+}
+
+void AGUIContainer::setupGetDMA2DDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer)
+{
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+    setupGUIObjectGetDrawingTimeReadings(
+      *guiObjectMockPtr,
+      GUI::DrawHardware::DMA2D,
+      110u,
+      GUI::ErrorCode::OK);
+  }
+}
+
+void AGUIContainer::assertThatDrawingTimeIsEqualToExpectedOne(uint64_t drawingTimeInUs)
+{
+  ASSERT_THAT(drawingTimeInUs, Eq(m_expectedDrawingTimeInUs));
+}
+
+void AGUIContainer::assertThatCallbackIsNotCalled(void)
+{
+  ASSERT_THAT(m_isCallbackCalled, Eq(false));
+}
+
+void AGUIContainer::assertThatCallbackIsCalled(void)
+{
+  ASSERT_THAT(m_isCallbackCalled, Eq(true));
 }
 
 
@@ -311,6 +404,22 @@ TEST_F(AGUIContainer, IteratorPlusPlusOperationOnTheIteratorWhichRefersToTheLast
   ASSERT_THAT(iterator, Eq(guiContainer.getEndIterator()));
 }
 
+TEST_F(AGUIContainer, DrawWithCPUOfEmptyContainerWillNotCauseFault)
+{
+  guiContainer.draw(GUI::DrawHardware::CPU);
+
+  ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
+  SUCCEED();
+}
+
+TEST_F(AGUIContainer, DrawWithDMA2DOfEmptyContainerWillNotCauseFault)
+{
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+
+  ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
+  SUCCEED();
+}
+
 TEST_F(AGUIContainer, DrawWithCPUDrawsAllGUIObjectsAddedToTheContainerWithCPUDrawingHardware)
 {
   guiContainer.addObject(&guiObjectMock3, 3u);
@@ -411,4 +520,194 @@ TEST_F(AGUIContainer, DrawWithDMA2DWillNotStartDrawingOfTheNextGUIObjectIfDrawin
 
   guiContainer.draw(GUI::DrawHardware::DMA2D);
   simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithCPUGetsCPUDrawingTimeOfEachObjectInContainer)
+{
+  guiContainer.addObject(&guiObjectMock3, 10u);
+  guiContainer.addObject(&guiObjectMock1, 35u);
+  guiContainer.addObject(&guiObjectMock2, 45u);
+  expectThatGetDrawingTimeWillBeCalledForEachObjectInContainer(guiContainer, GUI::DrawHardware::CPU);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithDMA2DGetsDMA2DDrawingTimeOfEachObjectInContainer)
+{
+  guiContainer.addObject(&guiObjectMock3, 15u);
+  guiContainer.addObject(&guiObjectMock1, 30u);
+  guiContainer.addObject(&guiObjectMock2, 5u);
+  expectThatGetDrawingTimeWillBeCalledForEachObjectInContainer(guiContainer, GUI::DrawHardware::DMA2D);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithCPUReturnsSumOfAllContainerObjectsCPUDrawingTimes)
+{
+  guiContainer.addObject(&guiObjectMock3, 50u);
+  guiContainer.addObject(&guiObjectMock1, 30u);
+  guiContainer.addObject(&guiObjectMock2, 1u);
+  setupGetCPUDrawingTimeReadingForContainerObjects(guiContainer);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  assertThatDrawingTimeIsEqualToExpectedOne(drawingTimeInUs);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithDMA2DReturnsSumOfAllContainerObjectsDMA2DDrawingTimes)
+{
+  guiContainer.addObject(&guiObjectMock3, 1u);
+  guiContainer.addObject(&guiObjectMock2, 110u);
+  guiContainer.addObject(&guiObjectMock1, 45u);
+  setupGetDMA2DDrawingTimeReadingForContainerObjects(guiContainer);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  assertThatDrawingTimeIsEqualToExpectedOne(drawingTimeInUs);
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithCPUFailsIfDrawingTimeOfAnyGUIContainerObjectsIsNotAvailable)
+{
+  guiContainer.addObject(&guiObjectMock1, 30u);
+  guiContainer.addObject(&guiObjectMock2, 1u);
+  setupGetCPUDrawingTimeReadingForContainerObjects(guiContainer);
+  guiContainer.addObject(&guiObjectMock3, 50u);
+  setupGUIObjectGetDrawingTimeReadings(
+    guiObjectMock3,
+    GUI::DrawHardware::CPU,
+    0u,
+    GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::CPU, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE));
+}
+
+TEST_F(AGUIContainer, GetDrawingTimeWithDMA2DFailsIfDrawingTimeOfAnyGUIContainerObjectsIsNotAvailable)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 100u);
+  setupGetDMA2DDrawingTimeReadingForContainerObjects(guiContainer);
+  guiContainer.addObject(&guiObjectMock3, 70u);
+  setupGUIObjectGetDrawingTimeReadings(
+    guiObjectMock3,
+    GUI::DrawHardware::DMA2D,
+    0u,
+    GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE);
+
+  uint64_t drawingTimeInUs;
+  GUI::ErrorCode errorCode = guiContainer.getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeInUs);
+
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::MEASUREMENT_NOT_AVAILABLE));
+}
+
+TEST_F(AGUIContainer, DrawWithDMA2DDoesNotDirectlyCallRegisteredCallback)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 100u);
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+
+  assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIContainer, DrawingWithDMA2DWillNotCauseFaultIfDrawCompletedCallbackIsNotRegistered)
+{
+  guiContainer.addObject(&guiObjectMock1, 40u);
+  guiContainer.addObject(&guiObjectMock2, 30u);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIContainer, WhenDrawWithDMA2DIsFinishedRegisteredDrawCompletedCallbackIsCalled)
+{
+  guiContainer.addObject(&guiObjectMock1, 40u);
+  guiContainer.addObject(&guiObjectMock2, 30u);
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIContainer, WhenDrawingWithDMA2DPreviouslyRegisteredCallbackIsNotCalledIfLaterItIsUnregistered)
+{
+  guiContainer.addObject(&guiObjectMock1, 5u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+  guiContainer.unregisterDrawCompletedCallback();
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+
+  assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIContainer, DrawWithCPUDoesNotFailIfDrawCompletedCallbackIsNotRegistered)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+
+  guiContainer.draw(GUI::DrawHardware::CPU);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIContainer, DrawWithCPUCallsRegisteredDrawCompletedCallbackBeforeReturningExecutionToCaller)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+
+  guiContainer.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIContainer, DrawWithCPUDoesNotCallPreviouslyRegisteredCallbackIfLaterItIsUnregistered)
+{
+  guiContainer.addObject(&guiObjectMock1, 15u);
+  guiContainer.addObject(&guiObjectMock2, 25u);
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+  guiContainer.unregisterDrawCompletedCallback();
+
+  guiContainer.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIContainer, DrawWithCPUCallsRegisteredDrawCompletedCallbackEvenWhenThereIsNoObjectInContainer)
+{
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+
+  guiContainer.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsCalled();
+  ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
+}
+
+TEST_F(AGUIContainer, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackDirectlyWhenThereIsNoObjectInContainer)
+{
+  guiContainer.registerDrawCompletedCallback(callbackDescription);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+
+  assertThatCallbackIsCalled();
+  ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
 }
