@@ -31,6 +31,7 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/GUIRectangle.cpp
     ../module/src/GUIImage.cpp
     ../module/src/GUISceneBase.cpp
+    ../module/src/GUIContainer.cpp
     ../module/src/USARTLogger.cpp)
 
 set(BachelorThesis_app_component_cpp_sources

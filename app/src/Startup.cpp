@@ -14,6 +14,7 @@
 #include "FT3267.h"
 #include "GUIRectangle.h"
 #include "GUIImage.h"
+#include "GUIContainer.h"
 #include "StringBuilder.h"
 #include "USARTLogger.h"
 #include "GUIScene.h"
@@ -378,7 +379,9 @@ void startup(void)
     }
   };
 
-  GUI::Scene<5u> guiScene(g_frameBuffer);
+
+  ArrayList<GUI::Container::ObjectInfo,5u> guiContainerObjectInfoList;
+  GUI::Container guiContainer = GUI::Container(guiContainerObjectInfoList, g_frameBuffer);
 
   GUI::Rectangle guiRectangle1(dma2d, sysTick, g_frameBuffer);
   GUI::Rectangle guiRectangle2(dma2d, sysTick, g_frameBuffer);
@@ -390,10 +393,10 @@ void startup(void)
   guiImage.init(imageDescription);
   guiImage2.init(image2Description);
 
-  guiScene.addObject(&guiRectangle2, 5u);
-  guiScene.addObject(&guiRectangle1, 0u);
-  guiScene.addObject(&guiImage2, 10u);
-  guiScene.addObject(&guiImage, 7u);
+  guiContainer.addObject(&guiRectangle2, 5u);
+  guiContainer.addObject(&guiRectangle1, 0u);
+  guiContainer.addObject(&guiImage2, 10u);
+  guiContainer.addObject(&guiImage, 7u);
 
   {
     SystemConfig::ErrorCode errorCode = systemConfig.init();
@@ -695,12 +698,8 @@ void startup(void)
       newPosition.x = x;
       guiImage2.moveToPosition(newPosition);
 
-      for (auto it = guiScene.getBeginIterator(); it != guiScene.getEndIterator(); ++it)
-      {
-        it->guiObjectPtr->draw(GUI::DrawHardware::DMA2D);
-
-        while (not it->guiObjectPtr->isDrawCompleted());
-      }
+      guiContainer.draw(GUI::DrawHardware::DMA2D);
+      while (not guiContainer.isDrawCompleted());
 
       dsiHost.startTransferFromLTDC();
 
@@ -710,12 +709,12 @@ void startup(void)
       stringBuilder.append("\r\nCPU performance:\r\n");
 
       uint32_t i = 0u;
-      for (auto it = guiScene.getBeginIterator(); it != guiScene.getEndIterator(); ++it)
+      for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
       {
         uint64_t drawingTimeCPUInUs   = -1;
         uint64_t drawingTimeDMA2DInUs = -1;
-        it->guiObjectPtr->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
-        it->guiObjectPtr->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
+        (*it)->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
+        (*it)->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
         stringBuilder.append(i);
         stringBuilder.append(". drawing time DMA2D -> ");
         stringBuilder.append(static_cast<uint32_t>(drawingTimeDMA2DInUs));

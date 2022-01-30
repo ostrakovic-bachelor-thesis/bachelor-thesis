@@ -66,17 +66,28 @@ namespace GUI
     void drawDMA2D(void);
     void drawCPU(void);
 
+    void startDrawingTransaction(DrawHardware drawHardware);
+    void endDrawingTransaction(void);
+
+    bool startDrawingOfTheNextObjectWithDMA2D(void);
+
     IObject* findObjectAtZIndex(uint32_t zIndex) const;
 
     ErrorCode insertObjectInfoIntoList(const ObjectInfo &objectInfo);
 
     static ErrorCode mapToErrorCode(IArrayListBase::ErrorCode errorCode);
 
-    bool m_isDrawingCompleted = true;
+    static void objectDrawingCompletedCallback(void *guiContainerPtr);
 
     IArrayList<ObjectInfo> &m_objectInfoList;
 
     IFrameBuffer &m_frameBuffer;
+
+    Iterator m_currentDrawingObjectIterator;
+
+    bool m_isDrawingCompleted = true;
+
+    DrawHardware m_drawHardwareInUsage = DrawHardware::CPU;
   };
 }
 

@@ -949,6 +949,15 @@ TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsTrueWhenDrawingWithDMA2DAndDrawC
   ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
 }
 
+TEST_F(AGUIRectangleBase, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithDMA2DIfRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+
+  ASSERT_THAT(guiRectangleBase.isDrawCompleted(), Eq(true));
+}
+
 TEST_F(AGUIRectangleBase, DrawWithDMA2DDoesNotDirectlyCallRegisteredCallback)
 {
   guiRectangleBase.init(guiRectangleBaseDescription);
@@ -1017,4 +1026,26 @@ TEST_F(AGUIRectangleBase, DrawWithCPUDoesNotCallPreviouslyRegisteredCallbackIfLa
   guiRectangleBase.draw(GUI::DrawHardware::CPU);
 
   assertThatCallbackIsNotCalled();
+}
+
+TEST_F(AGUIRectangleBase, DrawWithCPUCallsRegisteredDrawCompletedCallbackEvenWhenRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+
+  guiRectangleBase.draw(GUI::DrawHardware::CPU);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIRectangleBase, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackEvenWhenRectangleIsCompletelyOutOfTheScreen)
+{
+  guiRectangleBaseDescription.position = GUI_RECTANGLE_COMPLETELY_OUT_OF_SCREEN_POSITION;
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerDrawCompletedCallback(callbackDescription);
+
+  guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
+
+  assertThatCallbackIsCalled();
 }

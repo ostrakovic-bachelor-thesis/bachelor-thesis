@@ -93,6 +93,10 @@ void GUI::RectangleBase::draw(DrawHardware drawHardware)
       break;
     }
   }
+  else
+  {
+    callDrawCompletedCallbackIfRegistered();
+  }
 }
 
 bool GUI::RectangleBase::isDrawCompleted(void) const

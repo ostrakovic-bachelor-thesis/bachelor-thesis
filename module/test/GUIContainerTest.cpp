@@ -37,6 +37,8 @@ public:
   void expectThatGUIObjectsWillBeDrawnInSequenceFromLowerToHigherZIndex(GUI::Container &guiContainer);
   void expectThatDrawingOfTheNextGUIObjectWillNotStartBeforeOngoingIsFinished(GUI::Container &guiContainer);
   void expectThatDrawCompletedCallbackWillBeRegisteredForGUIObject(GUIObjectMock &guiObjectMock);
+  void simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(GUI::Container &guiContainer);
+  void expectThatOnlyDrawForTheGUIObjectWithTheLowestZIndexWillBeCalled(GUI::Container &guiContainer);
 
   void SetUp() override;
 };
@@ -106,12 +108,15 @@ void AGUIContainer::expectThatDrawingOfTheNextGUIObjectWillNotStartBeforeOngoing
   {
     GUIObjectMock *previousGuiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
     it++;
-    GUIObjectMock *currentGuiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
-    ON_CALL(*currentGuiObjectMockPtr, draw(_))
-      .WillByDefault([=](GUI::DrawHardware drawHardware)
-      {
-        ASSERT_THAT(previousGuiObjectMockPtr->isDrawCompleted(), true);
-      });
+    if (it != guiContainer.getEndIterator())
+    {
+      GUIObjectMock *currentGuiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+      ON_CALL(*currentGuiObjectMockPtr, draw(_))
+        .WillByDefault([=](GUI::DrawHardware drawHardware)
+        {
+          ASSERT_THAT(previousGuiObjectMockPtr->isDrawCompleted(), true);
+        });
+    }
   }
 }
 
@@ -119,6 +124,26 @@ void AGUIContainer::expectThatDrawCompletedCallbackWillBeRegisteredForGUIObject(
 {
   EXPECT_CALL(guiObjectMock, registerDrawCompletedCallback(_))
     .Times(1u);
+}
+
+void AGUIContainer::simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(GUI::Container &guiContainer)
+{
+  // simulate reporting of DMA2D draw completed callback for each object in the container
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+    guiObjectMockPtr->callbackDMA2DDrawCompleted();
+  }
+}
+
+void AGUIContainer::expectThatOnlyDrawForTheGUIObjectWithTheLowestZIndexWillBeCalled(GUI::Container &guiContainer)
+{
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getBeginIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*(guiContainer.getBeginIterator()));
+    EXPECT_CALL(*guiObjectMockPtr, draw(_))
+      .Times((guiContainer.getBeginIterator() == it) ? 1u : 0u);
+  }
 }
 
 
@@ -306,26 +331,6 @@ TEST_F(AGUIContainer, DrawWithCPUDrawsGUIObjectsInSequenceFromLowerToHigherZInde
   guiContainer.draw(GUI::DrawHardware::CPU);
 }
 
-TEST_F(AGUIContainer, DrawWithDMA2DDrawsAllGUIObjectsAddedToTheContainerWithDMA2DDrawingHardware)
-{
-  guiContainer.addObject(&guiObjectMock3, 5u);
-  guiContainer.addObject(&guiObjectMock2, 1u);
-  guiContainer.addObject(&guiObjectMock1, 20u);
-  expectThatAllGUIObjectsStoredInContainerWillBeDrawnWithDMA2DDrawingHardware(guiContainer);
-
-  guiContainer.draw(GUI::DrawHardware::DMA2D);
-}
-
-TEST_F(AGUIContainer, DrawWithDMA2DDrawsGUIObjectsInSequenceFromLowerToHigherZIndex)
-{
-  guiContainer.addObject(&guiObjectMock3, 60u);
-  guiContainer.addObject(&guiObjectMock2, 15u);
-  guiContainer.addObject(&guiObjectMock1, 200u);
-  expectThatGUIObjectsWillBeDrawnInSequenceFromLowerToHigherZIndex(guiContainer);
-
-  guiContainer.draw(GUI::DrawHardware::DMA2D);
-}
-
 TEST_F(AGUIContainer, DrawWithCPUWillNotStartDrawingOfTheNextGUIObjectIfDrawingOfTheCurrentOneIsNotFinished)
 {
   guiContainer.addObject(&guiObjectMock3, 3u);
@@ -345,6 +350,15 @@ TEST_F(AGUIContainer, IsDrawCompletedReturnsImmediatelyTrueAfterDrawingWithCPU)
   ASSERT_THAT(guiContainer.isDrawCompleted(), Eq(true));
 }
 
+TEST_F(AGUIContainer, DrawWithDMA2DOnlyStartsDrawingOfGUIObjectWithTheLowestZIndex)
+{
+  guiContainer.addObject(&guiObjectMock2, 5u);
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  expectThatOnlyDrawForTheGUIObjectWithTheLowestZIndexWillBeCalled(guiContainer);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+}
+
 TEST_F(AGUIContainer, IsDrawCompletedReturnsFalseIfDrawCompletedCallbackHasNotBeenCalledForAllObjectsWhenDrawingWithDMA2D)
 {
   guiContainer.addObject(&guiObjectMock2, 5u);
@@ -354,19 +368,41 @@ TEST_F(AGUIContainer, IsDrawCompletedReturnsFalseIfDrawCompletedCallbackHasNotBe
   ASSERT_THAT(guiContainer.isDrawCompleted(), Eq(false));
 }
 
-// TEST_F(AGUIContainer, DrawWithDMA2D)
-// {
-//   guiContainer.addObject(&guiObjectMock3, 50u);
-//   guiContainer.addObject(&guiObjectMock2, 1u);
-//   guiContainer.addObject(&guiObjectMock1, 30u);
+TEST_F(AGUIContainer, IsDrawCompletedReturnsTrueAfterAllObjectFromTheContainerHaveBeenDrawn)
+{
+  guiContainer.addObject(&guiObjectMock3, 50u);
+  guiContainer.addObject(&guiObjectMock2, 1u);
+  guiContainer.addObject(&guiObjectMock1, 30u);
 
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
 
-//   guiContainer.draw(GUI::DrawHardware::DMA2D);
+  ASSERT_THAT(guiContainer.isDrawCompleted(), Eq(true));
+}
 
-//   ASSERT_THAT(guiContainer.isDrawCompleted(), Eq(false));
-// }
+TEST_F(AGUIContainer, DrawWithDMA2DDrawsAllGUIObjectsAddedToTheContainerWithDMA2DDrawingHardware)
+{
+  guiContainer.addObject(&guiObjectMock3, 5u);
+  guiContainer.addObject(&guiObjectMock2, 1u);
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  expectThatAllGUIObjectsStoredInContainerWillBeDrawnWithDMA2DDrawingHardware(guiContainer);
 
-TEST_F(AGUIContainer, DISABLED_DrawWithDMA2DWillNotStartDrawingOfTheNextGUIObjectIfDrawingOfTheCurrentOneIsNotFinished)
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+}
+
+TEST_F(AGUIContainer, DrawWithDMA2DDrawsGUIObjectsInSequenceFromLowerToHigherZIndex)
+{
+  guiContainer.addObject(&guiObjectMock3, 60u);
+  guiContainer.addObject(&guiObjectMock2, 15u);
+  guiContainer.addObject(&guiObjectMock1, 200u);
+  expectThatGUIObjectsWillBeDrawnInSequenceFromLowerToHigherZIndex(guiContainer);
+
+  guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
+}
+
+TEST_F(AGUIContainer, DrawWithDMA2DWillNotStartDrawingOfTheNextGUIObjectIfDrawingOfTheCurrentOneIsNotFinished)
 {
   guiContainer.addObject(&guiObjectMock3, 50u);
   guiContainer.addObject(&guiObjectMock2, 1u);
@@ -374,11 +410,5 @@ TEST_F(AGUIContainer, DISABLED_DrawWithDMA2DWillNotStartDrawingOfTheNextGUIObjec
   expectThatDrawingOfTheNextGUIObjectWillNotStartBeforeOngoingIsFinished(guiContainer);
 
   guiContainer.draw(GUI::DrawHardware::DMA2D);
+  simulateCallingOfDMA2DDrawCompletedCallbackForEachGUIObjectInTheContainer(guiContainer);
 }
-
-// TODO
-// register GUI OBJECT MOCK draw completed callback
-// DMA2D will not block aka will returns before all objects are drawn
-// DMA2D will finish when all objects are drawn
-// DRAWDMA2D will not start with another DRAW until callback is called
-// DMA2D

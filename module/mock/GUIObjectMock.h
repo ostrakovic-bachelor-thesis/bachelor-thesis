@@ -60,7 +60,7 @@ public:
   MOCK_METHOD(void, unregisterDrawCompletedCallback, (), (override));
 
   // fake method;
-  inline void dma2DTransferCompleteCallback(void)
+  inline void callbackDMA2DDrawCompleted(void)
   {
     m_isDrawCompleted = true;
 

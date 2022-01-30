@@ -3,7 +3,8 @@
 
 GUI::Container::Container(IArrayList<ObjectInfo> &objectInfoList, IFrameBuffer &frameBuffer):
   m_objectInfoList(objectInfoList),
-  m_frameBuffer(frameBuffer)
+  m_frameBuffer(frameBuffer),
+  m_currentDrawingObjectIterator(m_objectInfoList.getEndIterator())
 {}
 
 IFrameBuffer& GUI::Container::getFrameBuffer(void)
@@ -53,10 +54,10 @@ GUI::ErrorCode GUI::Container::addObject(IObject *objectPtr, uint32_t zIndex)
 
   if (ErrorCode::OK == errorCode)
   {
-    IDrawable::CallbackDescription callbackDescription =
+    const IDrawable::CallbackDescription callbackDescription =
     {
-      .functionPtr = nullptr,
-      .argument    = nullptr
+      .functionPtr = objectDrawingCompletedCallback,
+      .argument    = this
     };
 
     objectPtr->setFrameBuffer(m_frameBuffer);
@@ -78,7 +79,7 @@ GUI::Container::Iterator GUI::Container::getEndIterator(void)
 
 void GUI::Container::draw(DrawHardware drawHardware)
 {
-  m_isDrawingCompleted = false;
+  startDrawingTransaction(drawHardware);
 
   switch (drawHardware)
   {
@@ -92,7 +93,7 @@ void GUI::Container::draw(DrawHardware drawHardware)
     case DrawHardware::CPU:
     {
       drawCPU();
-      m_isDrawingCompleted = true;
+      endDrawingTransaction();
     }
     break;
   }
@@ -147,18 +148,29 @@ GUI::ErrorCode GUI::Container::insertObjectInfoIntoList(const ObjectInfo &object
 
 void GUI::Container::drawDMA2D(void)
 {
-  for (Iterator it = getBeginIterator(); it != getEndIterator(); it++)
-  {
-    (*it)->draw(DrawHardware::DMA2D);
-  }
+  Iterator it = getBeginIterator();
+  m_currentDrawingObjectIterator = it;
+  (*it)->draw(DrawHardware::DMA2D);
 }
 
 void GUI::Container::drawCPU(void)
 {
   for (Iterator it = getBeginIterator(); it != getEndIterator(); it++)
   {
+    m_currentDrawingObjectIterator = it;
     (*it)->draw(DrawHardware::CPU);
   }
+}
+
+void GUI::Container::startDrawingTransaction(DrawHardware drawHardware)
+{
+  m_isDrawingCompleted  = false;
+  m_drawHardwareInUsage = drawHardware;
+}
+
+void GUI::Container::endDrawingTransaction(void)
+{
+  m_isDrawingCompleted = true;
 }
 
 GUI::ErrorCode GUI::Container::mapToErrorCode(IArrayListBase::ErrorCode errorCode)
@@ -173,6 +185,37 @@ GUI::ErrorCode GUI::Container::mapToErrorCode(IArrayListBase::ErrorCode errorCod
     case IArrayListBase::ErrorCode::NULL_POINTER_ERROR:
     default:
       return ErrorCode::OK;
+  }
+}
+
+bool GUI::Container::startDrawingOfTheNextObjectWithDMA2D(void)
+{
+  bool isDrawingStartedSuccessfully = false;
+
+  m_currentDrawingObjectIterator++;
+  if (getEndIterator() != m_currentDrawingObjectIterator)
+  {
+    (*(m_currentDrawingObjectIterator))->draw(DrawHardware::DMA2D);
+    isDrawingStartedSuccessfully = true;
+  }
+
+  return isDrawingStartedSuccessfully;
+}
+
+void GUI::Container::objectDrawingCompletedCallback(void *guiContainerPtr)
+{
+  GUI::Container *containerPtr = reinterpret_cast<GUI::Container*>(guiContainerPtr);
+
+  if (nullptr != containerPtr)
+  {
+    if (DrawHardware::DMA2D == containerPtr->m_drawHardwareInUsage)
+    {
+      bool isDrawingStartedSuccessfully = containerPtr->startDrawingOfTheNextObjectWithDMA2D();
+      if (not isDrawingStartedSuccessfully)
+      {
+        containerPtr->endDrawingTransaction();
+      }
+    }
   }
 }
 
