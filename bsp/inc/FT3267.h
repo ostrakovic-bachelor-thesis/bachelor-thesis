@@ -77,7 +77,7 @@ public:
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
-ErrorCode getFirmwareID(uint8_t &firmwareId);
+  ErrorCode getFirmwareID(uint8_t &firmwareId);
 
 #ifdef UNIT_TEST
   virtual

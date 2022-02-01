@@ -8,6 +8,8 @@ include_directories(interface)
 include_directories(inc)
 include_directories(test)
 include_directories(mock)
+include_directories(../bsp/inc)
+include_directories(../bsp/mock)
 include_directories(../driver/sdk)
 include_directories(../driver/inc)
 include_directories(../driver/mock)
@@ -27,13 +29,17 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/DMA2D.cpp
     ../driver/src/SysTick.cpp)
 
+set(BachelorThesis_bsp_component_cpp_sources
+    ../bsp/src/FT3267.cpp)
+
 set(BachelorThesis_module_component_cpp_sources
     src/GUIRectangleBase.cpp
     src/GUIRectangle.cpp
     src/GUIImage.cpp
     src/GUIContainer.cpp
     src/GUISceneBase.cpp
-    src/USARTLogger.cpp)
+    src/USARTLogger.cpp
+    src/FT3267TouchDevice.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
     test/GPIOManagerTest.cpp
@@ -46,10 +52,12 @@ set(BachelorThesis_module_test_cpp_sources
     test/GUIContainerTest.cpp
     test/GUISceneBaseTest.cpp
     test/GUISceneTest.cpp
+    test/FT3267TouchDeviceTest.cpp
     test/USARTLoggerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}
                     ${BachelorThesis_driver_component_cpp_sources}
+                    ${BachelorThesis_bsp_component_cpp_sources}
                     ${BachelorThesis_module_component_cpp_sources}
                     ${BachelorThesis_module_test_cpp_sources})
 

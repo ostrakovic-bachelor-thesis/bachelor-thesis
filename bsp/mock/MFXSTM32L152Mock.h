@@ -32,8 +32,6 @@ public:
   MOCK_METHOD(ErrorCode, getID, (uint8_t &), (override));
   MOCK_METHOD(ErrorCode, registerGPIOInterruptCallback, (GPIOPin, CallbackFunc, void *), (override));
   MOCK_METHOD(ErrorCode, runtimeTask, (), (override));
-
-private:
 };
 
 #endif // #ifndef MFXSTM32L152_MOCK_H
