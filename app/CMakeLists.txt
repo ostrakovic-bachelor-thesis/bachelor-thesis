@@ -32,7 +32,9 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/GUIImage.cpp
     ../module/src/GUISceneBase.cpp
     ../module/src/GUIContainer.cpp
-    ../module/src/USARTLogger.cpp)
+    ../module/src/USARTLogger.cpp
+    ../module/src/TouchEvent.cpp
+    ../module/src/FT3267TouchDevice.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
     src/InterruptDispatcher.cpp

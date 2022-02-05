@@ -14,6 +14,8 @@ public:
 
   using ErrorCode = IArrayListBase::ErrorCode;
 
+  virtual ~ArrayList() = default;
+
   inline uint32_t getCapacity(void) const override
   {
     return t_capacity;

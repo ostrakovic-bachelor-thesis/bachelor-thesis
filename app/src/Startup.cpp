@@ -18,6 +18,8 @@
 #include "StringBuilder.h"
 #include "USARTLogger.h"
 #include "GUIScene.h"
+#include "TouchEvent.h"
+#include "FT3267TouchDevice.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -37,6 +39,81 @@
 extern const uint8_t iconBitmap[100 * 100 * 3 + 1];
 extern const uint8_t rimacLogoBitmap[300 * 71 * 4];
 
+// TODO remove later
+class TouchEventLogger : public ITouchEventListener
+{
+public:
+
+  TouchEventLogger(USARTLogger &usartLogger):
+    m_usartLogger(usartLogger)
+  {}
+
+  void notify(const TouchEvent &touchEvent) override
+  {
+    const uint64_t ticks = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC).getTicks();
+    const IArrayList<TouchEvent::TouchPoint> &touchPoints = touchEvent.getTouchPoints();
+
+    m_stringBuilder.reset();
+    m_stringBuilder.append("systick: ");
+    m_stringBuilder.append(static_cast<uint32_t>(ticks));
+
+    switch (touchEvent.getType())
+    {
+      case TouchEvent::Type::TOUCH_START:
+      {
+        m_stringBuilder.append("\tTOUCH START\t");
+      }
+      break;
+
+      case TouchEvent::Type::TOUCH_MOVE:
+      {
+        m_stringBuilder.append("\tTOUCH MOVE\t");
+      }
+      break;
+
+      case TouchEvent::Type::TOUCH_STOP:
+      {
+        m_stringBuilder.append("\tTOUCH END\t");
+      }
+      break;
+    }
+
+    m_stringBuilder.append(" touch count: ");
+    m_stringBuilder.append(touchPoints.getSize());
+
+    if (0u < touchPoints.getSize())
+    {
+      TouchEvent::TouchPoint touchPoint;
+      touchPoints.getElement(0u, &touchPoint);
+      m_stringBuilder.append(" point1 x: ");
+      m_stringBuilder.append(touchPoint.x);
+      m_stringBuilder.append(" y: ");
+      m_stringBuilder.append(touchPoint.y);
+    }
+
+    if (1u < touchPoints.getSize())
+    {
+      TouchEvent::TouchPoint touchPoint;
+      touchPoints.getElement(1u, &touchPoint);
+      m_stringBuilder.append(" point2 x: ");
+      m_stringBuilder.append(touchPoint.x);
+      m_stringBuilder.append(" y: ");
+      m_stringBuilder.append(touchPoint.y);
+    }
+
+    m_stringBuilder.append("\r\n");
+  }
+
+  void sendLog(void)
+  {
+    m_usartLogger.write(m_stringBuilder);
+  }
+
+private:
+
+  USARTLogger &m_usartLogger;
+  StringBuilder<500u> m_stringBuilder;
+};
 
 bool g_isTouchEventInfoRefreshed = false;
 FT3267::TouchEventInfo g_touchEventInfo;
@@ -52,6 +129,8 @@ RaydiumRM67160 g_displayRM67160 = RaydiumRM67160(
 FT3267 g_ft3267 = FT3267(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
   &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
+
+FT3267TouchDevice g_ft3267TouchDevice(g_ft3267);
 
 extern "C" void initSYSCLOCK(void);
 
@@ -574,18 +653,25 @@ void startup(void)
     }
   }
 
+  USARTLogger usartLogger(usart2);
+  TouchEventLogger touchEventLogger(usartLogger);
+
   {
     FT3267::ErrorCode errorCode = g_ft3267.init(g_ft3267Config);
     if (FT3267::ErrorCode::OK != errorCode)
     {
       panic();
     }
+  }
 
-    g_ft3267.registerTouchEventCallback(touchEventHandler, nullptr);
-    if (FT3267::ErrorCode::OK != errorCode)
+  {
+    FT3267TouchDevice::ErrorCode errorCode = g_ft3267TouchDevice.init();
+    if (FT3267TouchDevice::ErrorCode::OK != errorCode)
     {
       panic();
     }
+
+    g_ft3267TouchDevice.registerTouchEventListener(&touchEventLogger);
   }
 
   uint8_t mfxId    = 0u;
@@ -617,7 +703,6 @@ void startup(void)
   int16_t direction = 1;
 
   StringBuilder<500u> stringBuilder;
-  USARTLogger usartLogger(usart2);
 
   guiRectangle1.init(guiRectangleDescription1);
   guiRectangle2.init(guiRectangleDescription2);
@@ -636,43 +721,9 @@ void startup(void)
       }
     }
 
-/*
-    stringBuilder.reset();
-    stringBuilder.append("systick: ");
-    stringBuilder.append(static_cast<uint32_t>(ticks));
+    touchEventLogger.sendLog();
 
-    if(g_isTouchEventInfoRefreshed)
-    {
-      g_isTouchEventInfoRefreshed = false;
-
-      stringBuilder.append(" touch count: ");
-      stringBuilder.append(g_touchEventInfo.touchCount);
-
-      if (g_touchEventInfo.touchCount >= 1u)
-      {
-        stringBuilder.append(" point1 x: ");
-        stringBuilder.append(g_touchEventInfo.touchPoints[0].position.x);
-        stringBuilder.append(" y: ");
-        stringBuilder.append(g_touchEventInfo.touchPoints[0].position.y);
-      }
-
-      if (g_touchEventInfo.touchCount >= 2u)
-      {
-        stringBuilder.append(" point2 x: ");
-        stringBuilder.append(g_touchEventInfo.touchPoints[1].position.x);
-        stringBuilder.append(" y: ");
-        stringBuilder.append(g_touchEventInfo.touchPoints[1].position.y);
-      }
-    }
-    else
-    {
-      stringBuilder.append(" no touch(es)");
-    }
-
-    stringBuilder.append("\r\n");
-    usartLogger.write(stringBuilder);
-*/
-    if (sysTick.getElapsedTimeInMs(timestamp) >= 20u)
+    if (sysTick.getElapsedTimeInMs(timestamp) >= 25u)
     {
       timestamp = sysTick.getTicks();
 
