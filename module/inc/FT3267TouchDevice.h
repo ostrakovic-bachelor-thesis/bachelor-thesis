@@ -28,7 +28,15 @@ public:
 
 private:
 
+  TouchEvent::Type getTypeOfNextTouchEvent(const FT3267::TouchEventInfo &touchEventInfo) const;
+  void notifyTouchEventListenerIfRegistered(const TouchEvent &touchEvent);
+  bool shouldEventListenerDeviceBeNotified(TouchEvent::Type touchEventType) const;
+
+  static TouchEvent getTouchEvent(TouchEvent::Type touchEventType, const FT3267::TouchEventInfo &touchEventInfo);
+
   FT3267 &m_ft3267;
+
+  TouchEvent m_lastTouchEvent;
 
   ITouchEventListener *m_touchEventListenerPtr = nullptr;
 };

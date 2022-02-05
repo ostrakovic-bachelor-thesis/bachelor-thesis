@@ -39,6 +39,7 @@ set(BachelorThesis_module_component_cpp_sources
     src/GUIContainer.cpp
     src/GUISceneBase.cpp
     src/USARTLogger.cpp
+    src/TouchEvent.cpp
     src/FT3267TouchDevice.cpp)
 
 set(BachelorThesis_module_test_cpp_sources
@@ -52,6 +53,7 @@ set(BachelorThesis_module_test_cpp_sources
     test/GUIContainerTest.cpp
     test/GUISceneBaseTest.cpp
     test/GUISceneTest.cpp
+    test/TouchEventTest.cpp
     test/FT3267TouchDeviceTest.cpp
     test/USARTLoggerTest.cpp)
 

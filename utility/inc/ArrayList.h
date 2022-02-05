@@ -44,7 +44,7 @@ public:
 
   inline Iterator getBeginIterator(void) override
   {
-    return isEmpty() ? getEndIterator() : &m_buffer[0];
+    return &m_buffer[0];
   }
 
   inline Iterator getEndIterator(void) override
@@ -54,12 +54,12 @@ public:
 
   inline ConstIterator getBeginIterator(void) const override
   {
-    return getBeginIterator();
+     return &m_buffer[0];
   }
 
   inline ConstIterator getEndIterator(void) const override
   {
-    return getEndIterator();
+    return &m_buffer[m_size];
   }
 
 private:

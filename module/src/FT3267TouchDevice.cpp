@@ -2,7 +2,8 @@
 
 
 FT3267TouchDevice::FT3267TouchDevice(FT3267 &ft3267):
-  m_ft3267(ft3267)
+  m_ft3267(ft3267),
+  m_lastTouchEvent(TouchEvent::Type::TOUCH_STOP)
 {}
 
 FT3267TouchDevice::ErrorCode FT3267TouchDevice::init(void)
@@ -32,7 +33,93 @@ ITouchEventListener* FT3267TouchDevice::getTouchEventListener(void)
   return m_touchEventListenerPtr;
 }
 
+TouchEvent::Type FT3267TouchDevice::getTypeOfNextTouchEvent(const FT3267::TouchEventInfo &touchEventInfo) const
+{
+  TouchEvent::Type touchEventType;
+
+  switch (m_lastTouchEvent.getType())
+  {
+    case TouchEvent::Type::TOUCH_STOP:
+    {
+      touchEventType = TouchEvent::Type::TOUCH_START;
+    }
+    break;
+
+    case TouchEvent::Type::TOUCH_START:
+    case TouchEvent::Type::TOUCH_MOVE:
+    {
+      touchEventType = TouchEvent::Type::TOUCH_MOVE;
+    }
+    break;
+
+    default:
+    {
+      touchEventType = TouchEvent::Type::TOUCH_STOP;
+    }
+    break;
+  }
+
+  // if touch count is zero, generate TOUCH STOP event, no matter which event was generated previously
+  if (0u == touchEventInfo.touchCount)
+  {
+    touchEventType = TouchEvent::Type::TOUCH_STOP;
+  }
+
+  return touchEventType;
+}
+
+void FT3267TouchDevice::notifyTouchEventListenerIfRegistered(const TouchEvent &touchEvent)
+{
+  if (nullptr != m_touchEventListenerPtr)
+  {
+    m_touchEventListenerPtr->notify(touchEvent);
+  }
+}
+
+bool FT3267TouchDevice::shouldEventListenerDeviceBeNotified(TouchEvent::Type touchEventType) const
+{
+  return (TouchEvent::Type::TOUCH_STOP != touchEventType) ||
+         (TouchEvent::Type::TOUCH_STOP != m_lastTouchEvent.getType());
+}
+
+TouchEvent FT3267TouchDevice::getTouchEvent(
+  TouchEvent::Type touchEventType,
+  const FT3267::TouchEventInfo &touchEventInfo)
+{
+  ArrayList<TouchEvent::TouchPoint, 2u> touchPoints;
+
+  for (uint8_t i = 0u; i < touchEventInfo.touchCount; ++i)
+  {
+    TouchEvent::TouchPoint touchPoint =
+    {
+      .x = static_cast<int16_t>(touchEventInfo.touchPoints[i].position.x),
+      .y = static_cast<int16_t>(touchEventInfo.touchPoints[i].position.y)
+    };
+    touchPoints.addElement(touchPoint);
+  }
+
+  return TouchEvent(touchEventType, touchPoints);
+}
+
 void FT3267TouchDevice::touchEventCallback(void *ft3267TouchDevicePtr, FT3267::TouchEventInfo touchEventInfo)
 {
+  FT3267TouchDevice *touchDevicePtr = reinterpret_cast<FT3267TouchDevice*>(ft3267TouchDevicePtr);
 
+  if (nullptr != touchDevicePtr)
+  {
+    const TouchEvent::Type touchEventType = touchDevicePtr->getTypeOfNextTouchEvent(touchEventInfo);
+
+    TouchEvent touchEvent = getTouchEvent(touchEventType, touchEventInfo);
+    if (TouchEvent::Type::TOUCH_STOP == touchEventType)
+    {
+      touchEvent = TouchEvent(touchEventType, touchDevicePtr->m_lastTouchEvent.getTouchPoints());
+    }
+
+    if (touchDevicePtr->shouldEventListenerDeviceBeNotified(touchEventType))
+    {
+      touchDevicePtr->notifyTouchEventListenerIfRegistered(touchEvent);
+    }
+
+    touchDevicePtr->m_lastTouchEvent = touchEvent;
+  }
 }
