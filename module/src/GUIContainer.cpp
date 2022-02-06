@@ -3,13 +3,50 @@
 
 GUI::Container::Container(IArrayList<ObjectInfo> &objectInfoList, IFrameBuffer &frameBuffer):
   m_objectInfoList(objectInfoList),
-  m_frameBuffer(frameBuffer),
+  m_frameBufferPtr(&frameBuffer),
   m_currentDrawingObjectIterator(m_objectInfoList.getEndIterator())
 {}
 
 IFrameBuffer& GUI::Container::getFrameBuffer(void)
 {
-  return m_frameBuffer;
+  return *m_frameBufferPtr;
+}
+
+const IFrameBuffer& GUI::Container::getFrameBuffer(void) const
+{
+  return *m_frameBufferPtr;
+}
+
+void GUI::Container::setFrameBuffer(IFrameBuffer &frameBuffer)
+{
+  m_frameBufferPtr = &frameBuffer;
+
+  for (auto it = getBeginIterator(); it != getEndIterator(); it++)
+  {
+    (*it)->setFrameBuffer(frameBuffer);
+  }
+}
+
+GUI::Position GUI::Container::getPosition(Position::Tag positionTag) const
+{
+  switch (positionTag)
+  {
+    case Position::Tag::TOP_LEFT_CORNER:
+      return getPositionTopLeftCorner();
+
+    case Position::Tag::TOP_RIGHT_CORNER:
+      return getPositionTopRightCorner();
+
+    case Position::Tag::BOTTOM_LEFT_CORNER:
+      return getPositionBottomLeftCorner();
+
+    case Position::Tag::BOTTOM_RIGHT_CORNER:
+      return getPositionBottomRightCorner();
+
+    case Position::Tag::CENTER:
+    default:
+      return getPositionCenter();
+  }
 }
 
 uint32_t GUI::Container::getCapacity(void) const
@@ -60,7 +97,7 @@ GUI::ErrorCode GUI::Container::addObject(IObject *objectPtr, uint32_t zIndex)
       .argument    = this
     };
 
-    objectPtr->setFrameBuffer(m_frameBuffer);
+    objectPtr->setFrameBuffer(getFrameBuffer());
     objectPtr->registerDrawCompletedCallback(callbackDescription);
   }
 
@@ -143,6 +180,56 @@ void GUI::Container::unregisterDrawCompletedCallback(void)
   {
     .functionPtr = nullptr,
     .argument    = nullptr
+  };
+}
+
+GUI::Position GUI::Container::getPositionTopLeftCorner(void) const
+{
+  return
+  {
+    .x   = 0,
+    .y   = 0,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+}
+
+GUI::Position GUI::Container::getPositionTopRightCorner(void) const
+{
+  return
+  {
+    .x   = static_cast<int16_t>(getFrameBuffer().getWidth()),
+    .y   = 0,
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER
+  };
+}
+
+GUI::Position GUI::Container::getPositionBottomLeftCorner(void) const
+{
+  return
+  {
+    .x   = 0,
+    .y   = static_cast<int16_t>(getFrameBuffer().getHeight()),
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER
+  };
+}
+
+GUI::Position GUI::Container::getPositionBottomRightCorner(void) const
+{
+  return
+  {
+    .x   = static_cast<int16_t>(getFrameBuffer().getWidth()),
+    .y   = static_cast<int16_t>(getFrameBuffer().getHeight()),
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER
+  };
+}
+
+GUI::Position GUI::Container::getPositionCenter(void) const
+{
+  return
+  {
+    .x   = static_cast<int16_t>(getFrameBuffer().getWidth() / 2u),
+    .y   = static_cast<int16_t>(getFrameBuffer().getHeight() / 2u),
+    .tag = GUI::Position::Tag::CENTER
   };
 }
 

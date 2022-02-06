@@ -35,6 +35,9 @@ public:
   void expectThatGUIObjectWillBeForcedToUseGUIContainerFrameBuffer(
     GUIObjectMock &guiObjectMock,
     GUI::Container &guiContainer);
+  void expectThatAllObjectsInContainerWillBeFordedToUseFrameBuffer(
+    GUI::Container &guiContainer,
+    IFrameBuffer &newFrameBuffer);
   void expectThatAllGUIObjectsStoredInContainerWillBeDrawnWithCPUDrawingHardware(GUI::Container &guiContainer);
   void expectThatAllGUIObjectsStoredInContainerWillBeDrawnWithDMA2DDrawingHardware(GUI::Container &guiContainer);
   void expectThatGUIObjectsWillBeDrawnInSequenceFromLowerToHigherZIndex(GUI::Container &guiContainer);
@@ -90,6 +93,22 @@ void AGUIContainer::expectThatGUIObjectWillBeForcedToUseGUIContainerFrameBuffer(
     {
       ASSERT_EQ(guiContainer.getFrameBuffer(), frameBuffer);
     });
+}
+
+void AGUIContainer::expectThatAllObjectsInContainerWillBeFordedToUseFrameBuffer(
+  GUI::Container &guiContainer,
+  IFrameBuffer &newFrameBuffer)
+{
+  for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
+  {
+    GUIObjectMock *guiObjectMockPtr = reinterpret_cast<GUIObjectMock*>(*it);
+    EXPECT_CALL(*guiObjectMockPtr, setFrameBuffer(_))
+      .Times(1u)
+      .WillOnce([&](IFrameBuffer &frameBuffer)
+      {
+        ASSERT_EQ(newFrameBuffer, frameBuffer);
+      });
+  }
 }
 
 void AGUIContainer::expectThatAllGUIObjectsStoredInContainerWillBeDrawnWithCPUDrawingHardware(GUI::Container &guiContainer)
@@ -320,6 +339,103 @@ TEST_F(AGUIContainer, AddObjectIfCalledSuccessfullyForcesForwardedObjectToUseThe
   const GUI::ErrorCode errorCode = guiContainer.addObject(&guiObjectMock, RANDOM_Z_INDEX);
 
   ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
+}
+
+TEST_F(AGUIContainer, SetFrameBufferSetsNewFrameBufferWhichWillBeUsedByGUIContainer)
+{
+  FrameBuffer<30, 40, IFrameBuffer::ColorFormat::RGB888> newFrameBuffer;
+
+  guiContainer.setFrameBuffer(newFrameBuffer);
+
+  ASSERT_EQ(guiContainer.getFrameBuffer(), newFrameBuffer);
+}
+
+
+TEST_F(AGUIContainer, SetFrameBufferIfCalledSuccessfullyForcesAllObjectsInTheContainerToStartToUseNewFrameBuffer)
+{
+  FrameBuffer<30, 40, IFrameBuffer::ColorFormat::RGB888> newFrameBuffer;
+  guiContainer.addObject(&guiObjectMock1, GUI_OBJECT_MOCK_1_Z_INDEX);
+  guiContainer.addObject(&guiObjectMock2, GUI_OBJECT_MOCK_2_Z_INDEX);
+  expectThatAllObjectsInContainerWillBeFordedToUseFrameBuffer(guiContainer, newFrameBuffer);
+
+  guiContainer.setFrameBuffer(newFrameBuffer);
+}
+
+TEST_F(AGUIContainer, GetPositionWithAnyTagReturnsPositionWithThatTag)
+{
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::BOTTOM_LEFT_CORNER);
+
+  ASSERT_THAT(position.tag, Eq(GUI::Position::Tag::BOTTOM_LEFT_CORNER));
+}
+
+TEST_F(AGUIContainer, GetPositionTopLeftCornerAlwaysReturnsXPosAndYPosEqualToZero)
+{
+  constexpr GUI::Position EXPECTED_GUI_CONTAINER_POSITION =
+  {
+    .x   = 0,
+    .y   = 0,
+    .tag = GUI::Position::Tag::TOP_LEFT_CORNER
+  };
+
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
+
+  ASSERT_THAT(position, Eq(EXPECTED_GUI_CONTAINER_POSITION));
+}
+
+TEST_F(AGUIContainer, GetPositionTopRightCornerAlwaysReturnsXPosEqualsToFrameBufferWidthAndYPosEqualsToZero)
+{
+  const GUI::Position EXPECTED_GUI_CONTAINER_POSITION =
+  {
+    .x   = static_cast<int16_t>(guiContainer.getFrameBuffer().getWidth()),
+    .y   = 0,
+    .tag = GUI::Position::Tag::TOP_RIGHT_CORNER
+  };
+
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::TOP_RIGHT_CORNER);
+
+  ASSERT_THAT(position, Eq(EXPECTED_GUI_CONTAINER_POSITION));
+}
+
+TEST_F(AGUIContainer, GetPositionBottomLeftCornerAlwaysReturnsXPosEqualsToZeroAndYPosEqualsToFrameBufferHeight)
+{
+  const GUI::Position EXPECTED_GUI_CONTAINER_POSITION =
+  {
+    .x   = 0,
+    .y   = static_cast<int16_t>(guiContainer.getFrameBuffer().getHeight()),
+    .tag = GUI::Position::Tag::BOTTOM_LEFT_CORNER
+  };
+
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::BOTTOM_LEFT_CORNER);
+
+  ASSERT_THAT(position, Eq(EXPECTED_GUI_CONTAINER_POSITION));
+}
+
+TEST_F(AGUIContainer, GetPositionBottomRightCornerAlwaysReturnsXPosEqualsToFrameBufferWidthAndYPosEqualsToFrameBufferHeight)
+{
+  const GUI::Position EXPECTED_GUI_CONTAINER_POSITION =
+  {
+    .x   = static_cast<int16_t>(guiContainer.getFrameBuffer().getWidth()),
+    .y   = static_cast<int16_t>(guiContainer.getFrameBuffer().getHeight()),
+    .tag = GUI::Position::Tag::BOTTOM_RIGHT_CORNER
+  };
+
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::BOTTOM_RIGHT_CORNER);
+
+  ASSERT_THAT(position, Eq(EXPECTED_GUI_CONTAINER_POSITION));
+}
+
+TEST_F(AGUIContainer, GetPositionCenterAlwaysReturnsXPosEqualsToHalfFrameBufferWidthAndYPosEqualsToHalfFrameBufferHeight)
+{
+  const GUI::Position EXPECTED_GUI_CONTAINER_POSITION =
+  {
+    .x   = static_cast<int16_t>(guiContainer.getFrameBuffer().getWidth() / 2u) ,
+    .y   = static_cast<int16_t>(guiContainer.getFrameBuffer().getHeight() / 2u),
+    .tag = GUI::Position::Tag::CENTER
+  };
+
+  const GUI::Position position = guiContainer.getPosition(GUI::Position::Tag::CENTER);
+
+  ASSERT_THAT(position, Eq(EXPECTED_GUI_CONTAINER_POSITION));
 }
 
 TEST_F(AGUIContainer, AddObjectFailsIfInTheContainerThereAlreadyExistsAnObjectAtGivenZIndex)

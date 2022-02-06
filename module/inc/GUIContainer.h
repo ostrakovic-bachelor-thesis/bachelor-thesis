@@ -1,7 +1,7 @@
 #ifndef GUI_CONTAINER_H
 #define GUI_CONTAINER_H
 
-#include "IGUIDrawable.h"
+#include "IGUIContainer.h"
 #include "IArrayList.h"
 #include "IGUIObject.h"
 #include "IFrameBuffer.h"
@@ -9,7 +9,7 @@
 
 namespace GUI
 {
-  class Container : public IDrawable
+  class Container : public IContainer
   {
   public:
 
@@ -40,18 +40,21 @@ namespace GUI
       IArrayList<ObjectInfo>::Iterator m_objectInfoListIterator;
     };
 
-    IFrameBuffer& getFrameBuffer(void);
-
-    uint32_t getCapacity(void) const;
-    uint32_t getSize(void) const;
-    bool isEmpty(void) const;
-
-    IObject* getObject(uint32_t zIndex);
-    ErrorCode addObject(IObject *objectPtr, uint32_t zIndex);
-
-
     Iterator getBeginIterator(void);
     Iterator getEndIterator(void);
+
+    IFrameBuffer& getFrameBuffer(void) override;
+    const IFrameBuffer& getFrameBuffer(void) const override;
+    void setFrameBuffer(IFrameBuffer &frameBuffer) override;
+
+    Position getPosition(Position::Tag positionTag) const override;
+
+    uint32_t getCapacity(void) const override;
+    uint32_t getSize(void) const override;
+    bool isEmpty(void) const override;
+
+    IObject* getObject(uint32_t zIndex) override;
+    ErrorCode addObject(IObject *objectPtr, uint32_t zIndex) override;
 
     void draw(DrawHardware drawHardware) override;
     bool isDrawCompleted(void) const override;
@@ -61,6 +64,12 @@ namespace GUI
     void unregisterDrawCompletedCallback(void) override;
 
   private:
+
+    Position getPositionTopLeftCorner(void) const;
+    Position getPositionTopRightCorner(void) const;
+    Position getPositionBottomLeftCorner(void) const;
+    Position getPositionBottomRightCorner(void) const;
+    Position getPositionCenter(void) const;
 
     void drawDMA2D(void);
     void drawCPU(void);
@@ -82,7 +91,7 @@ namespace GUI
 
     IArrayList<ObjectInfo> &m_objectInfoList;
 
-    IFrameBuffer &m_frameBuffer;
+    IFrameBuffer *m_frameBufferPtr;
 
     Iterator m_currentDrawingObjectIterator;
 
