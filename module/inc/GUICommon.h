@@ -60,6 +60,23 @@ namespace GUI
   };
 
   //! TODO
+  struct Point
+  {
+    inline bool operator==(const Point &point) const
+    {
+      return (point.x == x) && (point.y == y);
+    }
+
+    inline bool operator!=(const Point &point) const
+    {
+      return not (point == *this);
+    }
+
+    int16_t x;
+    int16_t y;
+  };
+
+  //! TODO
   struct Dimension
   {
     inline bool operator==(const Dimension &dimension) const

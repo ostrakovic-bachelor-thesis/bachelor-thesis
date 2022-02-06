@@ -43,6 +43,8 @@ namespace GUI
       return m_rectangleBaseDescription.dimension;
     }
 
+    bool doesContainPoint(Point point) const override;
+
     Position getPosition(Position::Tag positionTag) const override;
     void moveToPosition(const Position &position) override;
 

@@ -51,10 +51,11 @@ set(BachelorThesis_module_test_cpp_sources
     test/GUIRectangleTest.cpp
     test/GUIImageTest.cpp
     test/GUIContainerTest.cpp
-    test/GUISceneBaseTest.cpp
-    test/GUISceneTest.cpp
+    #test/GUISceneBaseTest.cpp
+    #test/GUISceneTest.cpp
     test/TouchEventTest.cpp
     test/FT3267TouchDeviceTest.cpp
+    test/GUITouchControllerTest.cpp
     test/USARTLoggerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

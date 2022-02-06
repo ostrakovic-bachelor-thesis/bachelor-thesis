@@ -51,6 +51,7 @@ public:
   MOCK_METHOD(uint16_t, getWidth, (), (const, override));
   MOCK_METHOD(uint16_t, getHeight, (), (const, override));
   MOCK_METHOD(GUI::Dimension, getDimension, (), (const, override));
+  MOCK_METHOD(bool, doesContainPoint, (GUI::Point), (const, override));
   MOCK_METHOD(GUI::Position, getPosition, (GUI::Position::Tag), (const, override));
   MOCK_METHOD(void, moveToPosition, (const GUI::Position &), (override));
   MOCK_METHOD(void, draw, (GUI::DrawHardware), (override));

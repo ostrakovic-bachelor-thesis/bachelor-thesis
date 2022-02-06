@@ -29,7 +29,33 @@ public:
   virtual ConstIterator getBeginIterator(void) const = 0;
 
   virtual ConstIterator getEndIterator(void) const = 0;
-
 };
+
+template <typename T>
+bool operator==(const IArrayList<T> &arrayListLhs, const IArrayList<T> &arrayListRhs)
+{
+  if (arrayListLhs.getSize() != arrayListRhs.getSize())
+  {
+    return false;
+  }
+
+  auto arrayListLhsIter = arrayListLhs.getBeginIterator();
+  auto arrayListRhsIter = arrayListRhs.getBeginIterator();
+  while (arrayListLhsIter != arrayListLhs.getEndIterator())
+  {
+    if (*(arrayListLhsIter++) != *(arrayListRhsIter++))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+template <typename T>
+bool operator!=(const IArrayList<T> &arrayListLhs, const IArrayList<T> &arrayListRhs)
+{
+  return not (arrayListLhs == arrayListRhs);
+}
 
 #endif // #ifndef I_ARRAY_LIST_H

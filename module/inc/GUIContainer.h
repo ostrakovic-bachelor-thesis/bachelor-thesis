@@ -63,6 +63,12 @@ namespace GUI
     void registerDrawCompletedCallback(const CallbackDescription &callbackDescription) override;
     void unregisterDrawCompletedCallback(void) override;
 
+    // TODO implement with TDD
+    inline IObject* getEventTarget(const TouchEvent &touchEvent) override
+    {
+      return nullptr;
+    }
+
   private:
 
     Position getPositionTopLeftCorner(void) const;

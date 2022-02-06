@@ -13,6 +13,8 @@ public:
   static constexpr uint32_t RANDOM_VALUE = 97531024u;
 
   ArrayList<uint32_t, 20u> uint32ArrayList;
+  ArrayList<bool, 20u> boolArrayList1;
+  ArrayList<bool, 10u> boolArrayList2;
 
   template <typename T>
   void assertThatElementAtIndexNIsEqualTo(IArrayList<T> &arrayList, uint32_t index, T value);
@@ -22,6 +24,14 @@ public:
   void assertThatLastElementInTheListIsEqualTo(IArrayList<T> &arrayList, T value);
   template <typename T>
   void addValueNTimesInArrayList(IArrayList<T> &arrayList, uint32_t times, T value);
+  template <typename T>
+  void assertThatArrayListsHaveTheSameElementsInTheSameOrder(
+    IArrayList<T> &arrayList1,
+    IArrayList<T> &arrayList2);
+    template <typename T>
+  void assertThatArrayListsDoNotHaveTheSameElementsInTheSameOrder(
+    IArrayList<T> &arrayList1,
+    IArrayList<T> &arrayList2);
 };
 
 constexpr uint32_t AnArrayList::RANDOM_VALUE;
@@ -55,6 +65,35 @@ void AnArrayList::addValueNTimesInArrayList(IArrayList<T> &arrayList, uint32_t t
   {
     arrayList.addElement(value);
   }
+}
+
+template <typename T>
+void AnArrayList::assertThatArrayListsHaveTheSameElementsInTheSameOrder(
+  IArrayList<T> &arrayList1,
+  IArrayList<T> &arrayList2)
+{
+  auto it1 = arrayList1.getBeginIterator();
+  auto it2 = arrayList2.getBeginIterator();
+  while ((it1 != arrayList1.getEndIterator()) && (it2 != arrayList2.getEndIterator()))
+  {
+    ASSERT_THAT(*(it1++), Eq(*(it2++)));
+  }
+}
+
+template <typename T>
+void AnArrayList::assertThatArrayListsDoNotHaveTheSameElementsInTheSameOrder(
+  IArrayList<T> &arrayList1,
+  IArrayList<T> &arrayList2)
+{
+  bool areElementsSame = true;
+  auto it1 = arrayList1.getBeginIterator();
+  auto it2 = arrayList2.getBeginIterator();
+  while ((it1 != arrayList1.getEndIterator()) && (it2 != arrayList2.getEndIterator()))
+  {
+    areElementsSame &= (*(it1++) == *(it2++));
+  }
+
+  ASSERT_THAT(areElementsSame, Eq(false));
 }
 
 
@@ -281,4 +320,39 @@ TEST_F(AnArrayList, IteratorPlusPlusOperationWhenPerformedOnTheLastElementInArra
   uint32ArrayListIterator++;
 
   ASSERT_THAT(uint32ArrayListIterator, Eq(uint32ArrayList.getEndIterator()));
+}
+
+TEST_F(AnArrayList, IsEqualToAnotherArrayListOnlyIfTheirSizesAreTheSameAndIfTheyContainTheSameElementsInTheSameOrder)
+{
+  boolArrayList1.addElement(true);
+  boolArrayList1.addElement(false);
+  boolArrayList2.addElement(true);
+  boolArrayList2.addElement(false);
+
+  ASSERT_THAT(boolArrayList1.getSize(), Eq(boolArrayList2.getSize()));
+  assertThatArrayListsHaveTheSameElementsInTheSameOrder(boolArrayList1, boolArrayList2);
+  ASSERT_THAT(boolArrayList1, Eq(boolArrayList2));
+}
+
+TEST_F(AnArrayList, IsNotEqualToAnotherArrayListIfTheirSizesAreNotTheSame)
+{
+  boolArrayList1.addElement(true);
+  boolArrayList1.addElement(false);
+  boolArrayList2.addElement(true);
+
+  ASSERT_THAT(boolArrayList1.getSize(), Ne(boolArrayList2.getSize()));
+  assertThatArrayListsHaveTheSameElementsInTheSameOrder(boolArrayList1, boolArrayList2);
+  ASSERT_THAT(boolArrayList1, Ne(boolArrayList2));
+}
+
+TEST_F(AnArrayList, IsNotEqualToAnotherArrayListIfTheyDoNotContainTheSameElementsInTheSameOrder)
+{
+  boolArrayList1.addElement(true);
+  boolArrayList1.addElement(false);
+  boolArrayList2.addElement(true);
+  boolArrayList2.addElement(true);
+
+  ASSERT_THAT(boolArrayList1.getSize(), Eq(boolArrayList2.getSize()));
+  assertThatArrayListsDoNotHaveTheSameElementsInTheSameOrder(boolArrayList1, boolArrayList2);
+  ASSERT_THAT(boolArrayList1, Ne(boolArrayList2));
 }

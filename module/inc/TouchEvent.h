@@ -1,9 +1,10 @@
 #ifndef TOUCH_EVENT_H
 #define TOUCH_EVENT_H
 
-#include <cstdint>
+#include "GUICommon.h"
 #include "IArrayList.h"
 #include "ArrayList.h"
+#include <cstdint>
 
 
 class TouchEvent
@@ -19,31 +20,35 @@ public:
     TOUCH_STOP  = 2u
   };
 
-  struct TouchPoint
+  TouchEvent(uint64_t id, Type type);
+
+  TouchEvent(uint64_t id, Type type, const IArrayList<GUI::Point> &touchPoints);
+
+  inline uint64_t getId(void) const
   {
-    int16_t x;
-    int16_t y;
-  };
-
-  TouchEvent(Type type);
-
-  TouchEvent(Type type, const IArrayList<TouchPoint> &touchPoints);
+    return m_id;
+  }
 
   inline Type getType(void) const
   {
-    return m_touchType;
+    return m_type;
   }
 
-  inline const IArrayList<TouchPoint>& getTouchPoints(void) const
+  inline const IArrayList<GUI::Point>& getTouchPoints(void) const
   {
     return m_touchPoints;
   }
 
+  bool operator==(const TouchEvent &touchEvent) const;
+  bool operator!=(const TouchEvent &touchEvent) const;
+
 private:
 
-  Type m_touchType;
+  uint64_t m_id;
 
-  ArrayList<TouchPoint, MAX_NUM_OF_SIMULTANEOUS_TOUCH_POINTS> m_touchPoints;
+  Type m_type;
+
+  ArrayList<GUI::Point, MAX_NUM_OF_SIMULTANEOUS_TOUCH_POINTS> m_touchPoints;
 };
 
 #endif // #ifndef TOUCH_EVENT_H

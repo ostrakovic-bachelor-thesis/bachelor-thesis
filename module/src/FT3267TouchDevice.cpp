@@ -2,8 +2,9 @@
 
 
 FT3267TouchDevice::FT3267TouchDevice(FT3267 &ft3267):
+  m_nextTouchEventId(0u),
   m_ft3267(ft3267),
-  m_lastTouchEvent(TouchEvent::Type::TOUCH_STOP)
+  m_lastTouchEvent(getNextTouchEventId(), TouchEvent::Type::TOUCH_STOP)
 {}
 
 FT3267TouchDevice::ErrorCode FT3267TouchDevice::init(void)
@@ -31,6 +32,11 @@ FT3267TouchDevice::ErrorCode FT3267TouchDevice::unregisterTouchEventListener(voi
 ITouchEventListener* FT3267TouchDevice::getTouchEventListener(void)
 {
   return m_touchEventListenerPtr;
+}
+
+uint64_t FT3267TouchDevice::getNextTouchEventId(void)
+{
+  return (m_nextTouchEventId++);
 }
 
 TouchEvent::Type FT3267TouchDevice::getTypeOfNextTouchEvent(const FT3267::TouchEventInfo &touchEventInfo) const
@@ -83,14 +89,15 @@ bool FT3267TouchDevice::shouldEventListenerDeviceBeNotified(TouchEvent::Type tou
 }
 
 TouchEvent FT3267TouchDevice::getTouchEvent(
+  uint64_t touchEventId,
   TouchEvent::Type touchEventType,
   const FT3267::TouchEventInfo &touchEventInfo)
 {
-  ArrayList<TouchEvent::TouchPoint, 2u> touchPoints;
+  ArrayList<GUI::Point, 2u> touchPoints;
 
   for (uint8_t i = 0u; i < touchEventInfo.touchCount; ++i)
   {
-    TouchEvent::TouchPoint touchPoint =
+    GUI::Point touchPoint =
     {
       .x = static_cast<int16_t>(touchEventInfo.touchPoints[i].position.x),
       .y = static_cast<int16_t>(touchEventInfo.touchPoints[i].position.y)
@@ -98,7 +105,7 @@ TouchEvent FT3267TouchDevice::getTouchEvent(
     touchPoints.addElement(touchPoint);
   }
 
-  return TouchEvent(touchEventType, touchPoints);
+  return TouchEvent(touchEventId, touchEventType, touchPoints);
 }
 
 void FT3267TouchDevice::touchEventCallback(void *ft3267TouchDevicePtr, FT3267::TouchEventInfo touchEventInfo)
@@ -107,12 +114,13 @@ void FT3267TouchDevice::touchEventCallback(void *ft3267TouchDevicePtr, FT3267::T
 
   if (nullptr != touchDevicePtr)
   {
+    const uint64_t touchEventId = touchDevicePtr->getNextTouchEventId();
     const TouchEvent::Type touchEventType = touchDevicePtr->getTypeOfNextTouchEvent(touchEventInfo);
 
-    TouchEvent touchEvent = getTouchEvent(touchEventType, touchEventInfo);
+    TouchEvent touchEvent = getTouchEvent(touchEventId, touchEventType, touchEventInfo);
     if (TouchEvent::Type::TOUCH_STOP == touchEventType)
     {
-      touchEvent = TouchEvent(touchEventType, touchDevicePtr->m_lastTouchEvent.getTouchPoints());
+      touchEvent = TouchEvent(touchEventId, touchEventType, touchDevicePtr->m_lastTouchEvent.getTouchPoints());
     }
 
     if (touchDevicePtr->shouldEventListenerDeviceBeNotified(touchEventType))

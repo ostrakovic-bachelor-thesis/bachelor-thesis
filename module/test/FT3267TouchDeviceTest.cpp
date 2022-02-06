@@ -36,6 +36,9 @@ public:
     .y = 300
   };
 
+  bool m_isCalledForFirstTime = true;
+  uint64_t m_lastTouchEventId = 0u;
+
   void expectThatTouchStartEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock);
   void expectThatNTouchMoveEventsWillBeGenerated(TouchEventListenerMock &touchEventListenerMock, uint32_t count);
   void expectThatTouchStopEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock);
@@ -44,6 +47,7 @@ public:
   void expectThatTouchEventWillBeGeneratedWithGivenTouchPositions(
     FT3267::TouchPosition touchPosition1,
     FT3267::TouchPosition touchPosition2);
+  void expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents(void);
 };
 
 constexpr FT3267::TouchPosition AFT3267TouchDevice::EXPECTED_TOUCH_POSITION;
@@ -92,9 +96,9 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
     .Times(1u)
     .WillOnce([&](const TouchEvent &touchEvent)
     {
-      const IArrayList<TouchEvent::TouchPoint> &touchPoints = touchEvent.getTouchPoints();
+      const IArrayList<GUI::Point> &touchPoints = touchEvent.getTouchPoints();
 
-      TouchEvent::TouchPoint touchPoint;
+      GUI::Point touchPoint;
       touchPoints.getElement(0u, &touchPoint);
 
       ASSERT_THAT(touchPoints.getSize(), Eq(1u));
@@ -111,10 +115,10 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
     .Times(1u)
     .WillOnce([&](const TouchEvent &touchEvent)
     {
-      const IArrayList<TouchEvent::TouchPoint> &touchPoints = touchEvent.getTouchPoints();
+      const IArrayList<GUI::Point> &touchPoints = touchEvent.getTouchPoints();
 
-      TouchEvent::TouchPoint touchPoint1;
-      TouchEvent::TouchPoint touchPoint2;
+      GUI::Point touchPoint1;
+      GUI::Point touchPoint2;
       touchPoints.getElement(0u, &touchPoint1);
       touchPoints.getElement(1u, &touchPoint2);
 
@@ -123,6 +127,24 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
       ASSERT_THAT(touchPoint1.y , Eq(touchPosition1.y));
       ASSERT_THAT(touchPoint2.x , Eq(touchPosition2.x));
       ASSERT_THAT(touchPoint2.y , Eq(touchPosition2.y));
+    });
+}
+
+void AFT3267TouchDevice::expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents(void)
+{
+  ON_CALL(touchEventListenerMock, notify(_))
+    .WillByDefault([&](const TouchEvent &touchEvent)
+    {
+      if (m_isCalledForFirstTime)
+      {
+        m_isCalledForFirstTime = false;
+      }
+      else
+      {
+        ASSERT_THAT(touchEvent.getId(), Eq(m_lastTouchEventId + 1u));
+      }
+
+      m_lastTouchEventId = touchEvent.getId();
     });
 }
 
@@ -336,5 +358,19 @@ TEST_F(AFT3267TouchDevice, TouchStopEventIsGeneratedWithTheSameTouchPointsAsPrev
   expectThatTouchEventWillBeGeneratedWithGivenTouchPosition(EXPECTED_TOUCH_POSITION);
 
   touchEventInfo.touchCount = 0u;
+  FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
+}
+
+TEST_F(AFT3267TouchDevice, EachGeneratedTouchEventHasIdForOneBiggerComparedToThePreviouslyGeneratedTouchEvent)
+{
+  ft3267TouchDevice.init();
+  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents();
+
+  touchEventInfo.touchCount = 1u;
+  FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
+  touchEventInfo.touchCount = 2u;
+  FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
+  touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
 }

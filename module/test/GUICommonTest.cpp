@@ -7,7 +7,7 @@
 using namespace ::testing;
 
 
-TEST(GUIPosition, IsEqualToAnotherGUIPositionOnlyIfTheirXandYCoordinatesTogetherWithPositionTagsAreTheSame)
+TEST(GUIPosition, IsEqualToAnotherGUIPositionOnlyIfTheirXAndYCoordinatesTogetherWithPositionTagsAreTheSame)
 {
   const GUI::Position position1 =
   {
@@ -89,6 +89,60 @@ TEST(GUIPosition, IsNotEqualToAnotherGUIPositionIfTheirPositionTagsAreNotTheSame
   ASSERT_THAT(position1.y, Eq(position2.y));
   ASSERT_THAT(position1.tag, Ne(position2.tag));
   ASSERT_THAT(position1, Ne(position2));
+}
+
+TEST(GUIPoint, IsEqualToAnotherGUIPointOnlyIfTheirXAndYCoordinatesAreTheSame)
+{
+  const GUI::Point point1 =
+  {
+    .x = -50,
+    .y = 130
+  };
+  const GUI::Point point2 =
+  {
+    .x = -50,
+    .y = 130
+  };
+
+  ASSERT_THAT(point1.x, Eq(point2.x));
+  ASSERT_THAT(point1.y, Eq(point2.y));
+  ASSERT_THAT(point1, Eq(point2));
+}
+
+TEST(GUIPoint, IsNotEqualToAnotherGUIPointIfTheirXCoordinatesAreNotTheSame)
+{
+  const GUI::Point point1 =
+  {
+    .x = 250,
+    .y = 50
+  };
+  const GUI::Point point2 =
+  {
+    .x = 240,
+    .y = 50
+  };
+
+  ASSERT_THAT(point1.x, Ne(point2.x));
+  ASSERT_THAT(point1.y, Eq(point2.y));
+  ASSERT_THAT(point1, Ne(point2));
+}
+
+TEST(GUIPoint, IsNotEqualToAnotherGUIPointIfTheirYCoordinatesAreNotTheSame)
+{
+  const GUI::Point point1 =
+  {
+    .x = 10,
+    .y = -40
+  };
+  const GUI::Point point2 =
+  {
+    .x = 10,
+    .y = 200
+  };
+
+  ASSERT_THAT(point1.x, Eq(point2.x));
+  ASSERT_THAT(point1.y, Ne(point2.y));
+  ASSERT_THAT(point1, Ne(point2));
 }
 
 TEST(GUIDimension, IsEqualToAnotherGUIDimensionOnlyIfTheirWidthAndHeightAreTheSame)

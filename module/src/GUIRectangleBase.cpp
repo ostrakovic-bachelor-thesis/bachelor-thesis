@@ -41,6 +41,15 @@ void GUI::RectangleBase::setFrameBuffer(IFrameBuffer &frameBuffer)
   m_frameBufferPtr = &frameBuffer;
 }
 
+bool GUI::RectangleBase::doesContainPoint(Point point) const
+{
+  const Position topLeftCorner     = getPosition(Position::Tag::TOP_LEFT_CORNER);
+  const Position bottomRightCorner = getPosition(Position::Tag::BOTTOM_RIGHT_CORNER);
+
+  return (point.x >= topLeftCorner.x) && (point.x <= bottomRightCorner.x) &&
+         (point.y >= topLeftCorner.y) && (point.y <= bottomRightCorner.y);
+}
+
 GUI::Position GUI::RectangleBase::getPosition(Position::Tag positionTag) const
 {
   switch (positionTag)

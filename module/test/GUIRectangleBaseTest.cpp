@@ -149,6 +149,42 @@ TEST_F(AGUIRectangleBase, GetDimensionReturnsGUIRectangleDimensionsSpecifiedAtIn
   ASSERT_THAT(guiRectangleBase.getDimension(), Eq(EXPECTED_GUI_RECTANGLE_BASE_DIMENSION));
 }
 
+TEST_F(AGUIRectangleBase, DoesContainPointReturnsTrueIfGivenPointLiesInsideRectangle)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  GUI::Point POINT_IN_RECTANGLE =
+  {
+    .x = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER).x,
+    .y = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER).y,
+  };
+
+  ASSERT_THAT(guiRectangleBase.doesContainPoint(POINT_IN_RECTANGLE), Eq(true));
+}
+
+TEST_F(AGUIRectangleBase, DoesContainPointReturnsFalseIfGivenPointDoesNotLieInsideRectangleAlongXAxis)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  GUI::Point POINT_IN_RECTANGLE =
+  {
+    .x = static_cast<int16_t>(guiRectangleBase.getPosition(GUI::Position::Tag::TOP_RIGHT_CORNER).x + 10),
+    .y = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER).y,
+  };
+
+  ASSERT_THAT(guiRectangleBase.doesContainPoint(POINT_IN_RECTANGLE), Eq(false));
+}
+
+TEST_F(AGUIRectangleBase, DoesContainPointReturnsFalseIfGivenPointDoesNotLieInsideRectangleAlongYAxis)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  GUI::Point POINT_IN_RECTANGLE =
+  {
+    .x = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER).x,
+    .y = static_cast<int16_t>(guiRectangleBase.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER).x - 15)
+  };
+
+  ASSERT_THAT(guiRectangleBase.doesContainPoint(POINT_IN_RECTANGLE), Eq(false));
+}
+
 TEST_F(AGUIRectangleBase, GetPositionWithAnyTagReturnsPositionWithBothXAndYSetToZerosWhenItIsCalledOnUninitializedObject)
 {
   const GUI::Position position = guiRectangleBase.getPosition(GUI::Position::Tag::CENTER);

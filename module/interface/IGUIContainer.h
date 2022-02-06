@@ -4,6 +4,7 @@
 #include "IGUIDrawable.h"
 #include "IGUIObject.h"
 #include "IGUIObjectBase.h"
+#include "TouchEvent.h"
 #include <cstdint>
 
 
@@ -20,6 +21,8 @@ namespace GUI
 
     virtual IObject* getObject(uint32_t zIndex) = 0;
     virtual ErrorCode addObject(IObject *objectPtr, uint32_t zIndex) = 0;
+
+    virtual IObject* getEventTarget(const TouchEvent &touchEvent) = 0;
   };
 }
 
