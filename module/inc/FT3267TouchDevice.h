@@ -24,20 +24,20 @@ private:
 
   uint64_t getNextTouchEventId(void);
 
-  TouchEvent::Type getTypeOfNextTouchEvent(const FT3267::TouchEventInfo &touchEventInfo) const;
-  void notifyTouchEventListenerIfRegistered(const TouchEvent &touchEvent);
-  bool shouldEventListenerDeviceBeNotified(TouchEvent::Type touchEventType) const;
+  GUI::TouchEvent::Type getTypeOfNextTouchEvent(const FT3267::TouchEventInfo &touchEventInfo) const;
+  void notifyTouchEventListenerIfRegistered(const GUI::TouchEvent &touchEvent);
+  bool shouldEventListenerDeviceBeNotified(GUI::TouchEvent::Type touchEventType) const;
 
-  static TouchEvent getTouchEvent(
+  static GUI::TouchEvent getTouchEvent(
     uint64_t touchEventId,
-    TouchEvent::Type touchEventType,
+    GUI::TouchEvent::Type touchEventType,
     const FT3267::TouchEventInfo &touchEventInfo);
 
   uint64_t m_nextTouchEventId;
 
   FT3267 &m_ft3267;
 
-  TouchEvent m_lastTouchEvent;
+  GUI::TouchEvent m_lastTouchEvent;
 
   ITouchEventListener *m_touchEventListenerPtr = nullptr;
 };

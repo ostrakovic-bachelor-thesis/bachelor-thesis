@@ -1,12 +1,12 @@
-#include "TouchEvent.h"
+#include "GUITouchEvent.h"
 
 
-TouchEvent::TouchEvent(uint64_t id, Type type):
+GUI::TouchEvent::TouchEvent(uint64_t id, Type type):
   m_id(id),
   m_type(type)
 {}
 
-TouchEvent::TouchEvent(uint64_t id, Type type, const IArrayList<GUI::Point> &touchPoints):
+GUI::TouchEvent::TouchEvent(uint64_t id, Type type, const IArrayList<Point> &touchPoints):
   m_id(id),
   m_type(type)
 {
@@ -16,12 +16,12 @@ TouchEvent::TouchEvent(uint64_t id, Type type, const IArrayList<GUI::Point> &tou
   }
 }
 
-bool TouchEvent::operator==(const TouchEvent &touchEvent) const
+bool GUI::TouchEvent::operator==(const TouchEvent &touchEvent) const
 {
   return (touchEvent.m_id == m_id) && (touchEvent.m_type == m_type) && (touchEvent.m_touchPoints == m_touchPoints);
 }
 
-bool TouchEvent::operator!=(const TouchEvent &touchEvent) const
+bool GUI::TouchEvent::operator!=(const TouchEvent &touchEvent) const
 {
   return not (touchEvent == *this);
 }

@@ -17,7 +17,7 @@ public:
   virtual ~TouchEventListenerMock() = default;
 
   // mock methods
-  MOCK_METHOD(void, notify, (const TouchEvent &), (override));
+  MOCK_METHOD(void, notify, (const GUI::TouchEvent &), (override));
 };
 
 #endif // #ifndef TOUCH_EVENT_LISTENER_MOCK_H

@@ -58,9 +58,9 @@ void AFT3267TouchDevice::expectThatTouchStartEventWillBeGenerated(TouchEventList
 {
   EXPECT_CALL(touchEventListenerMock, notify(_))
     .Times(1)
-    .WillOnce([&](const TouchEvent &touchEvent)
+    .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
-      ASSERT_THAT(touchEvent.getType(), Eq(TouchEvent::Type::TOUCH_START));
+      ASSERT_THAT(touchEvent.getType(), Eq(GUI::TouchEvent::Type::TOUCH_START));
     });
 }
 
@@ -68,9 +68,9 @@ void AFT3267TouchDevice::expectThatNTouchMoveEventsWillBeGenerated(TouchEventLis
 {
   EXPECT_CALL(touchEventListenerMock, notify(_))
     .Times(count)
-    .WillRepeatedly([&](const TouchEvent &touchEvent)
+    .WillRepeatedly([&](const GUI::TouchEvent &touchEvent)
     {
-      ASSERT_THAT(touchEvent.getType(), Eq(TouchEvent::Type::TOUCH_MOVE));
+      ASSERT_THAT(touchEvent.getType(), Eq(GUI::TouchEvent::Type::TOUCH_MOVE));
     });
 }
 
@@ -78,9 +78,9 @@ void AFT3267TouchDevice::expectThatTouchStopEventWillBeGenerated(TouchEventListe
 {
   EXPECT_CALL(touchEventListenerMock, notify(_))
     .Times(1u)
-    .WillOnce([&](const TouchEvent &touchEvent)
+    .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
-      ASSERT_THAT(touchEvent.getType(), Eq(TouchEvent::Type::TOUCH_STOP));
+      ASSERT_THAT(touchEvent.getType(), Eq(GUI::TouchEvent::Type::TOUCH_STOP));
     });
 }
 
@@ -94,7 +94,7 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
 {
   EXPECT_CALL(touchEventListenerMock, notify(_))
     .Times(1u)
-    .WillOnce([&](const TouchEvent &touchEvent)
+    .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
       const IArrayList<GUI::Point> &touchPoints = touchEvent.getTouchPoints();
 
@@ -113,7 +113,7 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
 {
   EXPECT_CALL(touchEventListenerMock, notify(_))
     .Times(1u)
-    .WillOnce([&](const TouchEvent &touchEvent)
+    .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
       const IArrayList<GUI::Point> &touchPoints = touchEvent.getTouchPoints();
 
@@ -133,7 +133,7 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
 void AFT3267TouchDevice::expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents(void)
 {
   ON_CALL(touchEventListenerMock, notify(_))
-    .WillByDefault([&](const TouchEvent &touchEvent)
+    .WillByDefault([&](const GUI::TouchEvent &touchEvent)
     {
       if (m_isCalledForFirstTime)
       {

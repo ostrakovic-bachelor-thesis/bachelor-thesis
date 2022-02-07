@@ -1,7 +1,7 @@
 #ifndef I_TOUCH_EVENT_LISTENER
 #define I_TOUCH_EVENT_LISTENER
 
-#include "TouchEvent.h"
+#include "GUITouchEvent.h"
 
 
 class ITouchEventListener
@@ -9,7 +9,7 @@ class ITouchEventListener
 public:
   virtual ~ITouchEventListener() = default;
 
-  virtual void notify(const TouchEvent &touchEvent) = 0;
+  virtual void notify(const GUI::TouchEvent &touchEvent) = 0;
 };
 
 #endif // #ifndef I_TOUCH_EVENT_LISTENER

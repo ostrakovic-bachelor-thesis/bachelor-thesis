@@ -52,9 +52,8 @@ class AGUITouchController : public Test
 {
 public:
 
-  TouchEvent RANDOM_TOUCH_EVENT = TouchEvent(0u, TouchEvent::Type::TOUCH_MOVE);
-  TouchEvent START_TOUCH_EVENT  = TouchEvent(0u, TouchEvent::Type::TOUCH_START);
-
+  GUI::TouchEvent RANDOM_TOUCH_EVENT = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_MOVE);
+  GUI::TouchEvent START_TOUCH_EVENT  = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_START);
   GUIContainerMock guiContainerMock;
   GUI::TouchController guiTouchController = GUI::TouchController();
 };
