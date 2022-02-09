@@ -1,22 +1,22 @@
 #ifndef FT3267_TOUCH_DEVICE_H
 #define FT3267_TOUCH_DEVICE_H
 
-#include "ITouchDevice.h"
+#include "IGUITouchDevice.h"
 #include "FT3267.h"
 
 
-class FT3267TouchDevice : public ITouchDevice
+class FT3267TouchDevice : public GUI::ITouchDevice
 {
 public:
   FT3267TouchDevice(FT3267 &ft3267);
 
-  ErrorCode init(void);
+  GUI::ErrorCode init(void);
 
-  ErrorCode registerTouchEventListener(ITouchEventListener *touchEventListenerPtr) override;
+  GUI::ErrorCode registerTouchEventListener(GUI::ITouchEventListener *touchEventListenerPtr) override;
 
-  ErrorCode unregisterTouchEventListener(void) override;
+  GUI::ErrorCode unregisterTouchEventListener(void) override;
 
-  ITouchEventListener* getTouchEventListener(void) override;
+  GUI::ITouchEventListener* getTouchEventListener(void) override;
 
   static void touchEventCallback(void *ft3267TouchDevicePtr, FT3267::TouchEventInfo touchEventInfo);
 
@@ -39,7 +39,7 @@ private:
 
   GUI::TouchEvent m_lastTouchEvent;
 
-  ITouchEventListener *m_touchEventListenerPtr = nullptr;
+  GUI::ITouchEventListener *m_touchEventListenerPtr = nullptr;
 };
 
 #endif // #ifndef FT3267_TOUCH_DEVICE_H

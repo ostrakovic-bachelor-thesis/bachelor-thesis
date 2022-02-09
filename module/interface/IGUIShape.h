@@ -1,5 +1,5 @@
-#ifndef I_SHAPE_H
-#define I_SHAPE_H
+#ifndef I_GUI_SHAPE_H
+#define I_GUI_SHAPE_H
 
 #include "GUICommon.h"
 
@@ -19,4 +19,4 @@ namespace GUI
   };
 }
 
-#endif // #ifndef I_SHAPE_H
+#endif // #ifndef I_GUI_SHAPE_H

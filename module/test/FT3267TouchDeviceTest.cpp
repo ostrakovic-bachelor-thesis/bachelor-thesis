@@ -1,6 +1,6 @@
 #include "FT3267TouchDevice.h"
 #include "FT3267Mock.h"
-#include "TouchEventListenerMock.h"
+#include "GUITouchEventListenerMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -13,7 +13,7 @@ class AFT3267TouchDevice : public Test
 {
 public:
 
-  NiceMock<TouchEventListenerMock> touchEventListenerMock;
+  NiceMock<GUITouchEventListenerMock> guiTouchEventListenerMock;
   NiceMock<FT3267Mock> ft3267Mock;
   FT3267::TouchEventInfo touchEventInfo;
   FT3267TouchDevice ft3267TouchDevice = FT3267TouchDevice(ft3267Mock);
@@ -39,10 +39,10 @@ public:
   bool m_isCalledForFirstTime = true;
   uint64_t m_lastTouchEventId = 0u;
 
-  void expectThatTouchStartEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock);
-  void expectThatNTouchMoveEventsWillBeGenerated(TouchEventListenerMock &touchEventListenerMock, uint32_t count);
-  void expectThatTouchStopEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock);
-  void expectThatNoEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock);
+  void expectThatTouchStartEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock);
+  void expectThatNTouchMoveEventsWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock, uint32_t count);
+  void expectThatTouchStopEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock);
+  void expectThatNoEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock);
   void expectThatTouchEventWillBeGeneratedWithGivenTouchPosition(FT3267::TouchPosition touchPosition);
   void expectThatTouchEventWillBeGeneratedWithGivenTouchPositions(
     FT3267::TouchPosition touchPosition1,
@@ -54,9 +54,9 @@ constexpr FT3267::TouchPosition AFT3267TouchDevice::EXPECTED_TOUCH_POSITION;
 constexpr FT3267::TouchPosition AFT3267TouchDevice::EXPECTED_TOUCH_POSITION_1;
 constexpr FT3267::TouchPosition AFT3267TouchDevice::EXPECTED_TOUCH_POSITION_2;
 
-void AFT3267TouchDevice::expectThatTouchStartEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock)
+void AFT3267TouchDevice::expectThatTouchStartEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(1)
     .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
@@ -64,9 +64,11 @@ void AFT3267TouchDevice::expectThatTouchStartEventWillBeGenerated(TouchEventList
     });
 }
 
-void AFT3267TouchDevice::expectThatNTouchMoveEventsWillBeGenerated(TouchEventListenerMock &touchEventListenerMock, uint32_t count)
+void AFT3267TouchDevice::expectThatNTouchMoveEventsWillBeGenerated(
+  GUITouchEventListenerMock &guiTouchEventListenerMock,
+  uint32_t count)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(count)
     .WillRepeatedly([&](const GUI::TouchEvent &touchEvent)
     {
@@ -74,9 +76,9 @@ void AFT3267TouchDevice::expectThatNTouchMoveEventsWillBeGenerated(TouchEventLis
     });
 }
 
-void AFT3267TouchDevice::expectThatTouchStopEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock)
+void AFT3267TouchDevice::expectThatTouchStopEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(1u)
     .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
@@ -84,15 +86,15 @@ void AFT3267TouchDevice::expectThatTouchStopEventWillBeGenerated(TouchEventListe
     });
 }
 
-void AFT3267TouchDevice::expectThatNoEventWillBeGenerated(TouchEventListenerMock &touchEventListenerMock)
+void AFT3267TouchDevice::expectThatNoEventWillBeGenerated(GUITouchEventListenerMock &guiTouchEventListenerMock)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(0u);
 }
 
 void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPosition(FT3267::TouchPosition touchPosition)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(1u)
     .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
@@ -111,7 +113,7 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
   FT3267::TouchPosition touchPosition1,
   FT3267::TouchPosition touchPosition2)
 {
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(1u)
     .WillOnce([&](const GUI::TouchEvent &touchEvent)
     {
@@ -132,7 +134,7 @@ void AFT3267TouchDevice::expectThatTouchEventWillBeGeneratedWithGivenTouchPositi
 
 void AFT3267TouchDevice::expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents(void)
 {
-  ON_CALL(touchEventListenerMock, notify(_))
+  ON_CALL(guiTouchEventListenerMock, notify(_))
     .WillByDefault([&](const GUI::TouchEvent &touchEvent)
     {
       if (m_isCalledForFirstTime)
@@ -162,9 +164,9 @@ TEST_F(AFT3267TouchDevice, InitRegistersTouchEventCallbackAsFT3267TouchEventCall
     .Times(1)
     .WillOnce(Return(FT3267::ErrorCode::OK));
 
-  FT3267TouchDevice::ErrorCode errorCode = ft3267TouchDevice.init();
+  GUI::ErrorCode errorCode = ft3267TouchDevice.init();
 
-  ASSERT_THAT(errorCode, Eq(FT3267TouchDevice::ErrorCode::OK));
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
 }
 
 TEST_F(AFT3267TouchDevice, GetTouchEventListenerReturnsNullPointerIfTouchEventListenerIsNotRegistered)
@@ -178,21 +180,21 @@ TEST_F(AFT3267TouchDevice, GetTouchEventListenerReturnsPointerToRegisteredTouchE
 {
   ft3267TouchDevice.init();
 
-  FT3267TouchDevice::ErrorCode errorCode = ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  GUI::ErrorCode errorCode = ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
 
-  ASSERT_THAT(ft3267TouchDevice.getTouchEventListener(), Eq(&touchEventListenerMock));
-  ASSERT_THAT(errorCode, Eq(FT3267TouchDevice::ErrorCode::OK));
+  ASSERT_THAT(ft3267TouchDevice.getTouchEventListener(), Eq(&guiTouchEventListenerMock));
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
 }
 
 TEST_F(AFT3267TouchDevice, GetTouchEventListenerReturnsNullPointerAfterTouchEventListenerIsUnregistered)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
 
-  FT3267TouchDevice::ErrorCode errorCode = ft3267TouchDevice.unregisterTouchEventListener();
+  GUI::ErrorCode errorCode = ft3267TouchDevice.unregisterTouchEventListener();
 
   ASSERT_THAT(ft3267TouchDevice.getTouchEventListener(), Eq(nullptr));
-  ASSERT_THAT(errorCode, Eq(FT3267TouchDevice::ErrorCode::OK));
+  ASSERT_THAT(errorCode, Eq(GUI::ErrorCode::OK));
 }
 
 TEST_F(AFT3267TouchDevice, TouchEventCallbackDoesNotCauseFaultIfTouchEvenListenerIsNotRegistered)
@@ -207,8 +209,8 @@ TEST_F(AFT3267TouchDevice, TouchEventCallbackDoesNotCauseFaultIfTouchEvenListene
 TEST_F(AFT3267TouchDevice, WhenCalledTouchEventCallbackNotifiesRegisteredTouchEventListenerAboutTouchEvent)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
-  EXPECT_CALL(touchEventListenerMock, notify(_))
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
+  EXPECT_CALL(guiTouchEventListenerMock, notify(_))
     .Times(1);
 
   touchEventInfo.touchCount = 2u;
@@ -218,8 +220,8 @@ TEST_F(AFT3267TouchDevice, WhenCalledTouchEventCallbackNotifiesRegisteredTouchEv
 TEST_F(AFT3267TouchDevice, AfterInitWhenTouchEventCallbackIsCalledWithNumberOfTouchesNotEqualToZeroItGeneratesTouchStartEvent)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
-  expectThatTouchStartEventWillBeGenerated(touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
+  expectThatTouchStartEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -228,8 +230,8 @@ TEST_F(AFT3267TouchDevice, AfterInitWhenTouchEventCallbackIsCalledWithNumberOfTo
 TEST_F(AFT3267TouchDevice, AfterInitWhenTouchEventCallbackIsCalledWithNumberOfTouchesEqualToZeroNoEventWillBeGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
-  expectThatNoEventWillBeGenerated(touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
+  expectThatNoEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -238,11 +240,11 @@ TEST_F(AFT3267TouchDevice, AfterInitWhenTouchEventCallbackIsCalledWithNumberOfTo
 TEST_F(AFT3267TouchDevice, IfTouchStartWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesNotEqualToZeroTouchMoveEventIsGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount = 2u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatNTouchMoveEventsWillBeGenerated(touchEventListenerMock, 1u);
+  expectThatNTouchMoveEventsWillBeGenerated(guiTouchEventListenerMock, 1u);
 
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -251,14 +253,14 @@ TEST_F(AFT3267TouchDevice, IfTouchStartWasPreviousEventAndTouchEventCallbackIsCa
 TEST_F(AFT3267TouchDevice, IfTouchMoveWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesNotEqualToZeroTouchMoveEventIsGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
   // generate TOUCH MOVE event
   touchEventInfo.touchCount = 2u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatNTouchMoveEventsWillBeGenerated(touchEventListenerMock, 5u);
+  expectThatNTouchMoveEventsWillBeGenerated(guiTouchEventListenerMock, 5u);
 
   for (uint32_t i = 0u; i < 5u; ++i)
   {
@@ -269,11 +271,11 @@ TEST_F(AFT3267TouchDevice, IfTouchMoveWasPreviousEventAndTouchEventCallbackIsCal
 TEST_F(AFT3267TouchDevice, IfTouchStopWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesNotEqualToZeroTouchStartEventIsGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH STOP event
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatTouchStartEventWillBeGenerated(touchEventListenerMock);
+  expectThatTouchStartEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -282,11 +284,11 @@ TEST_F(AFT3267TouchDevice, IfTouchStopWasPreviousEventAndTouchEventCallbackIsCal
 TEST_F(AFT3267TouchDevice, IfTouchStopWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesEqualToZeroNoEventWillBeGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH STOP event
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatNoEventWillBeGenerated(touchEventListenerMock);
+  expectThatNoEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -295,11 +297,11 @@ TEST_F(AFT3267TouchDevice, IfTouchStopWasPreviousEventAndTouchEventCallbackIsCal
 TEST_F(AFT3267TouchDevice, IfTouchStartWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesEqualToZeroTouchStopEventIsGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatTouchStopEventWillBeGenerated(touchEventListenerMock);
+  expectThatTouchStopEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -308,14 +310,14 @@ TEST_F(AFT3267TouchDevice, IfTouchStartWasPreviousEventAndTouchEventCallbackIsCa
 TEST_F(AFT3267TouchDevice, IfTouchMoveWasPreviousEventAndTouchEventCallbackIsCalledWithNumberOfTouchesEqualToZeroTouchStopEventIsGenerated)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount = 2u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
   // generate TOUCH MOVE event
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
-  expectThatTouchStopEventWillBeGenerated(touchEventListenerMock);
+  expectThatTouchStopEventWillBeGenerated(guiTouchEventListenerMock);
 
   touchEventInfo.touchCount = 0u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -324,7 +326,7 @@ TEST_F(AFT3267TouchDevice, IfTouchMoveWasPreviousEventAndTouchEventCallbackIsCal
 TEST_F(AFT3267TouchDevice, TouchStartEventIsGeneratedWithTheSameTouchPointsForwardedToTouchEventCallback)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   expectThatTouchEventWillBeGeneratedWithGivenTouchPosition(EXPECTED_TOUCH_POSITION);
 
   touchEventInfo.touchCount              = 1u;
@@ -335,7 +337,7 @@ TEST_F(AFT3267TouchDevice, TouchStartEventIsGeneratedWithTheSameTouchPointsForwa
 TEST_F(AFT3267TouchDevice, TouchMoveEventIsGeneratedWithTheSameTouchPointsForwardedToTouchEventCallback)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount = 1u;
   FT3267TouchDevice::touchEventCallback(&ft3267TouchDevice, touchEventInfo);
@@ -350,7 +352,7 @@ TEST_F(AFT3267TouchDevice, TouchMoveEventIsGeneratedWithTheSameTouchPointsForwar
 TEST_F(AFT3267TouchDevice, TouchStopEventIsGeneratedWithTheSameTouchPointsAsPreviousTouchEvent)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   // generate TOUCH START event
   touchEventInfo.touchCount              = 1u;
   touchEventInfo.touchPoints[0].position = EXPECTED_TOUCH_POSITION;
@@ -364,7 +366,7 @@ TEST_F(AFT3267TouchDevice, TouchStopEventIsGeneratedWithTheSameTouchPointsAsPrev
 TEST_F(AFT3267TouchDevice, EachGeneratedTouchEventHasIdForOneBiggerComparedToThePreviouslyGeneratedTouchEvent)
 {
   ft3267TouchDevice.init();
-  ft3267TouchDevice.registerTouchEventListener(&touchEventListenerMock);
+  ft3267TouchDevice.registerTouchEventListener(&guiTouchEventListenerMock);
   expectThatTouchEventIdWillBeIncrementedByOneBetweenAdjacentTouchEvents();
 
   touchEventInfo.touchCount = 1u;

@@ -4,7 +4,7 @@
 #include "IGUIObjectBase.h"
 #include "IGUIDrawable.h"
 #include "IGUIMovable.h"
-#include "IShape.h"
+#include "IGUIShape.h"
 
 
 namespace GUI

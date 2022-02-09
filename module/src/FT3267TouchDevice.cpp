@@ -7,29 +7,29 @@ FT3267TouchDevice::FT3267TouchDevice(FT3267 &ft3267):
   m_lastTouchEvent(getNextTouchEventId(), GUI::TouchEvent::Type::TOUCH_STOP)
 {}
 
-FT3267TouchDevice::ErrorCode FT3267TouchDevice::init(void)
+GUI::ErrorCode FT3267TouchDevice::init(void)
 {
   m_ft3267.registerTouchEventCallback(touchEventCallback, this);
 
-  return ErrorCode::OK;
+  return GUI::ErrorCode::OK;
 }
 
-FT3267TouchDevice::ErrorCode
-FT3267TouchDevice::registerTouchEventListener(ITouchEventListener *touchEventListenerPtr)
+GUI::ErrorCode
+FT3267TouchDevice::registerTouchEventListener(GUI::ITouchEventListener *touchEventListenerPtr)
 {
   m_touchEventListenerPtr = touchEventListenerPtr;
 
-  return ErrorCode::OK;
+  return GUI::ErrorCode::OK;
 }
 
-FT3267TouchDevice::ErrorCode FT3267TouchDevice::unregisterTouchEventListener(void)
+GUI::ErrorCode FT3267TouchDevice::unregisterTouchEventListener(void)
 {
   m_touchEventListenerPtr = nullptr;
 
-  return ErrorCode::OK;
+  return GUI::ErrorCode::OK;
 }
 
-ITouchEventListener* FT3267TouchDevice::getTouchEventListener(void)
+GUI::ITouchEventListener* FT3267TouchDevice::getTouchEventListener(void)
 {
   return m_touchEventListenerPtr;
 }

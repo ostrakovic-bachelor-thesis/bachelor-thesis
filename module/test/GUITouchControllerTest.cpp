@@ -1,44 +1,4 @@
-#include "ITouchEventListener.h"
-#include "IGUIContainer.h"
-
-namespace GUI
-{
-  class TouchController : public ITouchEventListener
-  {
-  public:
-
-    inline IContainer* getRegisteredContainer(void)
-    {
-      return m_containerPtr;
-    }
-
-    inline void registerContainer(IContainer *containerPtr)
-    {
-      m_containerPtr = containerPtr;
-    }
-
-    inline void unregisterContainer(void)
-    {
-      m_containerPtr = nullptr;
-    }
-
-    void notify(const TouchEvent &touchEvent) override;
-
-
-  private:
-
-    IContainer *m_containerPtr = nullptr;
-  };
-}
-
-void GUI::TouchController::notify(const TouchEvent &touchEvent)
-{
-  if (nullptr != m_containerPtr)
-  {
-    m_containerPtr->getEventTarget(touchEvent);
-  }
-}
-
+#include "GUITouchController.h"
 #include "GUIContainerMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
