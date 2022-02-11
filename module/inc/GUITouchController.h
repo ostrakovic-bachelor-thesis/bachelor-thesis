@@ -31,6 +31,8 @@ namespace GUI
   private:
 
     IContainer *m_containerPtr = nullptr;
+
+    IObject *m_eventTargetObjectPtr = nullptr;
   };
 }
 

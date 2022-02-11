@@ -1,5 +1,6 @@
 #include "GUITouchEvent.h"
 #include "ArrayList.h"
+#include "GUIObjectMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -160,4 +161,25 @@ TEST_F(AGUITouchEvent, IsNotEqualToAnotherTouchEventIfTheirTouchPointsAreNotTheS
   ASSERT_THAT(touchEvent1.getType(),      Eq(touchEvent2.getType()));
   ASSERT_NE(touchEvent1.getTouchPoints(), touchEvent2.getTouchPoints());
   ASSERT_THAT(touchEvent1,                Ne(touchEvent2));
+}
+
+TEST_F(AGUITouchEvent, getEventTargetObjectReturnsNullPointerIfEventTargetObjectIsNotSpecifiedAtConstructionTime)
+{
+  const GUI::TouchEvent touchEvent1(RANDOM_TOUCH_EVENT_ID, RANDOM_TOUCH_EVENT_TYPE);
+  const GUI::TouchEvent touchEvent2(RANDOM_TOUCH_EVENT_ID, RANDOM_TOUCH_EVENT_TYPE, touchEventTouchPoints);
+
+  ASSERT_THAT(touchEvent1.getEventTargetObject(), Eq(nullptr));
+  ASSERT_THAT(touchEvent2.getEventTargetObject(), Eq(nullptr));
+}
+
+TEST_F(AGUITouchEvent, getEventTargetObjectReturnsEventTargetObjectSpecifiedAtConstructionTime)
+{
+  GUIObjectMock guiObjectMock;
+  const GUI::TouchEvent touchEvent(
+    RANDOM_TOUCH_EVENT_ID,
+    RANDOM_TOUCH_EVENT_TYPE,
+    touchEventTouchPoints,
+    &guiObjectMock);
+
+  ASSERT_THAT(touchEvent.getEventTargetObject(), Eq(&guiObjectMock));
 }

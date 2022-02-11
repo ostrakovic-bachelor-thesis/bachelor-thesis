@@ -37,6 +37,7 @@ public:
   MOCK_METHOD(GUI::ErrorCode, addObject, (GUI::IObject *, uint32_t), (override));
 
   MOCK_METHOD(GUI::IObject*, getEventTarget, (const GUI::TouchEvent &), (override));
+  MOCK_METHOD(void, dispatchEvent, (GUI::TouchEvent &), (override));
 };
 
 #endif // #ifndef GUI_CONTAINER_MOCK_H

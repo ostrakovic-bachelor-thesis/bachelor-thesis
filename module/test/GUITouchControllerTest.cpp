@@ -1,5 +1,6 @@
 #include "GUITouchController.h"
 #include "GUIContainerMock.h"
+#include "GUIObjectMock.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include <cstdint>
@@ -12,36 +13,50 @@ class AGUITouchController : public Test
 {
 public:
 
-  GUI::TouchEvent RANDOM_TOUCH_EVENT = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_MOVE);
-  GUI::TouchEvent START_TOUCH_EVENT  = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_START);
-  GUIContainerMock guiContainerMock;
+  GUI::TouchEvent RANDOM_TOUCH_EVENT  = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_MOVE);
+  GUI::TouchEvent START_TOUCH_EVENT   = GUI::TouchEvent(1u, GUI::TouchEvent::Type::TOUCH_START);
+  GUI::TouchEvent MOVE_TOUCH_EVENT    = GUI::TouchEvent(2u, GUI::TouchEvent::Type::TOUCH_MOVE);
+  GUI::TouchEvent STOP_TOUCH_EVENT    = GUI::TouchEvent(3u, GUI::TouchEvent::Type::TOUCH_STOP);
+  GUI::TouchEvent START_TOUCH_EVENT_1 = GUI::TouchEvent(4u, GUI::TouchEvent::Type::TOUCH_START);
+  GUI::TouchEvent START_TOUCH_EVENT_2 = GUI::TouchEvent(5u, GUI::TouchEvent::Type::TOUCH_START);
+  NiceMock<GUIContainerMock> guiContainerMock;
   GUI::TouchController guiTouchController = GUI::TouchController();
+
+  GUIObjectMock guiObjectMockStartup;
+  GUIObjectMock guiObjectMock;
+  GUIObjectMock guiObjectMock1;
+  GUIObjectMock guiObjectMock2;
+
+  void expectThatDispatchEventWillBeCalledWithEventObjectWithGivenTarget(GUIObjectMock *guiObjectMockPtr);
+  void expectThatDispatchEventWillNotBeCalled(void);
+  void onStartTouchEventReturnGivenObjectAsTargetObject(
+    GUI::TouchEvent &touchEvent,
+    GUIObjectMock *guiObjectMockPtr);
 };
 
-// GUI::MotionListener for notify()
-// GUI::MotionListener for dispatchEvent()
-// GUI::MotionEvent.consume()
-// ---------------------------------------
-// GUI::TouchController implements GUI::ITouchListener interface
-// GUI::Scene/GUI::Container can be registered to GUI::TouchController
-// GUI::TouchController, when it is notified about touch, finds out object in container, to which touch belongs.
+void AGUITouchController::expectThatDispatchEventWillBeCalledWithEventObjectWithGivenTarget(GUIObjectMock *guiObjectMockPtr)
+{
+  EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+    .WillOnce([=](GUI::TouchEvent &touchEvent)
+    {
+      ASSERT_THAT(touchEvent.getEventTargetObject(), Eq(guiObjectMockPtr));
+    });
+}
 
-// a) Register GUI::Container on which touch controller will operate
-// b) Get registered GUI::Container returns nullptr when container is not registered
-// c) Get registered GUI::Container returns registered GUI container
-// d) Unregister current GUI::Container (event does not sent further)
-// e) When notified about event, it generated MotionEvent and sent it to object in container
-// f) Objects is container implements GUI::IMotionListener interface
+void AGUITouchController::expectThatDispatchEventWillNotBeCalled(void)
+{
+  EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+    .Times(0);
+}
 
-// GUI::TouchController::notify()
-//             |
-//             |
-// GUI::Container::dispatchEvent() ------------
-//             |                              |
-//           if no object                 valid object
-//             |                              |
-//             |                              |
-// GUI::Container::notify() -----<---- GUI::Object::notify()
+void AGUITouchController::onStartTouchEventReturnGivenObjectAsTargetObject(
+  GUI::TouchEvent &touchEvent,
+  GUIObjectMock *guiObjectMockPtr)
+{
+  ON_CALL(guiContainerMock, getEventTarget(touchEvent))
+    .WillByDefault(Return(guiObjectMockPtr));
+}
+
 
 TEST_F(AGUITouchController, GetRegisteredContainerReturnsNullptrIfContainerIsNotRegistered)
 {
@@ -79,4 +94,143 @@ TEST_F(AGUITouchController, WhenNotifiedAboutTouchStartEventItCallsGUIContainerG
     .Times(1u);
 
   guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, WhenNotifiedAboutTouchMoveEventItDoesNotCallGUIContainerGetEventTargetMethod)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  EXPECT_CALL(guiContainerMock, getEventTarget(_))
+    .Times(0u);
+
+  guiTouchController.notify(MOVE_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, WhenNotifiedAboutTouchStopEventItDoesNotCallGUIContainerGetEventTargetMethod)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  EXPECT_CALL(guiContainerMock, getEventTarget(_))
+    .Times(0u);
+
+  guiTouchController.notify(STOP_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, WhenNotifiedAboutTouchStartEventItCallsGUIContainerDispatchEventAfterGetEventTargetHasBeenCalled)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, &guiObjectMock);
+  {
+    InSequence expectCallsInSequence;
+
+    EXPECT_CALL(guiContainerMock, getEventTarget(_))
+      .Times(1u);
+    EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+      .Times(1u);
+  }
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectHasTheSameIdAsTouchEventForwardedToGUIControllerNotify)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, &guiObjectMock);
+  EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+    .WillOnce([&](GUI::TouchEvent &touchEvent)
+    {
+      ASSERT_THAT(touchEvent.getId(), Eq(START_TOUCH_EVENT.getId()));
+    });
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectHasTheSameTypeAsTouchEventForwardedToGUIControllerNotify)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, &guiObjectMock);
+  EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+    .WillOnce([&](GUI::TouchEvent &touchEvent)
+    {
+      ASSERT_THAT(touchEvent.getType(), Eq(START_TOUCH_EVENT.getType()));
+    });
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectHasTheSameTouchPointsAsTouchEventForwardedToGUIControllerNotify)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, &guiObjectMock);
+  EXPECT_CALL(guiContainerMock, dispatchEvent(_))
+    .WillOnce([&](GUI::TouchEvent &touchEvent)
+    {
+      ASSERT_EQ(touchEvent.getTouchPoints(), START_TOUCH_EVENT.getTouchPoints());
+    });
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectOnStartTouchEventHasAsTargetObjectTheOneObtainedViaGetEventTargetMethod)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, &guiObjectMock);
+  expectThatDispatchEventWillBeCalledWithEventObjectWithGivenTarget(&guiObjectMock);
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectOnMoveTouchEventHasAsTargetObjectTheOneObtainedAtTheLastStartTouchEvent)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_1, &guiObjectMock1);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_2, &guiObjectMock2);
+  guiTouchController.notify(START_TOUCH_EVENT_1);
+  guiTouchController.notify(START_TOUCH_EVENT_2);
+  expectThatDispatchEventWillBeCalledWithEventObjectWithGivenTarget(&guiObjectMock2);
+
+  guiTouchController.notify(MOVE_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, DispatchEventObjectOnStopTouchEventHasAsTargetObjectTheOneObtainedAtTheLastStartTouchEvent)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_1, &guiObjectMock1);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_2, &guiObjectMock2);
+  guiTouchController.notify(START_TOUCH_EVENT_1);
+  guiTouchController.notify(START_TOUCH_EVENT_2);
+  expectThatDispatchEventWillBeCalledWithEventObjectWithGivenTarget(&guiObjectMock2);
+
+  guiTouchController.notify(STOP_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, OnStartTouchEventDispatchEventWillNotBeCalledIfEventTargetIsNotSuccessfullyObtained)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT, nullptr);
+  expectThatDispatchEventWillNotBeCalled();
+
+  guiTouchController.notify(START_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, OnMoveTouchEventDispatchEventWillNotBeCalledIfEventTargetWasNotSuccessfullyObtainedAtTheLastStartTouchEvent)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_1, &guiObjectMock1);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_2, nullptr);
+  guiTouchController.notify(START_TOUCH_EVENT_1);
+  guiTouchController.notify(START_TOUCH_EVENT_2);
+  expectThatDispatchEventWillNotBeCalled();
+
+  guiTouchController.notify(MOVE_TOUCH_EVENT);
+}
+
+TEST_F(AGUITouchController, OnStopTouchEventDispatchEventWillNotBeCalledIfEventTargetWasNotSuccessfullyObtainedAtTheLastStartTouchEvent)
+{
+  guiTouchController.registerContainer(&guiContainerMock);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_1, &guiObjectMock1);
+  onStartTouchEventReturnGivenObjectAsTargetObject(START_TOUCH_EVENT_2, nullptr);
+  guiTouchController.notify(START_TOUCH_EVENT_1);
+  guiTouchController.notify(START_TOUCH_EVENT_2);
+  expectThatDispatchEventWillNotBeCalled();
+
+  guiTouchController.notify(STOP_TOUCH_EVENT);
 }

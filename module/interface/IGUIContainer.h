@@ -23,6 +23,7 @@ namespace GUI
     virtual ErrorCode addObject(IObject *objectPtr, uint32_t zIndex) = 0;
 
     virtual IObject* getEventTarget(const TouchEvent &touchEvent) = 0;
+    virtual void dispatchEvent(TouchEvent &touchEvent) = 0;
   };
 }
 

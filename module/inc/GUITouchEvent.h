@@ -2,6 +2,7 @@
 #define GUI_TOUCH_EVENT_H
 
 #include "GUICommon.h"
+#include "IGUIObject.h"
 #include "IArrayList.h"
 #include "ArrayList.h"
 #include <cstdint>
@@ -26,6 +27,8 @@ namespace GUI
 
     TouchEvent(uint64_t id, Type type, const IArrayList<Point> &touchPoints);
 
+    TouchEvent(uint64_t id, Type type, const IArrayList<Point> &touchPoints, const IObject *eventTargetObjectPtr);
+
     inline uint64_t getId(void) const
     {
       return m_id;
@@ -41,6 +44,11 @@ namespace GUI
       return m_touchPoints;
     }
 
+    inline const IObject* getEventTargetObject(void) const
+    {
+      return m_eventTargetObjectPtr;
+    }
+
     bool operator==(const TouchEvent &touchEvent) const;
     bool operator!=(const TouchEvent &touchEvent) const;
 
@@ -51,6 +59,8 @@ namespace GUI
     Type m_type;
 
     ArrayList<Point, MAX_NUM_OF_SIMULTANEOUS_TOUCH_POINTS> m_touchPoints;
+
+    const IObject *m_eventTargetObjectPtr = nullptr;
   };
 }
 
