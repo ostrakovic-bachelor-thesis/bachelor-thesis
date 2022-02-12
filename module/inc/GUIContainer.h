@@ -63,18 +63,14 @@ namespace GUI
     void registerDrawCompletedCallback(const CallbackDescription &callbackDescription) override;
     void unregisterDrawCompletedCallback(void) override;
 
-    inline IObject* getEventTarget(const TouchEvent &touchEvent) override
-    {
-      // TODO implement with TDD
-      return nullptr;
-    }
-
-    inline void dispatchEvent(TouchEvent &touchEvent) override
-    {
-      // TODO implement with TDD
-    }
+    IObject* getEventTarget(const TouchEvent &touchEvent) override;
+    void dispatchEvent(TouchEvent &touchEvent) override;
 
   private:
+
+    bool doesGUIObjectContainAnyOfTouchPoints(
+      const IObject &guiObject,
+      const IArrayList<Point> &touchPoints);
 
     Position getPositionTopLeftCorner(void) const;
     Position getPositionTopRightCorner(void) const;

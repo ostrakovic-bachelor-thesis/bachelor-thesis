@@ -2,7 +2,7 @@
 #define GUI_TOUCH_EVENT_H
 
 #include "GUICommon.h"
-#include "IGUIObject.h"
+#include "IGUIObjectFwd.h"
 #include "IArrayList.h"
 #include "ArrayList.h"
 #include <cstdint>

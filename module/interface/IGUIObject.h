@@ -5,11 +5,12 @@
 #include "IGUIDrawable.h"
 #include "IGUIMovable.h"
 #include "IGUIShape.h"
+#include "IGUITouchEventListener.h"
 
 
 namespace GUI
 {
-  class IObject : public IObjectBase, public IDrawable, public IMovable, public IShape
+  class IObject : public IObjectBase, public IDrawable, public IMovable, public IShape, public ITouchEventListener
   {
   public:
     virtual ~IObject() = default;

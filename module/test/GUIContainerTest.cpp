@@ -17,6 +17,17 @@ public:
   static constexpr uint32_t RANDOM_Z_INDEX            = 270u;
   static constexpr uint32_t GUI_OBJECT_MOCK_1_Z_INDEX = 10u;
   static constexpr uint32_t GUI_OBJECT_MOCK_2_Z_INDEX = 1u;
+  const GUI::Point RANDOM_GUI_POINT =
+  {
+    .x = 10,
+    .y = 10
+  };
+  const GUI::TouchEvent ONE_TOUCH_POINT_TOUCH_EVENT =
+    GUI::TouchEvent(40u, GUI::TouchEvent::Type::TOUCH_MOVE);
+  const GUI::TouchEvent NO_TOUCH_POINTS_TOUCH_EVENT =
+    GUI::TouchEvent(100u, GUI::TouchEvent::Type::TOUCH_START);
+  const GUI::TouchEvent TWO_TOUCH_POINT_TOUCH_EVENT =
+    GUI::TouchEvent(290u, GUI::TouchEvent::Type::TOUCH_STOP);
 
   NiceMock<GUIObjectMock> guiObjectMock;
   NiceMock<GUIObjectMock> guiObjectMock1;
@@ -27,6 +38,7 @@ public:
   GUI::Container guiContainer = GUI::Container(guiContainerObjectInfoList, frameBuffer);
 
   GUI::Container::CallbackDescription callbackDescription;
+  ArrayList<GUI::Point,2u> touchPoints;
   uint32_t m_lastZIndex;
   uint32_t m_expectedDrawingTimeInUs;
   bool m_isCallbackCalled;
@@ -53,6 +65,11 @@ public:
     GUI::DrawHardware drawHardware,
     uint64_t expectedDrawingTimeInUs,
     GUI::ErrorCode errorCode);
+  void expectThatDoesContainPointWillBeCalledOnceAndWillReturn(GUIObjectMock &guiObjectMock, bool returnValue);
+  void expectThatDoesContainPointWillNeverBeCalled(GUIObjectMock &guiObjectMock);
+  void expectThatObjectWillBeNotified(GUIObjectMock &guiObjectMock, GUI::TouchEvent touchEvent);
+  void expectThatObjectWillNotBeNotified(GUIObjectMock &guiObjectMock);
+  void onCallOfDoesContainPointReturn(GUIObjectMock &guiObjectMock, bool returnValue);
   void setupGetCPUDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer);
   void setupGetDMA2DDrawingTimeReadingForContainerObjects(GUI::Container &guiContainer);
   void assertThatDrawingTimeIsEqualToExpectedOne(uint64_t drawingTimeInUs);
@@ -73,6 +90,13 @@ void AGUIContainer::SetUp()
     .functionPtr = [](void *argument) { *reinterpret_cast<bool*>(argument) = true; },
     .argument = &m_isCallbackCalled
   };
+
+  // inject one GUI::Point into touch event
+  const_cast<IArrayList<GUI::Point>&>(ONE_TOUCH_POINT_TOUCH_EVENT.getTouchPoints()).addElement(RANDOM_GUI_POINT);
+
+  // inject two GUI::Point-s into touch event
+  const_cast<IArrayList<GUI::Point>&>(TWO_TOUCH_POINT_TOUCH_EVENT.getTouchPoints()).addElement(RANDOM_GUI_POINT);
+  const_cast<IArrayList<GUI::Point>&>(TWO_TOUCH_POINT_TOUCH_EVENT.getTouchPoints()).addElement(RANDOM_GUI_POINT);
 }
 
 void AGUIContainer::addNRandomIGUIObjectsIntoIGUIContainer(GUI::Container &guiContainer, uint32_t numberOfIGUIObjects)
@@ -199,6 +223,37 @@ void AGUIContainer::expectThatGetDrawingTimeWillBeCalledForEachObjectInContainer
     EXPECT_CALL(*guiObjectMockPtr, getDrawingTime(drawHardware, _))
       .Times(1u);
   }
+}
+
+void AGUIContainer::expectThatDoesContainPointWillBeCalledOnceAndWillReturn(GUIObjectMock &guiObjectMock, bool returnValue)
+{
+  EXPECT_CALL(guiObjectMock, doesContainPoint(_))
+    .Times(1u)
+    .WillOnce(Return(returnValue));
+}
+
+void AGUIContainer::expectThatDoesContainPointWillNeverBeCalled(GUIObjectMock &guiObjectMock)
+{
+  EXPECT_CALL(guiObjectMock, doesContainPoint(_))
+    .Times(0u);
+}
+
+void AGUIContainer::expectThatObjectWillBeNotified(GUIObjectMock &guiObjectMock, GUI::TouchEvent touchEvent)
+{
+  EXPECT_CALL(guiObjectMock3, notify(touchEvent))
+    .Times(1u);
+}
+
+void AGUIContainer::expectThatObjectWillNotBeNotified(GUIObjectMock &guiObjectMock)
+{
+  EXPECT_CALL(guiObjectMock3, notify(_))
+    .Times(0u);
+}
+
+void AGUIContainer::onCallOfDoesContainPointReturn(GUIObjectMock &guiObjectMock, bool returnValue)
+{
+  ON_CALL(guiObjectMock, doesContainPoint(_))
+    .WillByDefault(Return(returnValue));
 }
 
 void AGUIContainer::setupGUIObjectGetDrawingTimeReadings(
@@ -826,4 +881,99 @@ TEST_F(AGUIContainer, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackDirectlyW
 
   assertThatCallbackIsCalled();
   ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
+}
+
+TEST_F(AGUIContainer, GetEventTargetReturnsNullPointerIfContainerIsEmpty)
+{
+  const GUI::IObject *eventTargetPtr = guiContainer.getEventTarget(ONE_TOUCH_POINT_TOUCH_EVENT);
+
+  ASSERT_THAT(eventTargetPtr, Eq(nullptr));
+  ASSERT_THAT(guiContainer.isEmpty(), Eq(true));
+}
+
+TEST_F(AGUIContainer, GetEventTargetReturnsPointerToObjectWithTheHighestZIndexInContainerForWhichDoesContainPointReturnsTrue)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+  guiContainer.addObject(&guiObjectMock3, 5u);
+  onCallOfDoesContainPointReturn(guiObjectMock1, false);
+  onCallOfDoesContainPointReturn(guiObjectMock2, true);
+  onCallOfDoesContainPointReturn(guiObjectMock3, true);
+
+  const GUI::IObject *eventTargetPtr = guiContainer.getEventTarget(ONE_TOUCH_POINT_TOUCH_EVENT);
+
+  ASSERT_THAT(eventTargetPtr, Eq(&guiObjectMock2));
+}
+
+TEST_F(AGUIContainer, GetEventTargetReturnsNullPointerIfMethodDoesContainPointReturnsFalseForEachObjectInTheContainer)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+  guiContainer.addObject(&guiObjectMock3, 5u);
+  onCallOfDoesContainPointReturn(guiObjectMock1, false);
+  onCallOfDoesContainPointReturn(guiObjectMock2, false);
+  onCallOfDoesContainPointReturn(guiObjectMock3, false);
+
+  const GUI::IObject *eventTargetPtr = guiContainer.getEventTarget(ONE_TOUCH_POINT_TOUCH_EVENT);
+
+  ASSERT_THAT(eventTargetPtr, Eq(nullptr));
+}
+
+TEST_F(AGUIContainer, GetEventTargetDoesNotCallDoesContainPointOnAnyObjectInContainerIfTouchEventDoesNotContainTouchPoints)
+{
+  guiContainer.addObject(&guiObjectMock1, 20u);
+  guiContainer.addObject(&guiObjectMock2, 10u);
+  guiContainer.addObject(&guiObjectMock3, 5u);
+  expectThatDoesContainPointWillNeverBeCalled(guiObjectMock1);
+  expectThatDoesContainPointWillNeverBeCalled(guiObjectMock2);
+  expectThatDoesContainPointWillNeverBeCalled(guiObjectMock3);
+
+  const GUI::IObject *eventTargetPtr = guiContainer.getEventTarget(NO_TOUCH_POINTS_TOUCH_EVENT);
+
+  ASSERT_THAT(eventTargetPtr, Eq(nullptr));
+}
+
+TEST_F(AGUIContainer, GetEventTargetInTheCaseOfMultiTouchEventWillMatchGUIObjectEvenIfOnlyOneTouchPointIsContainedByIt)
+{
+  guiContainer.addObject(&guiObjectMock, 10u);
+  EXPECT_CALL(guiObjectMock, doesContainPoint(_))
+    .Times(2u)
+    .WillOnce(Return(false)) // doesContainPoint() will return false for the first call
+    .WillOnce(Return(true)); // doesContainPoint() will return true for the second call
+
+  const GUI::IObject *eventTargetPtr = guiContainer.getEventTarget(TWO_TOUCH_POINT_TOUCH_EVENT);
+
+  ASSERT_THAT(eventTargetPtr, Eq(&guiObjectMock));
+}
+
+TEST_F(AGUIContainer, DispatchEventSucceedWithoutDoingAnythingIfContainerIsEmpty)
+{
+  GUI::TouchEvent touchEvent(10u, GUI::TouchEvent::Type::TOUCH_START);
+
+  guiContainer.dispatchEvent(touchEvent);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIContainer, DispatchEventCallsNotifyOnGUIObjectFromContainerIfItIsEventTargetObject)
+{
+  guiContainer.addObject(&guiObjectMock1, 5u);
+  guiContainer.addObject(&guiObjectMock2, 15u);
+  guiContainer.addObject(&guiObjectMock3, 10u);
+  GUI::TouchEvent touchEvent(10u, GUI::TouchEvent::Type::TOUCH_START, touchPoints, &guiObjectMock3);
+  expectThatObjectWillBeNotified(guiObjectMock3, touchEvent);
+
+  guiContainer.dispatchEvent(touchEvent);
+}
+
+TEST_F(AGUIContainer, DispatchEventDoesNotCallNotifyOnGUIObjectsFromContainerIfTheyAreNotEventTargetObject)
+{
+  guiContainer.addObject(&guiObjectMock1, 20);
+  guiContainer.addObject(&guiObjectMock2, 5u);
+  guiContainer.addObject(&guiObjectMock3, 15u);
+  GUI::TouchEvent touchEvent(10u, GUI::TouchEvent::Type::TOUCH_START, touchPoints, &guiObjectMock2);
+  expectThatObjectWillNotBeNotified(guiObjectMock1);
+  expectThatObjectWillNotBeNotified(guiObjectMock3);
+
+  guiContainer.dispatchEvent(touchEvent);
 }

@@ -141,6 +141,11 @@ void GUI::RectangleBase::unregisterDrawCompletedCallback(void)
   };
 }
 
+void GUI::RectangleBase::notify(const TouchEvent &touchEvent)
+{
+  // TODO implement with the help of TDD
+}
+
 uint16_t GUI::RectangleBase::getVisiblePartWidth(void) const
 {
   const int16_t frameBufferWidth = static_cast<int16_t>(m_frameBufferPtr->getWidth());

@@ -59,6 +59,7 @@ public:
   MOCK_METHOD(GUI::ErrorCode, getDrawingTime, (GUI::DrawHardware, uint64_t &), (const, override));
   MOCK_METHOD(void, registerDrawCompletedCallback, (const CallbackDescription &), (override));
   MOCK_METHOD(void, unregisterDrawCompletedCallback, (), (override));
+  MOCK_METHOD(void, notify, (const GUI::TouchEvent &), (override));
 
   // fake method;
   inline void callbackDMA2DDrawCompleted(void)

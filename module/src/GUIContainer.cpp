@@ -183,6 +183,50 @@ void GUI::Container::unregisterDrawCompletedCallback(void)
   };
 }
 
+GUI::IObject* GUI::Container::getEventTarget(const TouchEvent &touchEvent)
+{
+  GUI::IObject *eventTargetPtr = nullptr;
+
+  if (not touchEvent.getTouchPoints().isEmpty())
+  {
+    for (auto it = getBeginIterator(); it != getEndIterator(); it++)
+    {
+      if (doesGUIObjectContainAnyOfTouchPoints(**it, touchEvent.getTouchPoints()))
+      {
+        eventTargetPtr = *it;
+      }
+    }
+  }
+
+  return eventTargetPtr;
+}
+
+void GUI::Container::dispatchEvent(TouchEvent &touchEvent)
+{
+  for (auto it = getBeginIterator(); it != getEndIterator(); it++)
+  {
+    if (touchEvent.getEventTargetObject() == (*it))
+    {
+      (*it)->notify(touchEvent);
+    }
+  }
+}
+
+bool GUI::Container::doesGUIObjectContainAnyOfTouchPoints(
+  const IObject &guiObject,
+  const IArrayList<Point> &touchPoints)
+{
+  for (auto it = touchPoints.getBeginIterator(); it != touchPoints.getEndIterator(); it++)
+  {
+    if (guiObject.doesContainPoint(*it))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 GUI::Position GUI::Container::getPositionTopLeftCorner(void) const
 {
   return

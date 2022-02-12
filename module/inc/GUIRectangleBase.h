@@ -55,6 +55,8 @@ namespace GUI
     void registerDrawCompletedCallback(const CallbackDescription &callbackDescription) override;
     void unregisterDrawCompletedCallback(void) override;
 
+    void notify(const TouchEvent &touchEvent) override;
+
     uint16_t getVisiblePartWidth(void) const;
     uint16_t getVisiblePartHeight(void) const;
     Dimension getVisiblePartDimension(void) const;
