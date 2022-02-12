@@ -17,6 +17,10 @@ GUI::RectangleBase::RectangleBase(SysTick &sysTick, IFrameBuffer &frameBuffer):
   m_drawCompletedCallback{
     .functionPtr = nullptr,
     .argument    = nullptr
+  },
+  m_touchEventCallback{
+    .functionPtr = nullptr,
+    .argument    = nullptr
   }
 {}
 
@@ -143,7 +147,24 @@ void GUI::RectangleBase::unregisterDrawCompletedCallback(void)
 
 void GUI::RectangleBase::notify(const TouchEvent &touchEvent)
 {
-  // TODO implement with the help of TDD
+  if (nullptr != m_touchEventCallback.functionPtr)
+  {
+    m_touchEventCallback.functionPtr(m_touchEventCallback.argument, *this, touchEvent);
+  }
+}
+
+void GUI::RectangleBase::registerTouchEventCallback(const TouchEventCallbackDescription &callbackDescription)
+{
+  m_touchEventCallback = callbackDescription;
+}
+
+void GUI::RectangleBase::unregisterTouchEventCallback(void)
+{
+  m_touchEventCallback =
+  {
+    .functionPtr = nullptr,
+    .argument    = nullptr
+  };
 }
 
 uint16_t GUI::RectangleBase::getVisiblePartWidth(void) const

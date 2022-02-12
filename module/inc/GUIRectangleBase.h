@@ -12,6 +12,8 @@ namespace GUI
   {
   public:
 
+    typedef void (*TouchEventCallbackFunc)(void*, RectangleBase&, const TouchEvent&);
+
     RectangleBase(SysTick &sysTick, IFrameBuffer &frameBuffer);
 
     virtual ~RectangleBase() = default;
@@ -20,6 +22,12 @@ namespace GUI
     {
       Dimension dimension;
       Position position;
+    };
+
+    struct TouchEventCallbackDescription
+    {
+      TouchEventCallbackFunc functionPtr;
+      void *argument;
     };
 
     void init(const RectangleBaseDescription &rectangleDescription);
@@ -56,6 +64,9 @@ namespace GUI
     void unregisterDrawCompletedCallback(void) override;
 
     void notify(const TouchEvent &touchEvent) override;
+
+    void registerTouchEventCallback(const TouchEventCallbackDescription &callbackDescription);
+    void unregisterTouchEventCallback(void);
 
     uint16_t getVisiblePartWidth(void) const;
     uint16_t getVisiblePartHeight(void) const;
@@ -121,6 +132,8 @@ namespace GUI
     RectangleBaseDescription m_rectangleBaseDescription;
 
     CallbackDescription m_drawCompletedCallback;
+
+    TouchEventCallbackDescription m_touchEventCallback;
   };
 }
 

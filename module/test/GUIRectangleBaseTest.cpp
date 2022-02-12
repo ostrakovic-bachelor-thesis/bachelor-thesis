@@ -17,6 +17,8 @@ public:
     guiRectangleBase(sysTickMock, guiRectangleFrameBuffer)
   {}
 
+  GUI::TouchEvent RANDOM_TOUCH_EVENT = GUI::TouchEvent(0u, GUI::TouchEvent::Type::TOUCH_MOVE);
+
   NiceMock<SysTickMock> sysTickMock;
   FrameBuffer<50u, 50u, IFrameBuffer::ColorFormat::RGB888> guiRectangleFrameBuffer;
   NiceMock<GUIRectangleBaseMock> guiRectangleBase;
@@ -38,6 +40,7 @@ public:
 
 
   GUI::RectangleBase::CallbackDescription callbackDescription;
+  GUI::RectangleBase::TouchEventCallbackDescription touchEventCallbackDescription;
   bool m_isCallbackCalled;
   uint64_t m_sysTickFunctionCallCounter;
 
@@ -70,6 +73,15 @@ void AGUIRectangleBase::SetUp()
   callbackDescription =
   {
     .functionPtr = [](void *argument) { *reinterpret_cast<bool*>(argument) = true; },
+    .argument = &m_isCallbackCalled
+  };
+
+  touchEventCallbackDescription =
+  {
+    .functionPtr = [](void *argument, GUI::RectangleBase&, const GUI::TouchEvent&)
+    {
+      *reinterpret_cast<bool*>(argument) = true;
+    },
     .argument = &m_isCallbackCalled
   };
 }
@@ -1084,4 +1096,34 @@ TEST_F(AGUIRectangleBase, DrawWithDMA2DCallsRegisteredDrawCompletedCallbackDirec
   guiRectangleBase.draw(GUI::DrawHardware::DMA2D);
 
   assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIRectangleBase, TouchEventNotifyDoesNotFailIfTouchEventCallbackIsNotRegistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+
+  guiRectangleBase.notify(RANDOM_TOUCH_EVENT);
+
+  SUCCEED();
+}
+
+TEST_F(AGUIRectangleBase, TouchEventNotifyCallsRegisteredTouchEventCallback)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerTouchEventCallback(touchEventCallbackDescription);
+
+  guiRectangleBase.notify(RANDOM_TOUCH_EVENT);
+
+  assertThatCallbackIsCalled();
+}
+
+TEST_F(AGUIRectangleBase, TouchEventNotifyDoesNotCallPreviouslyRegisteredTouchEventCallbackIfLaterItIsUnregistered)
+{
+  guiRectangleBase.init(guiRectangleBaseDescription);
+  guiRectangleBase.registerTouchEventCallback(touchEventCallbackDescription);
+  guiRectangleBase.unregisterTouchEventCallback();
+
+  guiRectangleBase.notify(RANDOM_TOUCH_EVENT);
+
+  assertThatCallbackIsNotCalled();
 }
