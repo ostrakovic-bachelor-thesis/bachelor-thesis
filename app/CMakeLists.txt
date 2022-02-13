@@ -45,7 +45,9 @@ set(BachelorThesis_app_component_cpp_sources
     src/LTDCConfig.cpp
     src/MFXSTM32L152Config.cpp
     src/RaydiumRM67160Config.cpp
+    src/EXTIConfig.cpp
     src/InterruptDispatcher.cpp
+    src/GUIObjectDescription.cpp
     src/Startup.cpp
     src/AppFrameBuffer.cpp)
 
@@ -58,9 +60,9 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    src/syscalls.c
                    src/sysclock.c
                    src/main.c
-                   #bitmaps/rimac.c
-                   bitmaps/icon.c
-                   bitmaps/rimacLogo.c)
+                   bitmaps/brightness.c
+                   bitmaps/untzLogo.c
+                   bitmaps/playButton.c)
 
 target_include_directories(app PRIVATE
                            inc

@@ -34,14 +34,13 @@
 #include "MFXSTM32L152Config.h"
 #include "FT3267Config.h"
 #include "RaydiumRM67160Config.h"
+#include "EXTIConfig.h"
 #include "AppFrameBuffer.h"
+
+#include "GUIObjectDescription.h"
 
 void initDriver(void);
 void initBSP(void);
-
-//extern const uint8_t rimacImageBitmap[390 * 390 * 3 + 1];
-extern const uint8_t iconBitmap[100 * 100 * 3 + 1];
-extern const uint8_t rimacLogoBitmap[300 * 71 * 4];
 
 MFXSTM32L152 g_mfx = MFXSTM32L152(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
@@ -56,6 +55,8 @@ FT3267 g_ft3267 = FT3267(
   &DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC));
 
 FT3267TouchDevice g_ft3267TouchDevice(g_ft3267);
+
+uint8_t g_brightness = 140u;
 
 extern "C" void initSYSCLOCK(void);
 
@@ -85,66 +86,6 @@ void ft3267InterruptHandler(void *argumentPtr)
   g_ft3267.runtimeTask();
 }
 
-void enableDSI3V3Callback(void)
-{
-  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN8, g_mfxGPIOPin8Config);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-
-  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN8, MFXSTM32L152::GPIOPinState::LOW);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-}
-
-void enableDSI1V8Callback(void)
-{
-  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN18, g_mfxGPIOPin18Config);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-
-  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN18, MFXSTM32L152::GPIOPinState::LOW);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-}
-
-void setDSIResetLineToLowCallback(void)
-{
-  MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-
-  errorCode = g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::LOW);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-}
-
-void setDSIResetLineToHighCallback(void)
-{
-  //MFXSTM32L152::ErrorCode errorCode = g_mfx.configureGPIOPin(MFXSTM32L152::GPIOPin::PIN10, g_mfxGPIOPin10Config);
-  //if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  //{
-  //  panic();
-  //}
-
-  MFXSTM32L152::ErrorCode errorCode =
-    g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN10, MFXSTM32L152::GPIOPinState::HIGH);
-  if (MFXSTM32L152::ErrorCode::OK != errorCode)
-  {
-    panic();
-  }
-}
 
 void startup(void)
 {
@@ -156,146 +97,37 @@ void startup(void)
   initDriver();
   initBSP();
 
-  const GUI::Rectangle::RectangleDescription guiRectangleDescription1 =
-  {
-    .baseDescription =
-    {
-      .dimension =
-      {
-        .width  = 410u,
-        .height = 420u
-      },
-      .position =
-      {
-        .x   = -10,
-        .y   = -20,
-        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
-      }
-    },
-    .color  =
-    {
-      .red   = 255u,
-      .green = 0u,
-      .blue  = 0u
-    }
-  };
-
-  const GUI::Rectangle::RectangleDescription guiRectangleDescription2 =
-  {
-    .baseDescription =
-    {
-      .dimension =
-      {
-        .width  = 200u,
-        .height = 150u
-      },
-      .position =
-      {
-        .x   = 120,
-        .y   = 120,
-        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
-      }
-    },
-    .color  =
-    {
-      .red   = 0u,
-      .green = 0u,
-      .blue  = 255u
-    }
-  };
-
-  const GUI::Image::ImageDescription imageDescription =
-  {
-    .baseDescription =
-    {
-      .dimension =
-      {
-        .width  = 80,
-        .height = 80u
-      },
-      .position =
-      {
-        .x   = 150,
-        .y   = 270,
-        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
-      }
-    },
-    .bitmapDescription =
-    {
-      .colorFormat = GUI::ColorFormat::RGB888,
-      .dimension =
-      {
-        .width  = 100u,
-        .height = 100u
-      },
-      .copyPosition =
-      {
-        .x = 10,
-        .y = 10
-      },
-      .bitmapPtr = iconBitmap
-    }
-  };
-
-  const GUI::Image::ImageDescription image2Description =
-  {
-    .baseDescription =
-    {
-      .dimension =
-      {
-        .width  = 220u,
-        .height = 71u
-      },
-      .position =
-      {
-        .x   = 95,
-        .y   = 160,
-        .tag = GUI::Position::Tag::TOP_LEFT_CORNER
-      }
-    },
-    .bitmapDescription =
-    {
-      .colorFormat = GUI::ColorFormat::ARGB8888,
-      .dimension =
-      {
-        .width  = 300u,
-        .height = 71u
-      },
-      .copyPosition =
-      {
-        .x = 70,
-        .y = 0
-      },
-      .bitmapPtr = rimacLogoBitmap
-    }
-  };
-
   ArrayList<GUI::Container::ObjectInfo,5u> guiContainerObjectInfoList;
   GUI::Container guiContainer = GUI::Container(guiContainerObjectInfoList, g_frameBuffer);
 
-  GUI::Rectangle guiRectangle1(dma2d, sysTick, g_frameBuffer);
-  GUI::Rectangle guiRectangle2(dma2d, sysTick, g_frameBuffer);
-  GUI::Image     guiImage(dma2d, sysTick, g_frameBuffer);
-  GUI::Image     guiImage2(dma2d, sysTick, g_frameBuffer);
+  GUI::Rectangle backgroundUpPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
+  GUI::Rectangle backgroundDownPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
+  GUI::Image     untzLogoImage(dma2d, sysTick, g_frameBuffer);
+  GUI::Image     brightnessImage(dma2d, sysTick, g_frameBuffer);
+  GUI::Image     playButtonImage(dma2d, sysTick, g_frameBuffer);
 
-  guiRectangle1.init(guiRectangleDescription1);
-  guiRectangle2.init(guiRectangleDescription2);
-  guiImage.init(imageDescription);
-  guiImage2.init(image2Description);
+  bool isPlayStarted = true;
+
+  backgroundUpPartGuiRectangle.init(g_backgroundUpPartGuiRectangleDescription);
+  backgroundDownPartGuiRectangle.init(g_backgroundDownPartGuiRectangleDescription);
+  untzLogoImage.init(g_untzLogoImageDescription);
+  brightnessImage.init(g_brightnessImageDescription);
+  playButtonImage.init(g_playButtonImageDescription);
 
   GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription =
   {
     .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
     {
-      static GUI::Point startTouchPoint;
+      static const GUI::Position firstStartPosition = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
       static GUI::Position startPosition;
+      static GUI::Point startTouchPoint;
 
       switch (touchEvent.getType())
       {
         case GUI::TouchEvent::Type::TOUCH_START:
         {
           startTouchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
-          startPosition   = guiRectangle.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
+          startPosition   = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
         }
         break;
 
@@ -303,12 +135,36 @@ void startup(void)
         case GUI::TouchEvent::Type::TOUCH_STOP:
         {
           const GUI::Point touchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
-          const GUI::Position newPosition =
+          int16_t brightnessChange = static_cast<int16_t>(touchPoint.x) - firstStartPosition.x;
+          if (brightnessChange > 50)
           {
-            .x   = startPosition.x + (touchPoint.x - startTouchPoint.x),
-            .y   = startPosition.y + (touchPoint.y - startTouchPoint.y),
+            brightnessChange = 50;
+          }
+          if (brightnessChange < -50)
+          {
+            brightnessChange = -50;
+          }
+
+          g_brightness = 140 + 2 * brightnessChange;
+          g_displayRM67160.setDisplayBrightness(g_brightness);
+
+
+          GUI::Position newPosition =
+          {
+            .x   = startPosition.x + static_cast<int16_t>(touchPoint.x) - static_cast<int16_t>(startTouchPoint.x),
+            .y   = startPosition.y,
             .tag = startPosition.tag
           };
+
+          if (newPosition.x > (firstStartPosition.x + 50))
+          {
+            newPosition.x = firstStartPosition.x + 50;
+          }
+
+          if (newPosition.x < (firstStartPosition.x - 50))
+          {
+            newPosition.x = firstStartPosition.x - 50;
+          }
 
           guiRectangle.moveToPosition(newPosition);
         }
@@ -324,12 +180,38 @@ void startup(void)
     .argument = nullptr
   };
 
-  guiImage.registerTouchEventCallback(touchEventCallbackDescription);
+  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription2 =
+  {
+    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
+    {
+      switch (touchEvent.getType())
+      {
+        case GUI::TouchEvent::Type::TOUCH_START:
+        {
+          *reinterpret_cast<bool*>(argument) = !(*reinterpret_cast<bool*>(argument));
+        }
+        break;
 
-  guiContainer.addObject(&guiRectangle2, 5u);
-  guiContainer.addObject(&guiRectangle1, 0u);
-  guiContainer.addObject(&guiImage2, 10u);
-  guiContainer.addObject(&guiImage, 7u);
+        case GUI::TouchEvent::Type::TOUCH_MOVE:
+        case GUI::TouchEvent::Type::TOUCH_STOP:
+        default:
+        {
+          // do nothing
+        }
+        break;
+      }
+    },
+    .argument = &isPlayStarted
+  };
+
+  brightnessImage.registerTouchEventCallback(touchEventCallbackDescription);
+  playButtonImage.registerTouchEventCallback(touchEventCallbackDescription2);
+
+  guiContainer.addObject(&backgroundUpPartGuiRectangle, 0u);
+  guiContainer.addObject(&backgroundDownPartGuiRectangle, 1u);
+  guiContainer.addObject(&untzLogoImage, 10u);
+  guiContainer.addObject(&playButtonImage, 15u);
+  guiContainer.addObject(&brightnessImage, 20u);
 
   GUI::Container::CallbackDescription drawCompletedCallback =
   {
@@ -338,7 +220,6 @@ void startup(void)
   };
 
   guiContainer.registerDrawCompletedCallback(drawCompletedCallback);
-
 
   GUI::TouchController touchController;
   touchController.registerContainer(&guiContainer);
@@ -355,19 +236,14 @@ void startup(void)
 
   USARTLogger usartLogger(usart2);
 
-  uint8_t brightness = 120u;
+
   bool ledState      = false;
   uint32_t timestamp = sysTick.getTicks();
 
-  int16_t x = -100;
+  int16_t x = untzLogoImage.getPosition(GUI::Position::Tag::CENTER).x;
   int16_t direction = 1;
 
   StringBuilder<500u> stringBuilder;
-
-  guiRectangle1.init(guiRectangleDescription1);
-  guiRectangle2.init(guiRectangleDescription2);
-  guiImage.init(imageDescription);
-  guiImage2.init(image2Description);
 
   while (true)
   {
@@ -396,24 +272,23 @@ void startup(void)
 
       // ledState = !ledState;
 
-      if (x >= g_frameBuffer.getWidth())
+      if (isPlayStarted)
       {
-        direction = -1;
+        if (x >= g_frameBuffer.getWidth())
+        {
+          direction = -1;
+        }
+        else if (0 >= x)
+        {
+          direction = 1;
+        }
+
+        x = x + direction * 3;
+
+        GUI::Position newPosition = untzLogoImage.getPosition(GUI::Position::Tag::CENTER);
+        newPosition.x = x;
+        untzLogoImage.moveToPosition(newPosition);
       }
-      else if (-100 >= x)
-      {
-        direction = 1;
-      }
-
-      x = x + direction * 5;
-
-      GUI::Position newPosition = guiRectangle2.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
-      newPosition.x = x;
-      guiRectangle2.moveToPosition(newPosition);
-
-      newPosition = guiImage2.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
-      newPosition.x = x;
-      guiImage2.moveToPosition(newPosition);
 
       guiContainer.draw(GUI::DrawHardware::DMA2D);
 
@@ -548,21 +423,7 @@ void initDriver(void)
     panic();
   }
 
-  EXTI::EXTIConfig extiLine1Config =
-  {
-    .isInterruptMasked = false,
-    .interruptTrigger  = EXTI::InterruptTrigger::RISING_EDGE,
-    .interruptCallback = [] (EXTI::EXTILine extiLine)
-      {
-        MFXSTM32L152::ErrorCode errorCode = g_mfx.runtimeTask();
-        if (MFXSTM32L152::ErrorCode::OK != errorCode)
-        {
-          panic();
-        }
-      }
-  };
-
-  EXTI::ErrorCode extiErrorCode = exti.configureEXTILine(EXTI::EXTILine::LINE1, extiLine1Config);
+  EXTI::ErrorCode extiErrorCode = exti.configureEXTILine(EXTI::EXTILine::LINE1, g_extiLine1Config);
   if (EXTI::ErrorCode::OK != extiErrorCode)
   {
     panic();
