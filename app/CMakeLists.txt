@@ -38,6 +38,13 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/FT3267TouchDevice.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
+    src/DSIHostConfig.cpp
+    src/FT3267Config.cpp
+    src/GPIOConfig.cpp
+    src/I2CConfig.cpp
+    src/LTDCConfig.cpp
+    src/MFXSTM32L152Config.cpp
+    src/RaydiumRM67160Config.cpp
     src/InterruptDispatcher.cpp
     src/Startup.cpp
     src/AppFrameBuffer.cpp)
