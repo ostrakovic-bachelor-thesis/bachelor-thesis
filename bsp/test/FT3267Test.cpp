@@ -34,10 +34,11 @@ public:
 
   FT3267::FT3267Config ft3267Config =
   {
-    .peripheralAddress                = FT3267_PERIPHERAL_ADDRESS,
-    .performPowerOn                   = true,
-    .setFT3267ResetLineToLowCallback  = dummyCallback,
-    .setFT3267ResetLineToHighCallback = dummyCallback
+    .peripheralAddress                          = FT3267_PERIPHERAL_ADDRESS,
+    .performPowerOn                             = true,
+    .setFT3267ResetLineToLowCallback            = dummyCallback,
+    .setFT3267ResetLineToHighCallback           = dummyCallback,
+    .mapFromTouchScreenToDisplayCoordinatesFunc = nullptr
   };
 
   uint64_t m_sysTickElapsedMs;
@@ -543,6 +544,72 @@ TEST_F(AFT3267, RuntimeTaskForwardsToTouchEventCallbackReadTouchPoint2InfoIfNumb
     ASSERT_THAT(touchEventInfo.touchPoints[1].position.x, Eq(180u));
     ASSERT_THAT(touchEventInfo.touchPoints[1].position.y, Eq(260u));
     ASSERT_THAT(touchEventInfo.touchPoints[1].event, Eq(FT3267::TouchEvent::CONTACT));
+  };
+  virtualFT3267.registerTouchEventCallback(callback, nullptr);
+
+  const FT3267::ErrorCode errorCode = virtualFT3267.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(FT3267::ErrorCode::OK));
+}
+
+TEST_F(AFT3267, RuntimeTaskDoesNotFailIfFunctionForMappingFromTouchScreenToDisplayCoordinatesIsNotProvidedAtInit)
+{
+  ft3267Config.mapFromTouchScreenToDisplayCoordinatesFunc = nullptr;
+  virtualFT3267.init(ft3267Config);
+  setNumberOfSimultaniouslyDetectedTouches(1u);
+  setTouchPoint1Information(310u, 250u, FT3267::TouchEvent::LIFT_UP);
+
+  const FT3267::ErrorCode errorCode = virtualFT3267.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(FT3267::ErrorCode::OK));
+}
+
+TEST_F(AFT3267, RuntimeTaskAppliesProvidedFunctionForMappingFromTouchScreenToDisplayCoordinatesOnTouchPoint1)
+{
+  ft3267Config.mapFromTouchScreenToDisplayCoordinatesFunc =
+    [](FT3267::TouchPosition touchPosition) -> FT3267::TouchPosition
+    {
+      return
+      {
+        .x = static_cast<uint16_t>(touchPosition.x - 20u),
+        .y = static_cast<uint16_t>(touchPosition.y - 20u)
+      };
+    };
+  virtualFT3267.init(ft3267Config);
+  expectOthersMemoryRead();
+  setNumberOfSimultaniouslyDetectedTouches(1u);
+  setTouchPoint1Information(310u, 250u, FT3267::TouchEvent::PRESS_DOWN);
+  auto callback = [](void *, FT3267::TouchEventInfo touchEventInfo)
+  {
+    ASSERT_THAT(touchEventInfo.touchPoints[0].position.x, Eq(310u - 20u));
+    ASSERT_THAT(touchEventInfo.touchPoints[0].position.y, Eq(250u - 20u));
+  };
+  virtualFT3267.registerTouchEventCallback(callback, nullptr);
+
+  const FT3267::ErrorCode errorCode = virtualFT3267.runtimeTask();
+
+  ASSERT_THAT(errorCode, Eq(FT3267::ErrorCode::OK));
+}
+
+TEST_F(AFT3267, RuntimeTaskAppliesProvidedFunctionForMappingFromTouchScreenToDisplayCoordinatesOnTouchPoint2)
+{
+  ft3267Config.mapFromTouchScreenToDisplayCoordinatesFunc =
+    [](FT3267::TouchPosition touchPosition) -> FT3267::TouchPosition
+    {
+      return
+      {
+        .x = static_cast<uint16_t>(touchPosition.x + 100u),
+        .y = static_cast<uint16_t>(touchPosition.y - 70u)
+      };
+    };
+  virtualFT3267.init(ft3267Config);
+  expectOthersMemoryRead();
+  setNumberOfSimultaniouslyDetectedTouches(2u);
+  setTouchPoint2Information(100u, 270u, FT3267::TouchEvent::PRESS_DOWN);
+  auto callback = [](void *, FT3267::TouchEventInfo touchEventInfo)
+  {
+    ASSERT_THAT(touchEventInfo.touchPoints[1].position.x, Eq(100u + 100u));
+    ASSERT_THAT(touchEventInfo.touchPoints[1].position.y, Eq(270u - 70u));
   };
   virtualFT3267.registerTouchEventCallback(callback, nullptr);
 

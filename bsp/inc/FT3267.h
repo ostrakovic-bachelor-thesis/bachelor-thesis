@@ -11,8 +11,6 @@ public:
 
   static constexpr uint8_t MAX_NUMBER_OF_TOUCHES = 2u;
 
-  typedef void (*CallbackFunc)(void);
-
   FT3267(I2C *I2CPtr, SysTick *sysTickPtr);
 
 #ifdef UNIT_TEST
@@ -26,14 +24,6 @@ public:
     OK       = 0u,
     BUSY     = 1u,
     INTERNAL = 2u
-  };
-
-  struct FT3267Config
-  {
-    uint16_t peripheralAddress; //!< FT3267 I2C address
-    bool performPowerOn;
-    CallbackFunc setFT3267ResetLineToLowCallback;
-    CallbackFunc setFT3267ResetLineToHighCallback;
   };
 
   enum class TouchEvent : uint8_t
@@ -62,7 +52,20 @@ public:
     TouchPoint touchPoints[MAX_NUMBER_OF_TOUCHES];
   };
 
+  typedef void (*CallbackFunc)(void);
+
+  typedef TouchPosition (*MapTouchPositionFunc)(TouchPosition);
+
   typedef void (*TouchEventCallbackFunc)(void*, TouchEventInfo);
+
+  struct FT3267Config
+  {
+    uint16_t peripheralAddress; //!< FT3267 I2C address
+    bool performPowerOn;
+    CallbackFunc setFT3267ResetLineToLowCallback;
+    CallbackFunc setFT3267ResetLineToHighCallback;
+    MapTouchPositionFunc mapFromTouchScreenToDisplayCoordinatesFunc;
+  };
 
 #ifdef UNIT_TEST
   virtual
@@ -111,6 +114,8 @@ private:
   };
 
   void powerOn(const FT3267Config &ft3267Config);
+
+  void mapToDisplayCoordinates(TouchPosition &touchPosition);
 
   ErrorCode setOperationMode(OperationMode operationMode);
 

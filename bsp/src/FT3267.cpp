@@ -57,11 +57,13 @@ FT3267::ErrorCode FT3267::runtimeTask(void)
   if ((ErrorCode::OK == errorCode) && (0u != touchEventInfo.touchCount))
   {
     errorCode = getTouchPoint1(touchEventInfo.touchPoints[0]);
+    mapToDisplayCoordinates(touchEventInfo.touchPoints[0].position);
   }
 
   if ((ErrorCode::OK == errorCode) && (1u < touchEventInfo.touchCount))
   {
     errorCode = getTouchPoint2(touchEventInfo.touchPoints[1]);
+    mapToDisplayCoordinates(touchEventInfo.touchPoints[1].position);
   }
 
   if (nullptr != m_callback)
@@ -70,6 +72,14 @@ FT3267::ErrorCode FT3267::runtimeTask(void)
   }
 
   return errorCode;
+}
+
+void FT3267::mapToDisplayCoordinates(TouchPosition &touchPosition)
+{
+  if (nullptr != m_configuration.mapFromTouchScreenToDisplayCoordinatesFunc)
+  {
+    touchPosition = m_configuration.mapFromTouchScreenToDisplayCoordinatesFunc(touchPosition);
+  }
 }
 
 FT3267::ErrorCode FT3267::getTouchCount(uint8_t &touchCount)

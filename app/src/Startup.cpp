@@ -18,8 +18,9 @@
 #include "StringBuilder.h"
 #include "USARTLogger.h"
 #include "GUIScene.h"
-#include "TouchEvent.h"
+#include "GUITouchEvent.h"
 #include "FT3267TouchDevice.h"
+#include "GUITouchController.h"
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
@@ -38,85 +39,6 @@
 //extern const uint8_t rimacImageBitmap[390 * 390 * 3 + 1];
 extern const uint8_t iconBitmap[100 * 100 * 3 + 1];
 extern const uint8_t rimacLogoBitmap[300 * 71 * 4];
-
-// TODO remove later
-class TouchEventLogger : public ITouchEventListener
-{
-public:
-
-  TouchEventLogger(USARTLogger &usartLogger):
-    m_usartLogger(usartLogger)
-  {}
-
-  void notify(const TouchEvent &touchEvent) override
-  {
-    const uint64_t ticks = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC).getTicks();
-    const IArrayList<TouchEvent::TouchPoint> &touchPoints = touchEvent.getTouchPoints();
-
-    m_stringBuilder.reset();
-    m_stringBuilder.append("systick: ");
-    m_stringBuilder.append(static_cast<uint32_t>(ticks));
-
-    switch (touchEvent.getType())
-    {
-      case TouchEvent::Type::TOUCH_START:
-      {
-        m_stringBuilder.append("\tTOUCH START\t");
-      }
-      break;
-
-      case TouchEvent::Type::TOUCH_MOVE:
-      {
-        m_stringBuilder.append("\tTOUCH MOVE\t");
-      }
-      break;
-
-      case TouchEvent::Type::TOUCH_STOP:
-      {
-        m_stringBuilder.append("\tTOUCH END\t");
-      }
-      break;
-    }
-
-    m_stringBuilder.append(" touch count: ");
-    m_stringBuilder.append(touchPoints.getSize());
-
-    if (0u < touchPoints.getSize())
-    {
-      TouchEvent::TouchPoint touchPoint;
-      touchPoints.getElement(0u, &touchPoint);
-      m_stringBuilder.append(" point1 x: ");
-      m_stringBuilder.append(touchPoint.x);
-      m_stringBuilder.append(" y: ");
-      m_stringBuilder.append(touchPoint.y);
-    }
-
-    if (1u < touchPoints.getSize())
-    {
-      TouchEvent::TouchPoint touchPoint;
-      touchPoints.getElement(1u, &touchPoint);
-      m_stringBuilder.append(" point2 x: ");
-      m_stringBuilder.append(touchPoint.x);
-      m_stringBuilder.append(" y: ");
-      m_stringBuilder.append(touchPoint.y);
-    }
-
-    m_stringBuilder.append("\r\n");
-  }
-
-  void sendLog(void)
-  {
-    m_usartLogger.write(m_stringBuilder);
-  }
-
-private:
-
-  USARTLogger &m_usartLogger;
-  StringBuilder<500u> m_stringBuilder;
-};
-
-bool g_isTouchEventInfoRefreshed = false;
-FT3267::TouchEventInfo g_touchEventInfo;
 
 MFXSTM32L152 g_mfx = MFXSTM32L152(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
@@ -228,12 +150,6 @@ void setDSIResetLineToHighCallback(void)
   {
     panic();
   }
-}
-
-void touchEventHandler(void *argumentPtr, FT3267::TouchEventInfo touchEventInfo)
-{
-  g_isTouchEventInfoRefreshed = true;
-  g_touchEventInfo = touchEventInfo;
 }
 
 void startup(void)
@@ -472,6 +388,49 @@ void startup(void)
   guiImage.init(imageDescription);
   guiImage2.init(image2Description);
 
+  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription =
+  {
+    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
+    {
+      static GUI::Point startTouchPoint;
+      static GUI::Position startPosition;
+
+      switch (touchEvent.getType())
+      {
+        case GUI::TouchEvent::Type::TOUCH_START:
+        {
+          startTouchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
+          startPosition   = guiRectangle.getPosition(GUI::Position::Tag::TOP_LEFT_CORNER);
+        }
+        break;
+
+        case GUI::TouchEvent::Type::TOUCH_MOVE:
+        case GUI::TouchEvent::Type::TOUCH_STOP:
+        {
+          const GUI::Point touchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
+          const GUI::Position newPosition =
+          {
+            .x   = startPosition.x + (touchPoint.x - startTouchPoint.x),
+            .y   = startPosition.y + (touchPoint.y - startTouchPoint.y),
+            .tag = startPosition.tag
+          };
+
+          guiRectangle.moveToPosition(newPosition);
+        }
+        break;
+
+        default:
+        {
+          // do nothing
+        }
+        break;
+      }
+    },
+    .argument = nullptr
+  };
+
+  guiImage.registerTouchEventCallback(touchEventCallbackDescription);
+
   guiContainer.addObject(&guiRectangle2, 5u);
   guiContainer.addObject(&guiRectangle1, 0u);
   guiContainer.addObject(&guiImage2, 10u);
@@ -653,8 +612,8 @@ void startup(void)
     }
   }
 
-  USARTLogger usartLogger(usart2);
-  TouchEventLogger touchEventLogger(usartLogger);
+  GUI::TouchController touchController;
+  touchController.registerContainer(&guiContainer);
 
   {
     FT3267::ErrorCode errorCode = g_ft3267.init(g_ft3267Config);
@@ -665,14 +624,16 @@ void startup(void)
   }
 
   {
-    FT3267TouchDevice::ErrorCode errorCode = g_ft3267TouchDevice.init();
-    if (FT3267TouchDevice::ErrorCode::OK != errorCode)
+    GUI::ErrorCode errorCode = g_ft3267TouchDevice.init();
+    if (GUI::ErrorCode::OK != errorCode)
     {
       panic();
     }
 
-    g_ft3267TouchDevice.registerTouchEventListener(&touchEventLogger);
+    g_ft3267TouchDevice.registerTouchEventListener(&touchController);
   }
+
+  USARTLogger usartLogger(usart2);
 
   uint8_t mfxId    = 0u;
   uint8_t ft3267Id = 0u;
@@ -693,7 +654,7 @@ void startup(void)
     }
   }
 
-  dsiHost.startTransferFromLTDC();
+  //dsiHost.startTransferFromLTDC();
 
   uint8_t brightness = 120u;
   bool ledState      = false;
@@ -720,8 +681,6 @@ void startup(void)
         panic();
       }
     }
-
-    touchEventLogger.sendLog();
 
     if (sysTick.getElapsedTimeInMs(timestamp) >= 25u)
     {
