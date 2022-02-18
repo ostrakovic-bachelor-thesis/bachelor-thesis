@@ -42,7 +42,7 @@ public:
 
 uint32_t AGPIO::expectedRegVal(uint32_t initialRegVal, GPIO::Pin pin, uint32_t valueSize, uint32_t value)
 {
-  return DriverTest::expectedRegVal(initialRegVal, static_cast<uint32_t>(pin), valueSize, value);
+  return DriverTest::expectedRegVal(initialRegVal, valueSize * static_cast<uint32_t>(pin), valueSize, value);
 }
 
 void AGPIO::SetUp()

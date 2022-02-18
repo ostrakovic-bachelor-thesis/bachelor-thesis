@@ -3,10 +3,9 @@
 
 uint32_t DriverTest::expectedRegVal(uint32_t initialRegVal, uint32_t position, uint32_t valueSize, uint32_t value)
 {
-  const uint32_t startBit = position * valueSize;
   const uint32_t mask = 0xFFFFFFFFu >> (sizeof(uint32_t) * 8u - valueSize);
 
-  return (initialRegVal & ~(mask << startBit)) | ((value & mask) << startBit);
+  return (initialRegVal & ~(mask << position)) | ((value & mask) << position);
 }
 
 void DriverTest::expectRegisterSetOnlyOnce(volatile uint32_t *registerPtr, uint32_t registerValue)

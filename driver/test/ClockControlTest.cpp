@@ -104,17 +104,17 @@ void AClockControl::setAPB2Prescaler(uint32_t prescaler)
 
 void AClockControl::setUSART1ClockSource(uint32_t clockSource)
 {
-  virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_USART1SEL_Pos) & RCC_CCIPR_USART1SEL_Msk;
+  virtualRCCPeripheral.CCIPR = (clockSource << RCC_CCIPR_USART1SEL_Pos) & RCC_CCIPR_USART1SEL_Msk;
 }
 
 void AClockControl::setUSART2ClockSource(uint32_t clockSource)
 {
-  virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_USART2SEL_Pos) & RCC_CCIPR_USART2SEL_Msk;
+  virtualRCCPeripheral.CCIPR = (clockSource << RCC_CCIPR_USART2SEL_Pos) & RCC_CCIPR_USART2SEL_Msk;
 }
 
 void AClockControl::setI2C1ClockSource(uint32_t clockSource)
 {
-  virtualRCCPeripheral.CCIPR= (clockSource << RCC_CCIPR_I2C1SEL_Pos) & RCC_CCIPR_I2C1SEL_Msk;
+  virtualRCCPeripheral.CCIPR = (clockSource << RCC_CCIPR_I2C1SEL_Pos) & RCC_CCIPR_I2C1SEL_Msk;
 }
 
 void AClockControl::setupPLLSAI2RDYReadings(void)

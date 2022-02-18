@@ -47,8 +47,15 @@ public:
   PowerControl virtualPowerControl = PowerControl(&virtualPWRPeripheral, &resetControlMock);
 
   uint32_t m_pvmo2Counter;
+  uint32_t m_vosfCounter;
 
   void setupSR2RegisterReadings(void);
+  void setDynamicVoltageScalingRangeToHighPerformanceNormal(PWR_TypeDef &virtualPWRPeripheral);
+  void setDynamicVoltageScalingRangeToHighPerformanceBoost(PWR_TypeDef &virtualPWRPeripheral);
+  void setDynamicVoltageScalingRangeToLowPower(PWR_TypeDef &virtualPWRPeripheral);
+  void assertThatLowPowerVoltageScalingRangeIsSelected(PowerControl &powerControl);
+  void assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(PowerControl &powerControl);
+  void assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(PowerControl &powerControl);
 
   void SetUp() override;
   void TearDown() override;
@@ -59,6 +66,7 @@ void APowerControl::SetUp()
   DriverTest::SetUp();
 
   m_pvmo2Counter = 1u;
+  m_vosfCounter  = 1u;
 
   // set values of virtual PWR peripheral to reset values
   virtualPWRPeripheral.CR1   = PWR_CR1_RESET_VALUE;
@@ -96,15 +104,80 @@ void APowerControl::TearDown()
 
 void APowerControl::setupSR2RegisterReadings(void)
 {
+  constexpr uint32_t PWR_SR2_VOSF_POSITION  = 10u;
+  constexpr uint32_t PWR_SR2_PVMO2_POSITION = 13u;
+
+  virtualPWRPeripheral.SR2 =
+    expectedRegVal(PWR_SR2_RESET_VALUE, PWR_SR2_PVMO2_POSITION, 1u, (((m_pvmo2Counter++) % 100u) != 0u));
+  virtualPWRPeripheral.SR2 =
+    expectedRegVal(virtualPWRPeripheral.SR2, PWR_SR2_VOSF_POSITION, 1u, (((m_vosfCounter++) % 100u) != 0u));
+
   ON_CALL(memoryAccessHook, getRegisterValue(&(virtualPWRPeripheral.SR2)))
     .WillByDefault([&](volatile const uint32_t *registerPtr)
     {
-      constexpr uint32_t PWR_SR2_PVMO2_POSITION = 13u;
       virtualPWRPeripheral.SR2 =
         expectedRegVal(PWR_SR2_RESET_VALUE, PWR_SR2_PVMO2_POSITION, 1u, (((m_pvmo2Counter++) % 100u) != 0u));
+      virtualPWRPeripheral.SR2 =
+        expectedRegVal(virtualPWRPeripheral.SR2, PWR_SR2_VOSF_POSITION, 1u, (((m_vosfCounter++) % 100u) != 0u));
 
       return virtualPWRPeripheral.SR2;
     });
+}
+
+void APowerControl::setDynamicVoltageScalingRangeToHighPerformanceNormal(PWR_TypeDef &virtualPWRPeripheral)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION     = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE         = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE1 = 0x1;
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION  = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE     = 0x1;
+  virtualPWRPeripheral.CR1 =
+    expectedRegVal(virtualPWRPeripheral.CR1, PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE1);
+  virtualPWRPeripheral.CR5 =
+    expectedRegVal(virtualPWRPeripheral.CR5, PWR_CR5_R1MODE_POSITION, 1u, PWR_CR5_R1MODE_VALUE);
+}
+
+void APowerControl::setDynamicVoltageScalingRangeToHighPerformanceBoost(PWR_TypeDef &virtualPWRPeripheral)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION     = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE         = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE1 = 0x1;
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION  = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE     = 0x0;
+  virtualPWRPeripheral.CR1 =
+    expectedRegVal(virtualPWRPeripheral.CR1, PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE1);
+  virtualPWRPeripheral.CR5 =
+    expectedRegVal(virtualPWRPeripheral.CR5, PWR_CR5_R1MODE_POSITION, 1u, PWR_CR5_R1MODE_VALUE);
+}
+
+void APowerControl::setDynamicVoltageScalingRangeToLowPower(PWR_TypeDef &virtualPWRPeripheral)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION     = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE         = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE2 = 0x2;
+  virtualPWRPeripheral.CR1 =
+    expectedRegVal(virtualPWRPeripheral.CR1, PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE2);
+}
+
+void APowerControl::assertThatLowPowerVoltageScalingRangeIsSelected(PowerControl &powerControl)
+{
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    powerControl.getDynamicVoltageScalingRange();
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::LOW_POWER));
+}
+
+void APowerControl::assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(PowerControl &powerControl)
+{
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    powerControl.getDynamicVoltageScalingRange();
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL));
+}
+
+void APowerControl::assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(PowerControl &powerControl)
+{
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    powerControl.getDynamicVoltageScalingRange();
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST));
 }
 
 
@@ -163,4 +236,195 @@ TEST_F(APowerControl, EnablePowerSupplyVDDIO2SetsIOSVBitInCR2RegisterWhenPVMO2Bi
 
   ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
   ASSERT_THAT(virtualPWRPeripheral.CR2, bitValueMatcher);
+}
+
+TEST_F(APowerControl, GetDynamicVoltageScalingRangeReturnsLowPowerIfVOSBitsInCR1RegisterAreSetToRange2)
+{
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    virtualPowerControl.getDynamicVoltageScalingRange();
+
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::LOW_POWER));
+}
+
+TEST_F(APowerControl, GetDynamicVoltageScalingRangeReturnsHighPerformanceNormalIfVOSBitsInCR1AreSetToRange1AndR1MODEBitInCR5IsOne)
+{
+  setDynamicVoltageScalingRangeToHighPerformanceNormal(virtualPWRPeripheral);
+
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    virtualPowerControl.getDynamicVoltageScalingRange();
+
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL));
+}
+
+TEST_F(APowerControl, GetDynamicVoltageScalingRangeReturnsHighPerformanceBoostlIfVOSBitsInCR1AreSetToRange1AndR1MODEBitInCR5IsZero)
+{
+  setDynamicVoltageScalingRangeToHighPerformanceBoost(virtualPWRPeripheral);
+
+  const PowerControl::DynamicVoltageScalingRange dynamicVoltageScalingRange =
+    virtualPowerControl.getDynamicVoltageScalingRange();
+
+  ASSERT_THAT(dynamicVoltageScalingRange, Eq(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST));
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToLowPowerSetsVOSBitsInCR1RegisterToRange2Value)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE2 = 0x2;
+  auto bitValueMatcher =
+    BitsHaveValue(PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE2);
+  expectRegisterSetOnlyOnce(&(virtualPWRPeripheral.CR1), bitValueMatcher);
+  doesNotExpectRegisterSet(&(virtualPWRPeripheral.CR5), _);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::LOW_POWER);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatLowPowerVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceNormalDoesNothingIfItIsAlreadyInThatRange)
+{
+  setDynamicVoltageScalingRangeToHighPerformanceNormal(virtualPWRPeripheral);
+  expectNoRegisterToChange();
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceBoostDoesNothingIfItIsAlreadyInThatRange)
+{
+  setDynamicVoltageScalingRangeToHighPerformanceBoost(virtualPWRPeripheral);
+  expectNoRegisterToChange();
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceNormalJustSetsR1MODEBitInCR5ToOneIfItIsInHighPerformanceBoostRange)
+{
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE    = 0x1;
+  auto bitValueMatcher = BitHasValue(PWR_CR5_R1MODE_POSITION, PWR_CR5_R1MODE_VALUE);
+  setDynamicVoltageScalingRangeToHighPerformanceBoost(virtualPWRPeripheral);
+  expectRegisterSetOnlyOnce(&(virtualPWRPeripheral.CR5), bitValueMatcher);
+  doesNotExpectRegisterSet(&(virtualPWRPeripheral.CR1), _);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceBoostJustSetsR1MODEBitInCR5ToZeroIfItIsInHighPerformanceNormalRange)
+{
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE    = 0x0;
+  auto bitValueMatcher = BitHasValue(PWR_CR5_R1MODE_POSITION, PWR_CR5_R1MODE_VALUE);
+  setDynamicVoltageScalingRangeToHighPerformanceNormal(virtualPWRPeripheral);
+  expectRegisterSetOnlyOnce(&(virtualPWRPeripheral.CR5), bitValueMatcher);
+  doesNotExpectRegisterSet(&(virtualPWRPeripheral.CR1), _);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceNormalFirstSetsR1MODEBitInCR5ToOneIfItIsInLowPowerRange)
+{
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE    = 0x1;
+  auto bitValueMatcher = BitHasValue(PWR_CR5_R1MODE_POSITION, PWR_CR5_R1MODE_VALUE);
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualPWRPeripheral.CR5), bitValueMatcher);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceBoostFirstSetsR1MODEBitInCR5ToZeroIfItIsInLowPowerRange)
+{
+  constexpr uint32_t PWR_CR5_R1MODE_POSITION = 8u;
+  constexpr uint32_t PWR_CR5_R1MODE_VALUE    = 0x0;
+  auto bitValueMatcher = BitHasValue(PWR_CR5_R1MODE_POSITION, PWR_CR5_R1MODE_VALUE);
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualPWRPeripheral.CR5), bitValueMatcher);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceNormalSetsVOSBitsInCR1ToRange1IfItIsInLowPowerRange)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE1 = 0x1;
+  auto bitsValueMatcher = BitsHaveValue(PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE1);
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualPWRPeripheral.CR1), bitsValueMatcher);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceNormalVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeToHighPerformanceBoostSetsVOSBitsInCR1ToRange1IfItIsInLowPowerRange)
+{
+  constexpr uint32_t PWR_CR1_VOS_POSITION = 9u;
+  constexpr uint32_t PWR_CR1_VOS_SIZE = 2u;
+  constexpr uint32_t PWR_CR1_VOS_VALUE_RANGE1 = 0x1;
+  auto bitsValueMatcher = BitsHaveValue(PWR_CR1_VOS_POSITION, PWR_CR1_VOS_SIZE, PWR_CR1_VOS_VALUE_RANGE1);
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualPWRPeripheral.CR1), bitsValueMatcher);
+
+  const PowerControl::ErrorCode errorCode =
+    virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+  ASSERT_THAT(errorCode, Eq(PowerControl::ErrorCode::OK));
+  assertThatHighPerformanceBoostVoltageScalingRangeIsSelected(virtualPowerControl);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeWhenSwitchingFromLowPowerToHighPerformanceNormalWaitsForVOSFInSR2ToBecomeZero)
+{
+  constexpr uint32_t PWR_SR2_VOSF_POSITION = 10u;
+  constexpr uint32_t EXPECTED_PWR_SR2_VOSF_VALUE = 0x0;
+  setupSR2RegisterReadings();
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  auto bitValueMatcher = BitHasValue(PWR_SR2_VOSF_POSITION, EXPECTED_PWR_SR2_VOSF_VALUE);
+
+  virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_NORMAL);
+
+  ASSERT_THAT(virtualPWRPeripheral.SR2, bitValueMatcher);
+}
+
+TEST_F(APowerControl, SetDynamicVoltageScalingRangeWhenSwitchingFromLowPowerToHighPerformanceBoostWaitsForVOSFInSR2ToBecomeZero)
+{
+  constexpr uint32_t PWR_SR2_VOSF_POSITION = 10u;
+  constexpr uint32_t EXPECTED_PWR_SR2_VOSF_VALUE = 0x0;
+  setupSR2RegisterReadings();
+  setDynamicVoltageScalingRangeToLowPower(virtualPWRPeripheral);
+  auto bitValueMatcher = BitHasValue(PWR_SR2_VOSF_POSITION, EXPECTED_PWR_SR2_VOSF_VALUE);
+
+  virtualPowerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+  ASSERT_THAT(virtualPWRPeripheral.SR2, bitValueMatcher);
 }

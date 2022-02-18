@@ -58,7 +58,6 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
                    src/startup_stm32l4r9xx.s
                    src/system_stm32l4xx.c
                    src/syscalls.c
-                   src/sysclock.c
                    src/main.c
                    bitmaps/brightness.c
                    bitmaps/untzLogo.c

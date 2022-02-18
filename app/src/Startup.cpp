@@ -58,8 +58,6 @@ FT3267TouchDevice g_ft3267TouchDevice(g_ft3267);
 
 uint8_t g_brightness = 140u;
 
-extern "C" void initSYSCLOCK(void);
-
 void panic(void)
 {
   volatile bool loopWhileTrue = true;
@@ -336,7 +334,79 @@ void initDriver(void)
   DSIHost &dsiHost = DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC);
   InterruptController &interruptController = DriverManager::getInstance(DriverManager::InterruptControllerInstance::GENERIC);
 
-  initSYSCLOCK();
+  PowerControl::ErrorCode powerControlErrorCode = powerControl.init();
+  if (PowerControl::ErrorCode::OK != powerControlErrorCode)
+  {
+    panic();
+  }
+
+  {
+    uint32_t PLLM = 1;
+	  uint32_t PLLN = 15;
+	  uint32_t PLLR = 2;
+	  uint32_t PLLP = 7;
+	  uint32_t PLLQ = 4;
+	  uint32_t PLLSRC = (RCC_PLLCFGR_PLLSRC_HSE);
+
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CR |= (RCC_CR_HSEON);
+	  // wait until ready
+	  while((reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CR & (RCC_CR_HSERDY)) == 0);
+
+    // set latency to 0WS
+    FLASH->ACR &= ~(FLASH_ACR_LATENCY);
+    FLASH->ACR |= (FLASH_ACR_LATENCY_0WS);
+
+	  // Power enable
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->APB1ENR1 |= (RCC_APB1ENR1_PWREN);
+
+    powerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+
+    // Select the Voltage Range 1 (1.8 V)
+    reinterpret_cast<PWR_TypeDef*>(Peripheral::PWR)->CR1 = (PWR_CR1_VOS_0);
+    // Wait Until the Voltage Regulator is ready
+    while ((reinterpret_cast<PWR_TypeDef*>(Peripheral::PWR)->SR2 & (PWR_SR2_VOSF)) == (PWR_SR2_VOSF))
+    {
+      // do nothing
+    }
+
+	  // configure clock prescalers
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->PLLCFGR  =
+      ((PLLM-1)<<4)|(PLLN<<8)|(PLLSRC)|(((PLLQ>>1)-1)<<21)|(((PLLR>>1)-1)<<25)|(PLLP<<27);
+
+	  // Enable the main PLL
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CR |= (RCC_CR_PLLON);
+
+    // Enable PLL System Clock output
+    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->PLLCFGR |= (RCC_PLLCFGR_PLLREN);
+
+    // Wait till PLL is ready
+	  while((reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CR & (RCC_CR_PLLRDY)) == 0);
+
+
+    // 3.
+	  //// set latency to 4WS
+    FLASH->ACR |= (FLASH_ACR_LATENCY_4WS);
+
+	  // HCLK Configuration
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_HPRE);
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_HPRE_DIV1);
+
+	  // SYSCLK Configuration -> PLLCLK
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_SW);
+	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_SW_PLL);
+
+	  // wait until PLL is ready
+	  while((reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR & RCC_CFGR_SWS) != (RCC_CFGR_SWS_PLL));
+
+	  // PCLK1 Configuration
+    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_PPRE1);
+    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_PPRE1_DIV1);
+
+	  // PCLK2 Configuration
+    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_PPRE2);
+    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_PPRE2_DIV1);
+  }
+
 
   ClockControl::PLLSAI2Configuration pllSai2Config =
   {
@@ -359,12 +429,6 @@ void initDriver(void)
 
   SysTick::ErrorCode sysTickErrorCode = sysTick.init(g_sysTickConfig);
   if (SysTick::ErrorCode::OK != sysTickErrorCode)
-  {
-    panic();
-  }
-
-  PowerControl::ErrorCode powerControlErrorCode = powerControl.init();
-  if (PowerControl::ErrorCode::OK != powerControlErrorCode)
   {
     panic();
   }

@@ -25,6 +25,13 @@ public:
     CAN_NOT_TURN_ON_PERIPHERAL_CLOCK = 2u
   };
 
+  enum class DynamicVoltageScalingRange : uint8_t
+  {
+    LOW_POWER               = 0u,
+    HIGH_PERFORMANCE_NORMAL = 1u,
+    HIGH_PERFORMANCE_BOOST  = 2u
+  };
+
 #ifdef UNIT_TEST
   virtual
 #endif // #ifdef UNIT_TEST
@@ -34,6 +41,16 @@ public:
   virtual
 #endif // #ifdef UNIT_TEST
   ErrorCode enablePowerSupplyVDDIO2(void);
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  DynamicVoltageScalingRange getDynamicVoltageScalingRange(void) const;
+
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode setDynamicVoltageScalingRange(DynamicVoltageScalingRange range);
 
   /**
    * @brief   Method gets peripheral tag of the PowerControl instance.
@@ -52,8 +69,16 @@ private:
   ErrorCode enablePeripheralClock(void);
 
   void enableVDDIO2Monitoring(void);
-  bool isVDDIO2AboveThreshold(void);
+  bool isVDDIO2AboveThreshold(void) const;
   void validateVDDIO2PowerSupply(void);
+
+  bool isLowPowerDynamicVoltageScalingRangeActive(void) const;
+  bool isHighPerformanceBoostModeActive(void) const;
+  void setLowPowerDynamicVoltageScalingRange(void);
+  void setHighPowerDynamicVoltageScalingRange(void);
+  void setHighPowerNormalDynamicVoltageScalingRange(void);
+  void setHighPowerBoostDynamicVoltageScalingRange(void);
+  bool isSelectedDynamicVoltageScalingRangeReady(void) const;
 
   //! Pointer to PWR peripheral
   PWR_TypeDef *m_PWRPeripheralPtr;
