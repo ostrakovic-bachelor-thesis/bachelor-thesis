@@ -142,7 +142,8 @@ inline void PowerControl::setLowPowerDynamicVoltageScalingRange(void)
   constexpr uint8_t PWR_CR1_VOS_NUM_OF_BITS = 2u;
   constexpr uint8_t PWR_CR1_VOS_RANGE2      = 0b10;
 
-  RegisterUtility<uint32_t>::setBitsInRegister(&(m_PWRPeripheralPtr->CR1),
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_PWRPeripheralPtr->CR1),
     PWR_CR1_VOS_POSITION,
     PWR_CR1_VOS_NUM_OF_BITS,
     PWR_CR1_VOS_RANGE2);
@@ -154,7 +155,8 @@ inline void PowerControl::setHighPowerDynamicVoltageScalingRange(void)
   constexpr uint8_t PWR_CR1_VOS_NUM_OF_BITS = 2u;
   constexpr uint8_t PWR_CR1_VOS_RANGE1      = 0b01;
 
-  RegisterUtility<uint32_t>::setBitsInRegister(&(m_PWRPeripheralPtr->CR1),
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_PWRPeripheralPtr->CR1),
     PWR_CR1_VOS_POSITION,
     PWR_CR1_VOS_NUM_OF_BITS,
     PWR_CR1_VOS_RANGE1);

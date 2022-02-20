@@ -15,6 +15,7 @@
 #include "SystemConfig.h"
 #include "LTDC.h"
 #include "DSIHost.h"
+#include "FlashController.h"
 #include <cstdint>
 
 
@@ -102,6 +103,11 @@ public:
     GENERIC = 0u
   };
 
+  enum class FlashControllerInstance : uint8_t
+  {
+    GENERIC = 0u
+  };
+
   inline static GPIO& getInstance(GPIOInstance gpioInstance)
   {
     return s_gpioDriverInstance[static_cast<uint8_t>(gpioInstance)];
@@ -167,6 +173,11 @@ public:
     return s_dsiHostDriverInstance;
   }
 
+  inline static FlashController& getInstance(FlashControllerInstance flashControllerInstance)
+  {
+    return s_flashControllerDriverInstance;
+  }
+
 private:
 
   //! TODO
@@ -208,6 +219,8 @@ private:
   //! TODO
   static DSIHost s_dsiHostDriverInstance;
 
+  //! TODO
+  static FlashController s_flashControllerDriverInstance;
 };
 
 #endif // #ifndef DRIVER_MANAGER_H

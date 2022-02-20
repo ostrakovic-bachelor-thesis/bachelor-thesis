@@ -105,6 +105,10 @@
 #undef LTDC
 #endif // #ifdef LTDC
 
+#ifdef FLASH
+#undef FLASH
+#endif // #ifdef FLASH
+
 
 enum class Peripheral : uintptr_t
 {
@@ -133,6 +137,7 @@ enum class Peripheral : uintptr_t
   SYSCFG  = SYSCFG_BASE,
   LTDC    = LTDC_BASE,
   DSIHOST = DSI_BASE,
+  FLASH   = FLASH_R_BASE,
 
 #ifdef UNIT_TEST
   INVALID_PERIPHERAL = 0u,

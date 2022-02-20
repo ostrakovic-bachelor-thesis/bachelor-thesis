@@ -59,7 +59,7 @@ void AnUSART::SetUp()
   m_txCounter  = 1u;
   m_messageIdx = 0u;
 
-  // set values of virtual RCC peripheral to reset values
+  // set values of virtual USART peripheral to reset values
   virtualUSARTPeripheral.CR1   = USART_CR1_RESET_VALUE;
   virtualUSARTPeripheral.CR2   = USART_CR2_RESET_VALUE;
   virtualUSARTPeripheral.CR3   = USART_CR3_RESET_VALUE;

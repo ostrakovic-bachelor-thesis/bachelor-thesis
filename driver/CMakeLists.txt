@@ -29,6 +29,7 @@ set(BachelorThesis_driver_component_cpp_sources
     src/EXTI.cpp
     src/InterruptController.cpp
     src/DSIHost.cpp
+    src/FlashController.cpp
     src/DriverManager.cpp)
 
 set(BachelorThesis_driver_test_cpp_sources
@@ -46,6 +47,7 @@ set(BachelorThesis_driver_test_cpp_sources
     test/EXTITest.cpp
     test/PowerControlTest.cpp
     test/DSIHostTest.cpp
+    test/FlashControllerTest.cpp
     test/DriverManagerTest.cpp)
 
 add_executable(test ${BachelorThesis_utility_component_cpp_sources}

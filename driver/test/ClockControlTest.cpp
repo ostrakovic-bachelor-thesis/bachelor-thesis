@@ -14,18 +14,30 @@ class AClockControl : public DriverTest
 public:
 
   //! Based on real reset values for RCC register (source STM32L4R9 reference manual)
-  static constexpr uint32_t RCC_AHB1ENR_RESET_VALUE  = 0x00000100;
-  static constexpr uint32_t RCC_AHB2ENR_RESET_VALUE  = 0x00000000;
-  static constexpr uint32_t RCC_AHB3ENR_RESET_VALUE  = 0x00000000;
-  static constexpr uint32_t RCC_APB1ENR1_RESET_VALUE = 0x00000400;
-  static constexpr uint32_t RCC_APB1ENR2_RESET_VALUE = 0x00000000;
-  static constexpr uint32_t RCC_APB2ENR_RESET_VALUE  = 0x00000000;
+  static constexpr uint32_t RCC_CR_RESET_VALUE          = 0x00000063;
+  static constexpr uint32_t RCC_ICSCR_RESET_VALUE       = 0x40000000;
+  static constexpr uint32_t RCC_CFGR_RESET_VALUE        = 0x00000000;
+  static constexpr uint32_t RCC_PLLCFGR_RESET_VALUE     = 0x00001000;
+  static constexpr uint32_t RCC_PLLSAI1CFGR_RESET_VALUE = 0x00001000;
+  static constexpr uint32_t RCC_PLLSAI2CFGR_RESET_VALUE = 0x00001000;
+  static constexpr uint32_t RCC_CIER_RESET_VALUE        = 0x00000000;
+  static constexpr uint32_t RCC_CIFR_RESET_VALUE        = 0x00000000;
+  static constexpr uint32_t RCC_CICR_RESET_VALUE        = 0x00000000;
+  static constexpr uint32_t RCC_CCIPR_RESET_VALUE       = 0x00000000;
+  static constexpr uint32_t RCC_BDCR_RESET_VALUE        = 0x00000000;
+  static constexpr uint32_t RCC_CSR_RESET_VALUE         = 0x0C000600;
+  static constexpr uint32_t RCC_CRRCR_RESET_VALUE       = 0x00000000;
+  static constexpr uint32_t RCC_CCIPR2_RESET_VALUE      = 0x00000000;
 
   RCC_TypeDef virtualRCCPeripheral;
   ClockControl virtualClockControl = ClockControl(&virtualRCCPeripheral);
   ClockControl::PLLSAI2Configuration pllSai2Config;
+  ClockControl::PLLConfiguration pllConfig;
 
+  uint32_t m_PLLReadyCounter;
   uint32_t m_PLLSAI2ReadyCounter;
+  uint32_t m_HSERDYReadyCounter;
+  uint32_t m_SWSSystemClockSourceSelectedCounter;
 
   void setPLL(uint32_t PLLM, uint32_t PLLN, uint32_t PLLR, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLSRC);
   void setMSI(uint32_t msiRange, bool isMsiRangeInCR);
@@ -37,7 +49,11 @@ public:
   void setUSART2ClockSource(uint32_t clockSource);
   void setI2C1ClockSource(uint32_t clockSource);
   void setupPLLSAI2RDYReadings(void);
+  void setupHSERDYReadings(void);
   void expectPLLSAI2RDYToBeZeroBeforeWrittingToAnyRegisterOtherThanCR(void);
+  void expectPLLRDYToBeZeroBeforeWrittingToAnyRegisterOtherThanCR(void);
+  void setupPLLRDYReadings(void);
+  void setupSWSReadings(uint8_t expectedSWSValue);
 
   void SetUp() override;
   void TearDown() override;
@@ -47,9 +63,26 @@ void AClockControl::SetUp()
 {
   DriverTest::SetUp();
 
-  m_PLLSAI2ReadyCounter = 0u;
+  m_PLLReadyCounter                     = 0u;
+  m_PLLSAI2ReadyCounter                 = 0u;
+  m_HSERDYReadyCounter                  = 0u;
+  m_SWSSystemClockSourceSelectedCounter = 0u;
 
   // set values of virtual RCC peripheral to reset values
+  virtualRCCPeripheral.CR          = RCC_CR_RESET_VALUE;
+  virtualRCCPeripheral.ICSCR       = RCC_ICSCR_RESET_VALUE;
+  virtualRCCPeripheral.CFGR        = RCC_CFGR_RESET_VALUE;
+  virtualRCCPeripheral.PLLCFGR     = RCC_PLLCFGR_RESET_VALUE;
+  virtualRCCPeripheral.PLLSAI1CFGR = RCC_PLLSAI1CFGR_RESET_VALUE;
+  virtualRCCPeripheral.PLLSAI2CFGR = RCC_PLLSAI2CFGR_RESET_VALUE;
+  virtualRCCPeripheral.CIER        = RCC_CIER_RESET_VALUE;
+  virtualRCCPeripheral.CIFR        = RCC_CIFR_RESET_VALUE;
+  virtualRCCPeripheral.CICR        = RCC_CICR_RESET_VALUE;
+  virtualRCCPeripheral.CCIPR       = RCC_CCIPR_RESET_VALUE;
+  virtualRCCPeripheral.BDCR        = RCC_BDCR_RESET_VALUE;
+  virtualRCCPeripheral.CSR         = RCC_CSR_RESET_VALUE;
+  virtualRCCPeripheral.CRRCR       = RCC_CRRCR_RESET_VALUE;
+  virtualRCCPeripheral.CCIPR2      = RCC_CCIPR2_RESET_VALUE;
 }
 
 void AClockControl::TearDown()
@@ -149,6 +182,83 @@ void AClockControl::expectPLLSAI2RDYToBeZeroBeforeWrittingToAnyRegisterOtherThan
       }
     });
 }
+
+void AClockControl::setupHSERDYReadings(void)
+{
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualRCCPeripheral.CR)))
+    .WillByDefault([&](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t RCC_CR_HSERDY_POSITION = 17u;
+      const bool isHSEReady = (20u < m_HSERDYReadyCounter) && (40u > m_HSERDYReadyCounter);
+
+      ++m_HSERDYReadyCounter;
+
+      virtualRCCPeripheral.CR =
+        expectedRegVal(virtualRCCPeripheral.CR, RCC_CR_HSERDY_POSITION, 1u, isHSEReady);
+
+      return virtualRCCPeripheral.CR;
+    });
+}
+
+void AClockControl::expectPLLRDYToBeZeroBeforeWrittingToAnyRegisterOtherThanCR(void)
+{
+  EXPECT_CALL(memoryAccessHook, setRegisterValue(_, Matcher<uint32_t>(_)))
+    .WillRepeatedly([&](volatile void *registerPtr, uint32_t registerValue)
+    {
+      if (registerPtr != &(virtualRCCPeripheral.CR))
+      {
+        constexpr uint32_t RCC_CR_PLLRDY_POSITION = 25;
+        constexpr uint32_t EXPECTED_RCC_CR_PLLRDY_VALUE = 0x0;
+        auto bitValueMatcher = BitHasValue(RCC_CR_PLLRDY_POSITION, EXPECTED_RCC_CR_PLLRDY_VALUE);
+
+        ASSERT_THAT(virtualRCCPeripheral.CR, bitValueMatcher);
+      }
+    });
+}
+
+void AClockControl::setupPLLRDYReadings(void)
+{
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualRCCPeripheral.CR)))
+    .WillByDefault([&](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t RCC_CR_PLLRDY_POSITION = 25u;
+      const bool isPLLLocked = (20u > m_PLLReadyCounter) || (40u < m_PLLReadyCounter);
+
+      ++m_PLLReadyCounter;
+
+      virtualRCCPeripheral.CR =
+        expectedRegVal(virtualRCCPeripheral.CR, RCC_CR_PLLRDY_POSITION, 1u, isPLLLocked);
+
+      return virtualRCCPeripheral.CR;
+    });
+}
+
+void AClockControl::setupSWSReadings(uint8_t expectedSWSValue)
+{
+  ON_CALL(memoryAccessHook, getRegisterValue(&(virtualRCCPeripheral.CFGR)))
+    .WillByDefault([&, expectedSWSValue](volatile const uint32_t *registerPtr)
+    {
+      constexpr uint32_t RCC_CFGR_SWS_POSITION = 2u;
+      constexpr uint32_t RCC_CFGR_SWS_SIZE     = 2u;
+
+      uint8_t systemClockSource = expectedSWSValue;
+      if (m_SWSSystemClockSourceSelectedCounter < 10u)
+      {
+        systemClockSource = (systemClockSource + 1u) % (1 << RCC_CFGR_SWS_SIZE);
+      }
+
+      ++m_SWSSystemClockSourceSelectedCounter;
+
+      virtualRCCPeripheral.CFGR = expectedRegVal(
+        virtualRCCPeripheral.CFGR,
+        RCC_CFGR_SWS_POSITION,
+        RCC_CFGR_SWS_SIZE,
+        systemClockSource);
+
+      return virtualRCCPeripheral.CFGR;
+    });
+}
+
 
 TEST_F(AClockControl, GetsHSIClockFrequency)
 {
@@ -343,7 +453,7 @@ TEST_F(AClockControl, GetsI2C1ClockFrequency)
   ASSERT_THAT(clockFrequency, Eq(EXPECTED_I2C1_CLOCK_FREQUENCY));
 }
 
-TEST_F(AClockControl, SetsPLLClockSource)
+TEST_F(AClockControl, SetPLLClockSourceWorksAsExpected)
 {
   constexpr uint32_t RCC_PLLCFGR_PLLSRC_POSITION = 0u;
   constexpr uint32_t RCC_PLLCFGR_PLLSRC_SIZE     = 2u;
@@ -359,12 +469,55 @@ TEST_F(AClockControl, SetsPLLClockSource)
   ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
 }
 
-TEST_F(AClockControl, SetsPLLClockSourceFailsIfGivenClockCanNotBeUsedAsPLLClockSource)
+TEST_F(AClockControl, SetSystemClockSourceWorksAsExpected)
+{
+  constexpr uint32_t RCC_CFGR_SW_POSITION = 0u;
+  constexpr uint32_t RCC_CFGR_SW_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_RCC_CFGR_SW_VALUE = 0b11;
+  setupSWSReadings(EXPECTED_RCC_CFGR_SW_VALUE);
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_CFGR_SW_POSITION, RCC_CFGR_SW_SIZE, EXPECTED_RCC_CFGR_SW_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.CFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockSource(ClockControl::Clock::SYSTEM_CLOCK, ClockControl::Clock::PLL);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, SetSystemClockSourceWaitsForMCUToStartUseGivenClockClockAsSystemClockSource)
+{
+  constexpr uint32_t RCC_CFGR_SWS_POSITION = 2u;
+  constexpr uint32_t RCC_CFGR_SWS_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_RCC_CFGR_SWS_VALUE = 0b10;
+  setupSWSReadings(EXPECTED_RCC_CFGR_SWS_VALUE);
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_CFGR_SWS_POSITION, RCC_CFGR_SWS_SIZE, EXPECTED_RCC_CFGR_SWS_VALUE);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockSource(ClockControl::Clock::SYSTEM_CLOCK, ClockControl::Clock::HSE);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, SetPLLClockSourceFailsIfGivenClockCanNotBeUsedAsPLLClockSource)
 {
   void expectNoRegisterToChange();
 
   const ClockControl::ErrorCode errorCode =
     virtualClockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::LSE);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::INVALID_CLOCK_SOURCE));
+}
+
+TEST_F(AClockControl, SetSystemClockSourceFailsIfGivenClockCanNotBeUsedAsSystemClockSource)
+{
+  void expectNoRegisterToChange();
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockSource(ClockControl::Clock::SYSTEM_CLOCK, ClockControl::Clock::LSE);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::INVALID_CLOCK_SOURCE));
 }
@@ -572,6 +725,228 @@ TEST_F(AClockControl, ConfigurePLLSAI2WaitsForPLLSAI2ToTurnOnBeforeReturning)
   auto bitValueMatcher = BitHasValue(RCC_CR_PLLSAI2RDY_POSITION, EXPECTED_RCC_CR_PLLSAI2RDY_VALUE);
 
   const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllSai2Config);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CR, bitValueMatcher);
+}
+
+TEST_F(AClockControl, EnableClockFailsIfGivenClockCanNotBeDirectlyEnabled)
+{
+  const ClockControl::ErrorCode errorCode = virtualClockControl.enableClock(ClockControl::Clock::SYSTEM_CLOCK);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::CLOCK_CAN_NOT_BE_DIRECTLY_ENABLED));
+}
+
+TEST_F(AClockControl, EnableHSEClockSetsHSEONBitInCRRegister)
+{
+  constexpr uint32_t RCC_CR_HSEON_POSITION = 16u;
+  constexpr uint32_t EXPECTED_RCC_CR_HSEON_VALUE = 0x1;
+  setupHSERDYReadings();
+  auto bitValueMatcher = BitHasValue(RCC_CR_HSEON_POSITION, EXPECTED_RCC_CR_HSEON_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.CR), bitValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.enableClock(ClockControl::Clock::HSE);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+}
+
+TEST_F(AClockControl, EnableHSEClockWaitsForHSERDYFlagFromCRRegisterToBecomeTrueBeforeReturning)
+{
+  constexpr uint32_t RCC_CR_HSERDY_POSITION = 17u;
+  constexpr uint32_t EXPECTED_RCC_CR_HSERDY_VALUE = 0x1;
+  setupHSERDYReadings();
+  auto bitValueMatcher = BitHasValue(RCC_CR_HSERDY_POSITION, EXPECTED_RCC_CR_HSERDY_VALUE);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.enableClock(ClockControl::Clock::HSE);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CR, bitValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLMBitsInPLLCFGRRegisterAccordingToInputClockDivider)
+{
+  constexpr uint8_t PLL_INPUT_CLOCK_DIVIDER = 8u;
+  constexpr uint32_t RCC_PLLCFGR_PLLM_POSITION = 4u;
+  constexpr uint32_t RCC_PLLCFGR_PLLM_SIZE     = 4u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLM_VALUE = PLL_INPUT_CLOCK_DIVIDER - 1u;
+  setupPLLRDYReadings();
+  pllConfig.inputClockDivider = PLL_INPUT_CLOCK_DIVIDER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLCFGR_PLLM_POSITION,
+    RCC_PLLCFGR_PLLM_SIZE,
+    EXPECTED_RCC_PLLCFGR_PLLM_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLNBitsInPLLCFGRRegisterAccordingToInputClockMultiplier)
+{
+  constexpr uint8_t PLL_INPUT_CLOCK_MULTIPLIER = 60;
+  constexpr uint32_t RCC_PLLCFGR_PLLN_POSITION = 8u;
+  constexpr uint32_t RCC_PLLCFGR_PLLN_SIZE     = 7u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLN_VALUE = PLL_INPUT_CLOCK_MULTIPLIER;
+  setupPLLRDYReadings();
+  pllConfig.inputClockMultiplier = PLL_INPUT_CLOCK_MULTIPLIER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLCFGR_PLLN_POSITION,
+    RCC_PLLCFGR_PLLN_SIZE,
+    EXPECTED_RCC_PLLCFGR_PLLN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLRBitsInPLLCFGRRegisterAccordingToOutputClockRDivider)
+{
+  constexpr uint8_t PLL_OUTPUT_CLOCK_R_DIVIDER = 6u;
+  constexpr uint32_t RCC_PLLCFGR_PLLR_POSITION = 25u;
+  constexpr uint32_t RCC_PLLCFGR_PLLR_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLR_VALUE = (PLL_OUTPUT_CLOCK_R_DIVIDER >> 1u) - 1u;
+  setupPLLRDYReadings();
+  pllConfig.outputClockRDivider = PLL_OUTPUT_CLOCK_R_DIVIDER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLCFGR_PLLR_POSITION,
+    RCC_PLLCFGR_PLLR_SIZE,
+    EXPECTED_RCC_PLLCFGR_PLLR_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLQBitsInPLLSAI2CFGRRegisterAccordingToOutputClockQDivider)
+{
+  constexpr uint8_t PLL_OUTPUT_CLOCK_Q_DIVIDER = 4u;
+  constexpr uint32_t RCC_PLLCFGR_PLLQ_POSITION = 21u;
+  constexpr uint32_t RCC_PLLCFGR_PLLQ_SIZE     = 2u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLQ_VALUE = (PLL_OUTPUT_CLOCK_Q_DIVIDER >> 1u) - 1u;
+  setupPLLRDYReadings();
+  pllConfig.outputClockQDivider = PLL_OUTPUT_CLOCK_Q_DIVIDER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLCFGR_PLLQ_POSITION,
+    RCC_PLLCFGR_PLLQ_SIZE,
+    EXPECTED_RCC_PLLCFGR_PLLQ_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLPDIVBitsInPLLCFGRRegisterAccordingToOutputClockPDivider)
+{
+  constexpr uint8_t PLL_OUTPUT_CLOCK_P_DIVIDER = 29u;
+  constexpr uint32_t RCC_PLLCFGR_PLLPDIV_POSITION = 27u;
+  constexpr uint32_t RCC_PLLCFGR_PLLPDIV_SIZE     = 5u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLPDIV_VALUE = PLL_OUTPUT_CLOCK_P_DIVIDER;
+  setupPLLRDYReadings();
+  pllConfig.outputClockPDivider = PLL_OUTPUT_CLOCK_P_DIVIDER;
+  auto bitsValueMatcher = BitsHaveValue(RCC_PLLCFGR_PLLPDIV_POSITION,
+    RCC_PLLCFGR_PLLPDIV_SIZE,
+    EXPECTED_RCC_PLLCFGR_PLLPDIV_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLPENBitInPLLCFGRRegisterAccordingEnableOutputClockP)
+{
+  constexpr uint32_t RCC_PLLCFGR_PLLPEN_POSITION = 16u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLPEN_VALUE = 0x1;
+  setupPLLRDYReadings();
+  pllConfig.enableOutputClockP = true;
+  auto bitValueMatcher = BitHasValue(RCC_PLLCFGR_PLLPEN_POSITION, EXPECTED_RCC_PLLCFGR_PLLPEN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLQENBitInPLLCFGRRegisterAccordingEnableOutputClockQ)
+{
+  constexpr uint32_t RCC_PLLCFGR_PLLQEN_POSITION = 20u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLQEN_VALUE = 0x1;
+  setupPLLRDYReadings();
+  pllConfig.enableOutputClockQ = true;
+  auto bitValueMatcher = BitHasValue(RCC_PLLCFGR_PLLQEN_POSITION, EXPECTED_RCC_PLLCFGR_PLLQEN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLSetsPLLRENBitInPLLCFGRRegisterAccordingEnableOutputClockR)
+{
+  constexpr uint32_t RCC_PLLCFGR_PLLREN_POSITION = 24u;
+  constexpr uint32_t EXPECTED_RCC_PLLCFGR_PLLREN_VALUE = 0x1;
+  setupPLLRDYReadings();
+  pllConfig.enableOutputClockR = true;
+  auto bitValueMatcher = BitHasValue(RCC_PLLCFGR_PLLREN_POSITION, EXPECTED_RCC_PLLCFGR_PLLREN_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.PLLCFGR), bitValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.PLLCFGR, bitValueMatcher);
+}
+
+TEST_F(AClockControl, ConfigurePLLRequestsTurningOffOfPLLAtTheStartOfTheFunction)
+{
+  constexpr uint32_t RCC_CR_PLLON_POSITION = 24u;
+  constexpr uint32_t EXPECTED_RCC_CR_PLLON_VALUE = 0x0;
+  setupPLLRDYReadings();
+  auto bitsValueMatcher = BitHasValue(RCC_CR_PLLON_POSITION, EXPECTED_RCC_CR_PLLON_VALUE);
+  expectSpecificRegisterSetToBeCalledFirst(&(virtualRCCPeripheral.CR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+}
+
+TEST_F(AClockControl, ConfigurePLLWillNotChangeValueOfAnyRegisterOtherThanCRWhilePLLIsLocked)
+{
+  setupPLLRDYReadings();
+  expectPLLRDYToBeZeroBeforeWrittingToAnyRegisterOtherThanCR();
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+}
+
+TEST_F(AClockControl, ConfigurePLLRequestsTurningOnOfPLLAtTheEndOfTheFunction)
+{
+  constexpr uint32_t RCC_CR_PLLON_POSITION = 24u;
+  constexpr uint32_t EXPECTED_RCC_CR_PLLON_VALUE = 0x1;
+  setupPLLRDYReadings();
+  auto bitsValueMatcher = BitHasValue(RCC_CR_PLLON_POSITION, EXPECTED_RCC_CR_PLLON_VALUE);
+  expectSpecificRegisterSetToBeCalledLast(&(virtualRCCPeripheral.CR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+}
+
+TEST_F(AClockControl, ConfigurePLLWaitsForPLLToTurnOnBeforeReturning)
+{
+  constexpr uint32_t RCC_CR_PLLRDY_POSITION = 25u;
+  constexpr uint32_t EXPECTED_RCC_CR_PLLRDY_VALUE = 0x1;
+  setupPLLRDYReadings();
+  auto bitValueMatcher = BitHasValue(RCC_CR_PLLRDY_POSITION, EXPECTED_RCC_CR_PLLRDY_VALUE);
+
+  const ClockControl::ErrorCode errorCode = virtualClockControl.configurePLL(pllConfig);
 
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(virtualRCCPeripheral.CR, bitValueMatcher);

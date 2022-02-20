@@ -27,9 +27,10 @@ public:
   //! This enum class represents errors which can happen during method calls
   enum class ErrorCode : uint8_t
   {
-    OK                             = 0u,
-    INVALID_CLOCK_SOURCE           = 1u,
-    NOT_IMPLEMENTED_FOR_PERIPHERAL = 2u
+    OK                                = 0u,
+    INVALID_CLOCK_SOURCE              = 1u,
+    NOT_IMPLEMENTED_FOR_PERIPHERAL    = 2u,
+    CLOCK_CAN_NOT_BE_DIRECTLY_ENABLED = 3u
   };
 
   // TODO
@@ -48,6 +49,18 @@ public:
     NO_CLOCK      //!<
   };
 
+  struct PLLConfiguration
+  {
+    uint8_t inputClockDivider;
+    uint8_t inputClockMultiplier;
+    uint8_t outputClockPDivider;
+    uint8_t outputClockQDivider;
+    uint8_t outputClockRDivider;
+    bool    enableOutputClockP;
+    bool    enableOutputClockQ;
+    bool    enableOutputClockR;
+  };
+
   struct PLLSAI2Configuration
   {
     uint8_t inputClockDivider;
@@ -61,6 +74,15 @@ public:
     bool    enableOutputClockR;
   };
 
+
+  /**
+   * TODO
+   */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode enableClock(Clock clock);
+
   /**
    * TODO
    */
@@ -68,6 +90,14 @@ public:
   virtual
 #endif // #ifdef UNIT_TEST
   ErrorCode setClockSource(Clock clock, Clock clockSource);
+
+  /**
+   * TODO
+   */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode configurePLL(const PLLConfiguration &pllConfig);
 
   /**
    * TODO
@@ -131,20 +161,26 @@ private:
   uint32_t getI2C1ClockFrequency(void) const;
 
   ErrorCode setPLLClockSource(Clock clockSource);
+  ErrorCode setSystemClockSource(Clock clockSource);
+  ErrorCode requestUsingGivenClockAsSystemClockSource(Clock clockSource);
 
-  ErrorCode mapToPLLClockSource(Clock clockSource, uint8_t &pllClockSource);
+  Clock getSystemClockSource(void) const;
 
-  void setPLLInputClockDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockDivider);
-  void setPLLInputClockMultiplier(uint32_t &registerValuePLLSAI2CFGR, uint8_t inputClockMultiplier);
-  void setPLLOutputClockRDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockRDivider);
-  void setPLLOutputClockQDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockQDivider);
-  void setPLLOutputClockPDivider(uint32_t &registerValuePLLSAI2CFGR, uint8_t outputClockPDivider);
-  void enableOutputClockP(uint32_t &registerValuePLLSAI2CFGR);
-  void disableOutputClockP(uint32_t &registerValuePLLSAI2CFGR);
-  void enableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR);
-  void disableOutputClockQ(uint32_t &registerValuePLLSAI2CFGR);
-  void enableOutputClockR(uint32_t &registerValuePLLSAI2CFGR);
-  void disableOutputClockR(uint32_t &registerValuePLLSAI2CFGR);
+  static ErrorCode mapToPLLClockSource(Clock clockSource, uint8_t &pllClockSource);
+  static ErrorCode mapToSystemClockSourceRaw(Clock clockSource, uint8_t &systemClockSourceRaw);
+  static Clock mapToSystemClockSource(uint32_t systemClockSourceRaw);
+
+  void setPLLInputClockDivider(uint32_t &registerValuePLLXCFGR, uint8_t inputClockDivider);
+  void setPLLInputClockMultiplier(uint32_t &registerValuePLLXCFGR, uint8_t inputClockMultiplier);
+  void setPLLOutputClockRDivider(uint32_t &registerValuePLLXCFGR, uint8_t outputClockRDivider);
+  void setPLLOutputClockQDivider(uint32_t &registerValuePLLXCFGR, uint8_t outputClockQDivider);
+  void setPLLOutputClockPDivider(uint32_t &registerValuePLLXCFGR, uint8_t outputClockPDivider);
+  void enableOutputClockP(uint32_t &registerValuePLLXCFGR);
+  void disableOutputClockP(uint32_t &registerValuePLLXCFGR);
+  void enableOutputClockQ(uint32_t &registerValuePLLXCFGR);
+  void disableOutputClockQ(uint32_t &registerValuePLLXCFGR);
+  void enableOutputClockR(uint32_t &registerValuePLLXCFGR);
+  void disableOutputClockR(uint32_t &registerValuePLLXCFGR);
   void setLTDCClockDivider(uint8_t ltdcClockDivider);
 
   void turnOffPLLSAI2(void);
@@ -152,6 +188,15 @@ private:
   void requestTurningOffPLLSAI2(void);
   void requestTurningOnPLLSAI2(void);
   bool isPLLSAI2TurnedOn(void) const;
+
+  void turnOnPLL(void);
+  void turnOffPLL(void);
+  void requestTurningOffPLL(void);
+  void requestTurningOnPLL(void);
+  bool isPLLTurnedOn(void) const;
+
+  void enableHSEClock(void);
+  bool isHSEClockReady(void) const;
 
   static const uint32_t s_msiClockFreq[];
 

@@ -31,6 +31,9 @@ LTDC DriverManager::s_ltdcDriverInstance =
 DSIHost DriverManager::s_dsiHostDriverInstance =
   DSIHost(reinterpret_cast<DSI_TypeDef*>(Peripheral::DSIHOST), &s_clockControlDriverInstance, &s_resetControlDriverInstance);
 
+FlashController DriverManager::s_flashControllerDriverInstance =
+  FlashController(reinterpret_cast<FLASH_TypeDef*>(Peripheral::FLASH));
+
 GPIO DriverManager::s_gpioDriverInstance[] =
 {
   [static_cast<uint8_t>(GPIOInstance::GPIOA)] =

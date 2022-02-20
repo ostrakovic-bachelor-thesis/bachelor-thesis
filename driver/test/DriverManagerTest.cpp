@@ -112,3 +112,10 @@ TEST(TheDriverManager, GetsDSIHostInstance)
 
   ASSERT_THAT(dsiHost.getPeripheralTag(), Eq(Peripheral::DSIHOST));
 }
+
+TEST(TheDriverManager, GetsFlashControllerInstance)
+{
+  const FlashController &flashController = DriverManager::getInstance(DriverManager::FlashControllerInstance::GENERIC);
+
+  ASSERT_THAT(flashController.getPeripheralTag(), Eq(Peripheral::FLASH));
+}

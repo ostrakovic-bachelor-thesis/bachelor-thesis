@@ -19,6 +19,7 @@ set(BachelorThesis_driver_component_cpp_sources
     ../driver/src/SystemConfig.cpp
     ../driver/src/LTDC.cpp
     ../driver/src/DSIHost.cpp
+    ../driver/src/FlashController.cpp
     ../driver/src/DriverManager.cpp)
 
 set(BachelorThesis_bsp_component_cpp_sources
