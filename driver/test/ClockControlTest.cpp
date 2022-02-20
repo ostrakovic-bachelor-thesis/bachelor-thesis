@@ -951,3 +951,61 @@ TEST_F(AClockControl, ConfigurePLLWaitsForPLLToTurnOnBeforeReturning)
   ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
   ASSERT_THAT(virtualRCCPeripheral.CR, bitValueMatcher);
 }
+
+TEST_F(AClockControl, SetAHBClockPrescalerSetsValueOfHPREBitsFromCFGRRegisterAccordingToGivenPrescalerValue)
+{
+  constexpr uint32_t RCC_CFGR_HPRE_POSITION = 4u;
+  constexpr uint32_t RCC_CFGR_HPRE_SIZE     = 4u;
+  constexpr uint32_t EXPECTED_RCC_CFGR_HPRE_VALUE = 0b1101;
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_CFGR_HPRE_POSITION, RCC_CFGR_HPRE_SIZE, EXPECTED_RCC_CFGR_HPRE_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.CFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockPrescaler(ClockControl::Clock::AHB, ClockControl::Prescaler::PRESC_128);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, SetClockPrescalerFailsIfPrescalerCanNotBeSetForGivenClock)
+{
+  expectNoRegisterToChange();
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockPrescaler(ClockControl::Clock::HSE, ClockControl::Prescaler::PRESC_2);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::INVALID_CLOCK));
+}
+
+TEST_F(AClockControl, SetAPB1ClockPrescalerSetsValueOfPPRE1BitsFromCFGRRegisterAccordingToGivenPrescalerValue)
+{
+  constexpr uint32_t RCC_CFGR_PPRE1_POSITION = 8u;
+  constexpr uint32_t RCC_CFGR_PPRE1_SIZE     = 3u;
+  constexpr uint32_t EXPECTED_RCC_CFGR_PPRE1_VALUE = 0b110;
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_CFGR_PPRE1_POSITION, RCC_CFGR_PPRE1_SIZE, EXPECTED_RCC_CFGR_PPRE1_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.CFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockPrescaler(ClockControl::Clock::APB1, ClockControl::Prescaler::PRESC_8);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CFGR, bitsValueMatcher);
+}
+
+TEST_F(AClockControl, SetAPB2ClockPrescalerSetsValueOfPPRE2BitsFromCFGRRegisterAccordingToGivenPrescalerValue)
+{
+  constexpr uint32_t RCC_CFGR_PPRE2_POSITION = 11u;
+  constexpr uint32_t RCC_CFGR_PPRE2_SIZE     = 3u;
+  constexpr uint32_t EXPECTED_RCC_CFGR_PPRE2_VALUE = 0b101;
+  auto bitsValueMatcher =
+    BitsHaveValue(RCC_CFGR_PPRE2_POSITION, RCC_CFGR_PPRE2_SIZE, EXPECTED_RCC_CFGR_PPRE2_VALUE);
+  expectSpecificRegisterSetWithNoChangesAfter(&(virtualRCCPeripheral.CFGR), bitsValueMatcher);
+
+  const ClockControl::ErrorCode errorCode =
+    virtualClockControl.setClockPrescaler(ClockControl::Clock::APB2, ClockControl::Prescaler::PRESC_4);
+
+  ASSERT_THAT(errorCode, Eq(ClockControl::ErrorCode::OK));
+  ASSERT_THAT(virtualRCCPeripheral.CFGR, bitsValueMatcher);
+}

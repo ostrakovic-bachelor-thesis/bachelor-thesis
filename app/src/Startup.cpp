@@ -342,50 +342,76 @@ void initDriver(void)
     panic();
   }
 
+  ClockControl::ErrorCode clockControlErrorCode = clockControl.enableClock(ClockControl::Clock::HSE);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
-    clockControl.enableClock(ClockControl::Clock::HSE);
-
-    flashController.setFlashAccessLatency(FlashController::Latency::WAIT_STATE_0);
-
-    powerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
-
-    ClockControl::PLLConfiguration pllConfig =
-    {
-      .inputClockDivider    = 1u,
-      .inputClockMultiplier = 15u,
-      .outputClockPDivider  = 7u,
-      .outputClockQDivider  = 4u,
-      .outputClockRDivider  = 2u,
-      .enableOutputClockP   = false,
-      .enableOutputClockQ   = false,
-      .enableOutputClockR   = true
-    };
-
-    clockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::HSE);
-
-    ClockControl::ErrorCode clockControlErrorCode = clockControl.configurePLL(pllConfig);
-    if (ClockControl::ErrorCode::OK != clockControlErrorCode)
-    {
-      panic();
-    }
-
-    flashController.setFlashAccessLatency(FlashController::Latency::WAIT_STATE_4);
-
-	  // HCLK Configuration
-	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_HPRE);
-	  reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_HPRE_DIV1);
-
-    clockControl.setClockSource(ClockControl::Clock::SYSTEM_CLOCK, ClockControl::Clock::PLL);
-
-	  // PCLK1 Configuration
-    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_PPRE1);
-    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_PPRE1_DIV1);
-
-	  // PCLK2 Configuration
-    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR &= ~(RCC_CFGR_PPRE2);
-    reinterpret_cast<RCC_TypeDef*>(Peripheral::RCC)->CFGR |= (RCC_CFGR_PPRE2_DIV1);
+    panic();
   }
 
+  flashController.setFlashAccessLatency(FlashController::Latency::WAIT_STATE_0);
+
+  powerControlErrorCode =
+    powerControl.setDynamicVoltageScalingRange(PowerControl::DynamicVoltageScalingRange::HIGH_PERFORMANCE_BOOST);
+  if (PowerControl::ErrorCode::OK != powerControlErrorCode)
+  {
+    panic();
+  }
+
+  ClockControl::PLLConfiguration pllConfig =
+  {
+    .inputClockDivider    = 1u,
+    .inputClockMultiplier = 15u,
+    .outputClockPDivider  = 7u,
+    .outputClockQDivider  = 4u,
+    .outputClockRDivider  = 2u,
+    .enableOutputClockP   = false,
+    .enableOutputClockQ   = false,
+    .enableOutputClockR   = true
+  };
+
+  clockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::HSE);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  clockControlErrorCode = clockControl.configurePLL(pllConfig);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  flashController.setFlashAccessLatency(FlashController::Latency::WAIT_STATE_4);
+
+  clockControlErrorCode = clockControl.setClockPrescaler(ClockControl::Clock::AHB, ClockControl::Prescaler::PRESC_2);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  clockControlErrorCode = clockControl.setClockSource(ClockControl::Clock::SYSTEM_CLOCK, ClockControl::Clock::PLL);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  clockControlErrorCode = clockControl.setClockPrescaler(ClockControl::Clock::AHB, ClockControl::Prescaler::PRESC_1);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  clockControlErrorCode = clockControl.setClockPrescaler(ClockControl::Clock::APB1, ClockControl::Prescaler::PRESC_1);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
+
+  clockControlErrorCode = clockControl.setClockPrescaler(ClockControl::Clock::APB2, ClockControl::Prescaler::PRESC_1);
+  if (ClockControl::ErrorCode::OK != clockControlErrorCode)
+  {
+    panic();
+  }
 
   ClockControl::PLLSAI2Configuration pllSai2Config =
   {
@@ -400,7 +426,7 @@ void initDriver(void)
     .enableOutputClockR   = true
   };
 
-  ClockControl::ErrorCode clockControlErrorCode = clockControl.configurePLL(pllSai2Config);
+  clockControlErrorCode = clockControl.configurePLL(pllSai2Config);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
     panic();

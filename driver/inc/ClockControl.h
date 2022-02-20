@@ -28,9 +28,10 @@ public:
   enum class ErrorCode : uint8_t
   {
     OK                                = 0u,
-    INVALID_CLOCK_SOURCE              = 1u,
-    NOT_IMPLEMENTED_FOR_PERIPHERAL    = 2u,
-    CLOCK_CAN_NOT_BE_DIRECTLY_ENABLED = 3u
+    INVALID_CLOCK                     = 1u,
+    INVALID_CLOCK_SOURCE              = 2u,
+    NOT_IMPLEMENTED_FOR_PERIPHERAL    = 3u,
+    CLOCK_CAN_NOT_BE_DIRECTLY_ENABLED = 4u
   };
 
   // TODO
@@ -47,6 +48,19 @@ public:
     APB1,         //!<
     APB2,         //!<
     NO_CLOCK      //!<
+  };
+
+  enum class Prescaler : uint8_t
+  {
+    PRESC_1   = 0b0000,
+    PRESC_2   = 0b1000,
+    PRESC_4   = 0b1001,
+    PRESC_8   = 0b1010,
+    PRESC_16  = 0b1011,
+    PRESC_64  = 0b1100,
+    PRESC_128 = 0b1101,
+    PRESC_256 = 0b1110,
+    PRESC_512 = 0b1111
   };
 
   struct PLLConfiguration
@@ -90,6 +104,14 @@ public:
   virtual
 #endif // #ifdef UNIT_TEST
   ErrorCode setClockSource(Clock clock, Clock clockSource);
+
+  /**
+   * TODO
+   */
+#ifdef UNIT_TEST
+  virtual
+#endif // #ifdef UNIT_TEST
+  ErrorCode setClockPrescaler(Clock clock, Prescaler prescaler);
 
   /**
    * TODO
@@ -163,6 +185,10 @@ private:
   ErrorCode setPLLClockSource(Clock clockSource);
   ErrorCode setSystemClockSource(Clock clockSource);
   ErrorCode requestUsingGivenClockAsSystemClockSource(Clock clockSource);
+
+  void setAHBClockPrescaler(Prescaler prescaler);
+  void setAPB1ClockPrescaler(Prescaler prescaler);
+  void setAPB2ClockPrescaler(Prescaler prescaler);
 
   Clock getSystemClockSource(void) const;
 

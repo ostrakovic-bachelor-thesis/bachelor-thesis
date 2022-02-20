@@ -144,6 +144,30 @@ ClockControl::ErrorCode ClockControl::setClockSource(Clock clock, Clock clockSou
   return errorCode;
 }
 
+ClockControl::ErrorCode ClockControl::setClockPrescaler(Clock clock, Prescaler prescaler)
+{
+  ErrorCode errorCode = ErrorCode::OK;
+
+  if (Clock::AHB == clock)
+  {
+    setAHBClockPrescaler(prescaler);
+  }
+  else if (Clock::APB1 == clock)
+  {
+    setAPB1ClockPrescaler(prescaler);
+  }
+  else if (Clock::APB2 == clock)
+  {
+    setAPB2ClockPrescaler(prescaler);
+  }
+  else
+  {
+    errorCode = ErrorCode::INVALID_CLOCK;
+  }
+
+  return errorCode;
+}
+
 
 ClockControl::ErrorCode ClockControl::configurePLL(const PLLConfiguration &pllConfig)
 {
@@ -844,3 +868,40 @@ void ClockControl::turnOnPLL(void)
   requestTurningOnPLL();
   while (not isPLLTurnedOn());
 }
+
+void ClockControl::setAHBClockPrescaler(Prescaler prescaler)
+{
+  constexpr uint32_t RCC_CFGR_HPRE_POSITION = 4u;
+  constexpr uint32_t RCC_CFGR_HPRE_SIZE     = 4u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_RCCPeripheralPtr->CFGR),
+    RCC_CFGR_HPRE_POSITION,
+    RCC_CFGR_HPRE_SIZE,
+    static_cast<uint32_t>(prescaler));
+}
+
+void ClockControl::setAPB1ClockPrescaler(Prescaler prescaler)
+{
+  constexpr uint32_t RCC_CFGR_PPRE1_POSITION = 8u;
+  constexpr uint32_t RCC_CFGR_PPRE1_SIZE     = 3u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_RCCPeripheralPtr->CFGR),
+    RCC_CFGR_PPRE1_POSITION,
+    RCC_CFGR_PPRE1_SIZE,
+    ((static_cast<uint32_t>(prescaler) & 0b11) | ((static_cast<uint32_t>(prescaler) & 0b1000) >> 1)));
+}
+
+void ClockControl::setAPB2ClockPrescaler(Prescaler prescaler)
+{
+  constexpr uint32_t RCC_CFGR_PPRE2_POSITION = 11u;
+  constexpr uint32_t RCC_CFGR_PPRE2_SIZE     = 3u;
+
+  RegisterUtility<uint32_t>::setBitsInRegister(
+    &(m_RCCPeripheralPtr->CFGR),
+    RCC_CFGR_PPRE2_POSITION,
+    RCC_CFGR_PPRE2_SIZE,
+    ((static_cast<uint32_t>(prescaler) & 0b11) | ((static_cast<uint32_t>(prescaler) & 0b1000) >> 1)));
+}
+
