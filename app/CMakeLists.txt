@@ -39,14 +39,17 @@ set(BachelorThesis_module_component_cpp_sources
     ../module/src/FT3267TouchDevice.cpp)
 
 set(BachelorThesis_app_component_cpp_sources
-    src/DSIHostConfig.cpp
-    src/FT3267Config.cpp
-    src/GPIOConfig.cpp
-    src/I2CConfig.cpp
-    src/LTDCConfig.cpp
-    src/MFXSTM32L152Config.cpp
-    src/RaydiumRM67160Config.cpp
-    src/EXTIConfig.cpp
+    config/DSIHostConfig.cpp
+    config/FT3267Config.cpp
+    config/GPIOConfig.cpp
+    config/I2CConfig.cpp
+    config/LTDCConfig.cpp
+    config/MFXSTM32L152Config.cpp
+    config/RaydiumRM67160Config.cpp
+    config/EXTIConfig.cpp
+    config/ClockControlConfig.cpp
+    config/SysTickConfig.cpp
+    config/USARTConfig.cpp
     src/InterruptDispatcher.cpp
     src/GUIObjectDescription.cpp
     src/Startup.cpp
@@ -66,6 +69,7 @@ add_executable(app ${BachelorThesis_driver_component_cpp_sources}
 
 target_include_directories(app PRIVATE
                            inc
+                           config
                            ../utility/interface
                            ../utility/inc
                            ../driver/inc

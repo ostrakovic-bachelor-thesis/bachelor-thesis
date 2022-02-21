@@ -1,7 +1,4 @@
-#ifndef SYS_TICK_CONFIG_H
-#define SYS_TICK_CONFIG_H
-
-#include "SysTick.h"
+#include "SysTickConfig.h"
 
 
 SysTick::SysTickConfig g_sysTickConfig =
@@ -10,5 +7,3 @@ SysTick::SysTickConfig g_sysTickConfig =
   .enableInterrupt = true,
   .enableOnInit    = true
 };
-
-#endif // #ifndef SYS_TICK_CONFIG_H

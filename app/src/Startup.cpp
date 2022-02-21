@@ -37,11 +37,13 @@
 #include "RaydiumRM67160Config.h"
 #include "EXTIConfig.h"
 #include "AppFrameBuffer.h"
+#include "ClockControlConfig.h"
 
 #include "GUIObjectDescription.h"
 
 void initDriver(void);
 void initBSP(void);
+void initModules(void);
 
 MFXSTM32L152 g_mfx = MFXSTM32L152(
   &DriverManager::getInstance(DriverManager::I2CInstance::I2C1),
@@ -57,6 +59,11 @@ FT3267 g_ft3267 = FT3267(
 
 FT3267TouchDevice g_ft3267TouchDevice(g_ft3267);
 
+ArrayList<GUI::Container::ObjectInfo,5u> g_guiContainerObjectInfoList;
+GUI::Container g_guiContainer = GUI::Container(g_guiContainerObjectInfoList, g_frameBuffer);
+
+bool g_isPlayStarted = true;
+GUI::IObject *g_objectToAnimatePtr = nullptr;
 uint8_t g_brightness = 140u;
 
 void panic(void)
@@ -88,190 +95,30 @@ void ft3267InterruptHandler(void *argumentPtr)
 
 void startup(void)
 {
-  EXTI &exti = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
+  EXTI &exti       = DriverManager::getInstance(DriverManager::EXTIInstance::GENERIC);
   SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
-  USART &usart2 = DriverManager::getInstance(DriverManager::USARTInstance::USART2);
-  DMA2D &dma2d = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
 
   initDriver();
   initBSP();
+  initModules();
 
-  ArrayList<GUI::Container::ObjectInfo,5u> guiContainerObjectInfoList;
-  GUI::Container guiContainer = GUI::Container(guiContainerObjectInfoList, g_frameBuffer);
+  int16_t x = g_objectToAnimatePtr->getPosition(GUI::Position::Tag::CENTER).x;
+  int16_t direction = 1;
+  uint64_t timestamp = sysTick.getTicks();
 
-  GUI::Rectangle backgroundUpPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
-  GUI::Rectangle backgroundDownPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
-  GUI::Image     untzLogoImage(dma2d, sysTick, g_frameBuffer);
-  GUI::Image     brightnessImage(dma2d, sysTick, g_frameBuffer);
-  GUI::Image     playButtonImage(dma2d, sysTick, g_frameBuffer);
-
-  bool isPlayStarted = true;
-
-  backgroundUpPartGuiRectangle.init(g_backgroundUpPartGuiRectangleDescription);
-  backgroundDownPartGuiRectangle.init(g_backgroundDownPartGuiRectangleDescription);
-  untzLogoImage.init(g_untzLogoImageDescription);
-  brightnessImage.init(g_brightnessImageDescription);
-  playButtonImage.init(g_playButtonImageDescription);
-
-  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription =
+  while (true)
   {
-    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
-    {
-      static const GUI::Position firstStartPosition = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
-      static GUI::Position startPosition;
-      static GUI::Point startTouchPoint;
-
-      switch (touchEvent.getType())
-      {
-        case GUI::TouchEvent::Type::TOUCH_START:
-        {
-          startTouchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
-          startPosition   = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
-        }
-        break;
-
-        case GUI::TouchEvent::Type::TOUCH_MOVE:
-        case GUI::TouchEvent::Type::TOUCH_STOP:
-        {
-          const GUI::Point touchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
-          int16_t brightnessChange = static_cast<int16_t>(touchPoint.x) - firstStartPosition.x;
-          if (brightnessChange > 50)
-          {
-            brightnessChange = 50;
-          }
-          if (brightnessChange < -50)
-          {
-            brightnessChange = -50;
-          }
-
-          g_brightness = 140 + 2 * brightnessChange;
-          g_displayRM67160.setDisplayBrightness(g_brightness);
-
-
-          GUI::Position newPosition =
-          {
-            .x   = startPosition.x + static_cast<int16_t>(touchPoint.x) - static_cast<int16_t>(startTouchPoint.x),
-            .y   = startPosition.y,
-            .tag = startPosition.tag
-          };
-
-          if (newPosition.x > (firstStartPosition.x + 50))
-          {
-            newPosition.x = firstStartPosition.x + 50;
-          }
-
-          if (newPosition.x < (firstStartPosition.x - 50))
-          {
-            newPosition.x = firstStartPosition.x - 50;
-          }
-
-          guiRectangle.moveToPosition(newPosition);
-        }
-        break;
-
-        default:
-        {
-          // do nothing
-        }
-        break;
-      }
-    },
-    .argument = nullptr
-  };
-
-  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription2 =
-  {
-    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
-    {
-      switch (touchEvent.getType())
-      {
-        case GUI::TouchEvent::Type::TOUCH_START:
-        {
-          *reinterpret_cast<bool*>(argument) = !(*reinterpret_cast<bool*>(argument));
-        }
-        break;
-
-        case GUI::TouchEvent::Type::TOUCH_MOVE:
-        case GUI::TouchEvent::Type::TOUCH_STOP:
-        default:
-        {
-          // do nothing
-        }
-        break;
-      }
-    },
-    .argument = &isPlayStarted
-  };
-
-  brightnessImage.registerTouchEventCallback(touchEventCallbackDescription);
-  playButtonImage.registerTouchEventCallback(touchEventCallbackDescription2);
-
-  guiContainer.addObject(&backgroundUpPartGuiRectangle, 0u);
-  guiContainer.addObject(&backgroundDownPartGuiRectangle, 1u);
-  guiContainer.addObject(&untzLogoImage, 10u);
-  guiContainer.addObject(&playButtonImage, 15u);
-  guiContainer.addObject(&brightnessImage, 20u);
-
-  GUI::Container::CallbackDescription drawCompletedCallback =
-  {
-    .functionPtr = [](void *argument) { reinterpret_cast<DSIHost*>(argument)->startTransferFromLTDC(); },
-    .argument = &(DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC))
-  };
-
-  guiContainer.registerDrawCompletedCallback(drawCompletedCallback);
-
-  GUI::TouchController touchController;
-  touchController.registerContainer(&guiContainer);
-
-  {
-    GUI::ErrorCode errorCode = g_ft3267TouchDevice.init();
-    if (GUI::ErrorCode::OK != errorCode)
+    EXTI::ErrorCode errorCode = exti.runtimeTask();
+    if (EXTI::ErrorCode::OK != errorCode)
     {
       panic();
     }
 
-    g_ft3267TouchDevice.registerTouchEventListener(&touchController);
-  }
-
-  USARTLogger usartLogger(usart2);
-
-
-  bool ledState      = false;
-  uint32_t timestamp = sysTick.getTicks();
-
-  int16_t x = untzLogoImage.getPosition(GUI::Position::Tag::CENTER).x;
-  int16_t direction = 1;
-
-  StringBuilder<500u> stringBuilder;
-
-  while (true)
-  {
-    const uint64_t ticks = sysTick.getTicks();
-
-    {
-      EXTI::ErrorCode errorCode = exti.runtimeTask();
-      if (EXTI::ErrorCode::OK != errorCode)
-      {
-        panic();
-      }
-    }
-
-    if (sysTick.getElapsedTimeInMs(timestamp) >= 25u)
+    if ((sysTick.getElapsedTimeInMs(timestamp) >= 25u) && g_guiContainer.isDrawCompleted())
     {
       timestamp = sysTick.getTicks();
 
-      // if (ledState)
-      // {
-      //   g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::LOW);
-      // }
-      // else
-      // {
-      //   g_mfx.setGPIOPinState(MFXSTM32L152::GPIOPin::PIN0, MFXSTM32L152::GPIOPinState::HIGH);
-      // }
-
-      // ledState = !ledState;
-
-      if (isPlayStarted)
+      if (g_isPlayStarted)
       {
         if (x >= g_frameBuffer.getWidth())
         {
@@ -284,39 +131,12 @@ void startup(void)
 
         x = x + direction * 3;
 
-        GUI::Position newPosition = untzLogoImage.getPosition(GUI::Position::Tag::CENTER);
+        GUI::Position newPosition = g_objectToAnimatePtr->getPosition(GUI::Position::Tag::CENTER);
         newPosition.x = x;
-        untzLogoImage.moveToPosition(newPosition);
+        g_objectToAnimatePtr->moveToPosition(newPosition);
       }
 
-      guiContainer.draw(GUI::DrawHardware::DMA2D);
-
-      //while (not guiContainer.isDrawCompleted());
-
-      // stringBuilder.reset();
-      // stringBuilder.append("systick: ");
-      // stringBuilder.append(static_cast<uint32_t>(ticks));
-      // stringBuilder.append("\r\nCPU performance:\r\n");
-
-      // uint32_t i = 0u;
-      // for (auto it = guiContainer.getBeginIterator(); it != guiContainer.getEndIterator(); it++)
-      // {
-      //   uint64_t drawingTimeCPUInUs   = -1;
-      //   uint64_t drawingTimeDMA2DInUs = -1;
-      //   (*it)->getDrawingTime(GUI::DrawHardware::CPU, drawingTimeCPUInUs);
-      //   (*it)->getDrawingTime(GUI::DrawHardware::DMA2D, drawingTimeDMA2DInUs);
-      //   stringBuilder.append(i);
-      //   stringBuilder.append(". drawing time DMA2D -> ");
-      //   stringBuilder.append(static_cast<uint32_t>(drawingTimeDMA2DInUs));
-      //   stringBuilder.append("\tCPU -> ");
-      //   stringBuilder.append(static_cast<uint32_t>(drawingTimeCPUInUs));
-      //   stringBuilder.append("\r\n");
-      // }
-
-      // usartLogger.write(stringBuilder);
-
-      //brightness += 10u;
-      //g_displayRM67160.setDisplayBrightness(brightness);
+      g_guiContainer.draw(GUI::DrawHardware::DMA2D);
     }
   }
 }
@@ -357,25 +177,13 @@ void initDriver(void)
     panic();
   }
 
-  ClockControl::PLLConfiguration pllConfig =
-  {
-    .inputClockDivider    = 1u,
-    .inputClockMultiplier = 15u,
-    .outputClockPDivider  = 7u,
-    .outputClockQDivider  = 4u,
-    .outputClockRDivider  = 2u,
-    .enableOutputClockP   = false,
-    .enableOutputClockQ   = false,
-    .enableOutputClockR   = true
-  };
-
   clockControl.setClockSource(ClockControl::Clock::PLL, ClockControl::Clock::HSE);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
     panic();
   }
 
-  clockControlErrorCode = clockControl.configurePLL(pllConfig);
+  clockControlErrorCode = clockControl.configurePLL(g_pllConfig);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
     panic();
@@ -413,20 +221,7 @@ void initDriver(void)
     panic();
   }
 
-  ClockControl::PLLSAI2Configuration pllSai2Config =
-  {
-    .inputClockDivider    = 2u,
-    .inputClockMultiplier = 30u,
-    .outputClockPDivider  = 1u,
-    .outputClockQDivider  = 1u,
-    .outputClockRDivider  = 4u,
-    .ltdcClockDivider     = 4u,
-    .enableOutputClockP   = false,
-    .enableOutputClockQ   = false,
-    .enableOutputClockR   = true
-  };
-
-  clockControlErrorCode = clockControl.configurePLL(pllSai2Config);
+  clockControlErrorCode = clockControl.configurePLL(g_pllSai2Config);
   if (ClockControl::ErrorCode::OK != clockControlErrorCode)
   {
     panic();
@@ -640,4 +435,141 @@ void initBSP(void)
   {
     panic();
   }
+}
+
+void initModules(void)
+{
+  SysTick &sysTick = DriverManager::getInstance(DriverManager::SysTickInstance::GENERIC);
+  DMA2D &dma2d     = DriverManager::getInstance(DriverManager::DMA2DInstance::GENERIC);
+
+  static GUI::Rectangle backgroundUpPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
+  static GUI::Rectangle backgroundDownPartGuiRectangle(dma2d, sysTick, g_frameBuffer);
+  static GUI::Image     untzLogoImage(dma2d, sysTick, g_frameBuffer);
+  static GUI::Image     brightnessImage(dma2d, sysTick, g_frameBuffer);
+  static GUI::Image     playButtonImage(dma2d, sysTick, g_frameBuffer);
+
+  backgroundUpPartGuiRectangle.init(g_backgroundUpPartGuiRectangleDescription);
+  backgroundDownPartGuiRectangle.init(g_backgroundDownPartGuiRectangleDescription);
+  untzLogoImage.init(g_untzLogoImageDescription);
+  brightnessImage.init(g_brightnessImageDescription);
+  playButtonImage.init(g_playButtonImageDescription);
+
+  g_guiContainer.addObject(&backgroundUpPartGuiRectangle, 0u);
+  g_guiContainer.addObject(&backgroundDownPartGuiRectangle, 1u);
+  g_guiContainer.addObject(&untzLogoImage, 10u);
+  g_guiContainer.addObject(&playButtonImage, 15u);
+  g_guiContainer.addObject(&brightnessImage, 20u);
+
+  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription =
+  {
+    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
+    {
+      static const GUI::Position firstStartPosition = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
+      static GUI::Position startPosition;
+      static GUI::Point startTouchPoint;
+
+      switch (touchEvent.getType())
+      {
+        case GUI::TouchEvent::Type::TOUCH_START:
+        {
+          startTouchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
+          startPosition   = guiRectangle.getPosition(GUI::Position::Tag::CENTER);
+        }
+        break;
+
+        case GUI::TouchEvent::Type::TOUCH_MOVE:
+        case GUI::TouchEvent::Type::TOUCH_STOP:
+        {
+          const GUI::Point touchPoint = *(touchEvent.getTouchPoints().getBeginIterator());
+          int16_t brightnessChange = static_cast<int16_t>(touchPoint.x) - firstStartPosition.x;
+          if (brightnessChange > 50)
+          {
+            brightnessChange = 50;
+          }
+          if (brightnessChange < -50)
+          {
+            brightnessChange = -50;
+          }
+
+          g_brightness = 140 + 2 * brightnessChange;
+          g_displayRM67160.setDisplayBrightness(g_brightness);
+
+
+          GUI::Position newPosition =
+          {
+            .x   = startPosition.x + static_cast<int16_t>(touchPoint.x) - static_cast<int16_t>(startTouchPoint.x),
+            .y   = startPosition.y,
+            .tag = startPosition.tag
+          };
+
+          if (newPosition.x > (firstStartPosition.x + 50))
+          {
+            newPosition.x = firstStartPosition.x + 50;
+          }
+
+          if (newPosition.x < (firstStartPosition.x - 50))
+          {
+            newPosition.x = firstStartPosition.x - 50;
+          }
+
+          guiRectangle.moveToPosition(newPosition);
+        }
+        break;
+
+        default:
+        {
+          // do nothing
+        }
+        break;
+      }
+    },
+    .argument = nullptr
+  };
+
+  GUI::Image::TouchEventCallbackDescription touchEventCallbackDescription2 =
+  {
+    .functionPtr = [](void *argument, GUI::RectangleBase &guiRectangle, const GUI::TouchEvent &touchEvent)
+    {
+      switch (touchEvent.getType())
+      {
+        case GUI::TouchEvent::Type::TOUCH_START:
+        {
+          *reinterpret_cast<bool*>(argument) = !(*reinterpret_cast<bool*>(argument));
+        }
+        break;
+
+        case GUI::TouchEvent::Type::TOUCH_MOVE:
+        case GUI::TouchEvent::Type::TOUCH_STOP:
+        default:
+        {
+          // do nothing
+        }
+        break;
+      }
+    },
+    .argument = &g_isPlayStarted
+  };
+
+  brightnessImage.registerTouchEventCallback(touchEventCallbackDescription);
+  playButtonImage.registerTouchEventCallback(touchEventCallbackDescription2);
+  g_objectToAnimatePtr = &untzLogoImage;
+
+  GUI::Container::CallbackDescription drawCompletedCallback =
+  {
+    .functionPtr = [](void *argument) { reinterpret_cast<DSIHost*>(argument)->startTransferFromLTDC(); },
+    .argument = &(DriverManager::getInstance(DriverManager::DSIHostInstance::GENERIC))
+  };
+
+  g_guiContainer.registerDrawCompletedCallback(drawCompletedCallback);
+
+  static GUI::TouchController touchController;
+  touchController.registerContainer(&g_guiContainer);
+
+  GUI::ErrorCode guiErrorCode = g_ft3267TouchDevice.init();
+  if (GUI::ErrorCode::OK != guiErrorCode)
+  {
+    panic();
+  }
+
+  g_ft3267TouchDevice.registerTouchEventListener(&touchController);
 }
